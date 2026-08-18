@@ -112,3 +112,151 @@ with IndexedDB state inspected directly via `page.evaluate` rather than inferred
 alone. Per the M2 context notes, no attempt was made to verify a rendered page thumbnail in the
 document view — that is explicitly deferred to lazy rasterization in M3 and is out of scope for
 this milestone's rubric.
+
+## M3 — Annotation canvas
+
+*(Highest-risk milestone per VERIFICATION.md — verified with extra scrutiny.)*
+
+Verifier run date: 2026-08-18
+Dev server: `npm run dev` on http://localhost:5173/ (Vite), confirmed already running; also spun
+up a one-off production build (`npm run build && npm run preview` on port 4173) purely to isolate
+whether a bug found below was dev-only, then shut that preview server down again.
+Browser: Playwright (Chromium 1.62.1), driven via a Node script using the `playwright` npm
+package directly (no MCP/browser tool was available in this session's toolset).
+
+Test fixtures reused from the M2 run's scratchpad (no external/personal files used):
+- `text3.pdf` — a hand-built 3-page PDF with real embedded text per page (`Sample text page N`).
+
+Setup performed fresh for this milestone: created label schema "Canvas Schema" with three labels
+— "Name" (`#ef4444`, hotkey `1`), "Address" (`#3b82f6`, hotkey `2`), "TempDel" (`#22c55e`, hotkey
+`3`) — created project "Canvas Project" attached to it, uploaded `text3.pdf`, selected it, and
+clicked "Open annotation canvas". IndexedDB was cleared before the run so all state below is from
+this session only. Drags were performed with `page.mouse.move/down/up`, driving real trusted
+mouse events at computed pixel coordinates against the actual rendered `<img>` element; page
+zoom was mostly held at 50% (except during the dedicated zoom test) so the full page fit the
+viewport without scrolling, to keep drag-target math unambiguous.
+
+- ✗ Select a label, draw a box on the page — it appears immediately with the correct label color
+  and name tag — **found a real, 100%-reproducible bug: every single drag-to-draw creates TWO
+  duplicate, perfectly overlapping annotation rows instead of one.** Clicked the "Name" label,
+  dragged a box from (10%,10%) to (30%,25%) on page 1. The canvas rendered 2 identical `<button>`
+  boxes at the exact same position/color, and the region list showed 2 separate "Name" rows for
+  the single drag; a direct IndexedDB read confirmed 2 distinct annotation rows with identical
+  labelId/x/y/width/height and `createdAt` timestamps 1ms apart (call order, not async completion
+  order). Root cause identified in the source: `PageStage.tsx`'s `handleUp()` calls the
+  side-effecting `onCreateAnnotation(finalRect)` *inside* a `setDrag(prev => {...})` functional
+  state-updater callback. React 18 Strict Mode (the app wraps `<App/>` in `<StrictMode>` in
+  `main.tsx`) intentionally invokes state-updater functions passed to `setState` twice in
+  development specifically to surface exactly this kind of impurity — so the side effect
+  (creating a DB row + selecting it) fires twice per drag. Confirmed this is dev-mode-specific:
+  ran the identical drag against a production build (`npm run build && npm run preview`, which
+  does not run Strict Mode's double-invoke checks) and got exactly 1 row. Since the project is
+  normally run via `npm run dev` (as instructed, and as any contributor would during development),
+  this is a real, visible defect for anyone using the app day to day: drawing "a box" always
+  visibly produces two stacked boxes and two region-list rows, not one. Only the color/name-tag
+  rendering itself was otherwise correct (border color exactly matched the label's `#ef4444`,
+  computed as `rgb(239, 68, 68)`; name tag text was "Name"). Screenshot:
+  `verification-screenshots/M3-draw-box-label-color.png` (shows two identical "Name" rows in the
+  region list from one drag).
+- ✓ Draw a box, then release the mouse outside the image bounds (drag off the edge) — confirm it
+  still finalizes correctly — selected "Address", started a drag inside the image at (55%,55%),
+  moved the mouse to viewport coordinates 600px past the actual browser window's own edge
+  (viewport 1700×1000, released at (2300,1600)), and released there. The drag correctly finalized
+  into a real annotation rather than getting stuck or silently dropped, clamped exactly to the
+  image's right/bottom edges (`x+width = 1.0000`, `y+height = 1.0000`). The window-level
+  mousemove/mouseup listeners (rather than element-level) do their job — this specific behavior,
+  which is what this checklist item is about, works correctly. Caveat: like every drag in this
+  session, this single gesture also produced 2 duplicate "Address" rows instead of 1 (same root
+  cause as the item above) — noted here for completeness but not counted as a separate new defect.
+  Screenshot: `verification-screenshots/M3-drag-outside-bounds.png`.
+- ✓ Zoom in, then draw a box — confirm the box's stored coordinates are correct at a different
+  zoom level after zooming back out — zoomed to 175%, drew a box; recorded its IndexedDB fraction
+  (x=0.3497, y=0.0498, w=0.1503, h=0.0999) and independently recomputed its on-screen position as
+  a fraction of the actual rendered image at that zoom (matched the DB values exactly). Zoomed
+  back out to 50% and recomputed the same box's on-screen fraction again — matched the 175%-zoom
+  measurement within 0.01 (both essentially identical), confirming geometry is true 0–1
+  normalized fractions, not pixel values that drift with zoom. Additionally did a full browser
+  reload and re-navigated back into the canvas from scratch (Projects → project → doc → Open
+  annotation canvas): the same annotation id's x/y/width/height in IndexedDB were bit-for-bit
+  unchanged after the reload. Caveat: this drag also produced 2 duplicate rows for the same box
+  (same root cause); the coordinate-normalization property under test held true regardless.
+  Screenshots: `verification-screenshots/M3-zoom-coords-at-175.png`,
+  `verification-screenshots/M3-zoom-coords-at-50.png`.
+- ✓ Navigate to page 2 of a multi-page document, draw a box there, navigate back to page 1 —
+  confirm page 1's boxes are unaffected and page 2's box only shows on page 2 — before
+  navigating, directly confirmed via IndexedDB that page 2's `pages` record had no rasterized
+  `image` blob yet (lazy rasterization not yet triggered). Clicked "Next page"; page 2's record
+  then had a real image blob, and its region list correctly started empty. Drew a "TempDel" box
+  on page 2 (again produced 2 duplicate rows there too, both correctly tagged `pageIndex: 1`).
+  Page 1's 6 existing annotation rows (from the earlier tests) were completely unaffected — same
+  count, same ids, before and after. Navigating back to page 1 showed exactly 6 boxes on screen
+  (matching the 6 DB rows for page 1, none of page 2's box visible); navigating forward to page 2
+  again showed exactly 2 boxes (matching its own 2 DB rows). Screenshots:
+  `verification-screenshots/M3-page2-box.png`, `verification-screenshots/M3-page1-after-page2-box.png`.
+- ✓ Select an existing box, delete it via the Delete key and separately via a delete button — both
+  remove it from the canvas and from IndexedDB after reload — **keyboard case:** drew a fresh
+  "Name" box (which, per the bug above, produced 2 duplicate rows at the same position), clicked
+  directly on the rendered box to select it, pressed the Delete key: the canvas's annotation-box
+  count and the IndexedDB row count both dropped by exactly 1 (removed exactly the one selected
+  row, not both, not zero). A full browser reload + re-navigation into the canvas confirmed the
+  row count stayed reduced — the deletion was permanent, not just a visual/in-memory change.
+  **Button case:** drew a fresh "TempDel" box (2 duplicate rows again), clicked the "Delete"
+  button next to the "TempDel" row in the region list: canvas box count and IndexedDB row count
+  both dropped by exactly 1, and a full reload confirmed persistence. Both delete mechanisms work
+  correctly for the one row each is asked to delete. Caveat (downstream effect of the item-1 bug,
+  not a new defect in delete itself): because each draw leaves behind 2 duplicate rows, a single
+  Delete-key press or Delete-button click removes only one of the two duplicates, so a user would
+  still see what looks like an "un-deleted" box after deleting once — visible in the screenshots
+  below (one identical box remains after each single delete action). Screenshots:
+  `verification-screenshots/M3-delete-key.png`, `verification-screenshots/M3-delete-button.png`.
+- ✓ Resize the browser window while boxes exist — confirm they stay visually aligned with the
+  underlying image — selected an existing box, recorded its on-screen position as a fraction of
+  the image container (x=0.049, y=0.75, w=0.150, h=0.129), resized the browser viewport from
+  1700×1000 down to 1100×750, and re-measured: the fraction was unchanged, confirming no drift.
+  Note on what this actually exercises: in this implementation the page canvas has a fixed pixel
+  size (`page.width * zoom`) that does not itself resize when the browser window resizes — window
+  resize only changes how much of the (possibly larger-than-viewport) canvas is visible/
+  scrollable, not the canvas's own rendered size. So there was strictly nothing here that could
+  have resized out from under the box in this specific action. The more meaningful exercise of the
+  "percentage-based CSS tracks the image's actual rendered size" property is the zoom test above,
+  where the image container's rendered pixel size does genuinely change (per-zoom-level) and the
+  box was shown to track it correctly both ways. Taken together (this resize check + the zoom
+  check), boxes stay aligned with the image under every size change this app actually produces.
+  Screenshots: `verification-screenshots/M3-resize-before.png`, `verification-screenshots/M3-resize-after.png`.
+
+## Supplementary (cheap checks re-run per CLAUDE.md policy)
+
+- `npm run lint` — `eslint .`, exited 0, no output.
+- `npm test` (vitest) — 4 test files, 18 tests, all passed, exited 0. (These unit tests don't
+  exercise the drag-to-draw UI path at all, so they do not catch the duplicate-annotation bug
+  found above — it's specifically a React-rendering/Strict-Mode interaction bug in
+  `PageStage.tsx`, not something a Dexie-level unit test would touch.)
+- `npm run build` — `tsc -b && vite build`, exited 0, produced `dist/`.
+
+## Summary
+
+**M3 has one real, must-fix bug and otherwise passes.** Every drag-to-draw action creates two
+duplicate, perfectly overlapping annotation records instead of one, caused by a side effect
+(`onCreateAnnotation`) being invoked from inside a `setState` functional updater in
+`src/components/canvas/PageStage.tsx`'s `handleUp()`, which React 18 Strict Mode (enabled in
+`src/main.tsx`) deliberately double-invokes in development to catch exactly this class of bug.
+This reproduces on every single box drawn, in the normal `npm run dev` workflow, and is directly
+visible in the UI (two overlapping boxes, two duplicate rows in the region list per drag) — it is
+not a benign double-render artifact. It does NOT reproduce in a production build
+(`vite build && vite preview`), which is why unit tests and a first glance at the built app would
+miss it.
+
+Suggested fix direction (for the implementer, not applied by this verifier): move the
+`onCreateAnnotation(finalRect)` call out of the `setDrag()` updater in `handleUp()` — compute
+`finalRect` from `drag` read via a ref or from the `prev` value returned by a separate, pure
+`setDrag(null)` call, and invoke `onCreateAnnotation` in the event handler body itself (or in a
+`useEffect` keyed off a ref) rather than inside the state-updater callback, so it cannot run twice
+under Strict Mode's double-invocation.
+
+Every other specific behavior in the M3 rubric — off-canvas-release clamping via window-level
+listeners, true 0–1 normalized coordinate storage across zoom changes and full reloads, page
+navigation isolation with lazy rasterization confirmed via IndexedDB, both delete mechanisms
+correctly removing exactly the row they're asked to remove (and that removal persisting after
+reload), and percentage-based box positioning staying aligned with the image across both zoom
+changes and window resizes — was independently verified true via direct IndexedDB inspection and
+on-screen geometry measurement, not just visual impression.

@@ -34,28 +34,40 @@ export function PageStage({
     start: { x: number; y: number }
     current: { x: number; y: number }
   } | null>(null)
+  // Mirrors `drag` for handleUp to read synchronously. Using the setDrag
+  // updater form there (`setDrag(prev => ...)`) to get the latest position
+  // would run onCreateAnnotation as a side effect of a state updater, which
+  // React 18 Strict Mode double-invokes in dev — creating two annotations per
+  // drag. Reading a ref instead keeps the side effect in the event handler,
+  // where it only ever runs once.
+  const dragRef = useRef<typeof drag>(null)
+
+  function updateDrag(next: typeof drag) {
+    dragRef.current = next
+    setDrag(next)
+  }
 
   useEffect(() => {
     if (!drag) return
 
     function handleMove(e: MouseEvent) {
       const rect = containerRef.current?.getBoundingClientRect()
-      if (!rect) return
+      if (!rect || !dragRef.current) return
       const current = pointToNormalized(e.clientX, e.clientY, rect)
-      setDrag((prev) => (prev ? { ...prev, current } : prev))
+      updateDrag({ ...dragRef.current, current })
     }
 
     function handleUp(e: MouseEvent) {
       const rect = containerRef.current?.getBoundingClientRect()
-      setDrag((prev) => {
-        if (!prev || !rect) return null
-        const current = pointToNormalized(e.clientX, e.clientY, rect)
-        const finalRect = rectFromPoints(prev.start, current)
-        if (finalRect.width >= MIN_BOX_SIZE && finalRect.height >= MIN_BOX_SIZE) {
-          onCreateAnnotation(finalRect)
-        }
-        return null
-      })
+      const started = dragRef.current
+      updateDrag(null)
+      if (!started || !rect) return
+
+      const current = pointToNormalized(e.clientX, e.clientY, rect)
+      const finalRect = rectFromPoints(started.start, current)
+      if (finalRect.width >= MIN_BOX_SIZE && finalRect.height >= MIN_BOX_SIZE) {
+        onCreateAnnotation(finalRect)
+      }
     }
 
     window.addEventListener('mousemove', handleMove)
@@ -75,7 +87,7 @@ export function PageStage({
     const rect = containerRef.current?.getBoundingClientRect()
     if (!rect) return
     const start = pointToNormalized(e.clientX, e.clientY, rect)
-    setDrag({ start, current: start })
+    updateDrag({ start, current: start })
   }
 
   const width = page.width * zoom
