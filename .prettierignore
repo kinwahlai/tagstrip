@@ -1,0 +1,7 @@
+dist
+coverage
+node_modules
+.claude
+SPEC.md
+VERIFICATION.md
+CLAUDE.md
