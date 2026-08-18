@@ -260,3 +260,116 @@ correctly removing exactly the row they're asked to remove (and that removal per
 reload), and percentage-based box positioning staying aligned with the image across both zoom
 changes and window resizes — was independently verified true via direct IndexedDB inspection and
 on-screen geometry measurement, not just visual impression.
+
+---
+
+## M3 — Annotation canvas (attempt 2)
+
+Verifier run date: 2026-08-18
+Dev server: `npm run dev` on http://localhost:5173/ (Vite), already running from an earlier
+session in this environment; confirmed responding (HTTP 200) before testing.
+Browser: Playwright (Chromium 1.62.1), driven via a Node script using the `playwright` npm
+package directly (no MCP/browser tool was available in this session's toolset). StrictMode
+confirmed still enabled in `src/main.tsx` (`<StrictMode><App /></StrictMode>`), so this run
+continues to exercise the same double-invocation conditions that exposed the bug in attempt 1.
+
+Context: this is a re-verification pass following a fix to the duplicate-annotation bug found in
+attempt 1 (root cause: `onCreateAnnotation` was called from inside a `setDrag(prev => ...)` React
+state-updater in `PageStage.tsx`, which Strict Mode double-invokes in dev). The fix under test:
+drag position is now also tracked in a `dragRef` ref; `handleUp` reads `dragRef.current` directly
+and calls `onCreateAnnotation` once from its own plain-function body (not from inside a state
+updater). Source reviewed directly (`src/components/canvas/PageStage.tsx`) before testing to
+confirm the described change was actually present — it was, including a code comment explaining
+why the ref (not the updater) is used.
+
+All 6 checklist items were re-run in full this pass (not just the previously-failing item), per
+instruction, since the fix touched shared drag-handling code. Items 2–6 are being **re-confirmed**
+(they passed in attempt 1 too, modulo the duplicate-row caveat noted on each at the time); item 1
+is the **previously-failing item**, re-tested with extra scrutiny (3 separate drags, not 1).
+
+Test fixtures reused from earlier scratchpad session (no external/personal files used):
+`text3.pdf` — a hand-built 3-page PDF with real embedded text per page. IndexedDB was cleared
+before this run so all state below is from this session only. Setup performed fresh: created
+label schema "Canvas Schema" with three labels — "Name" (`#ef4444`, hotkey `1`), "Address"
+(`#3b82f6`, hotkey `2`), "TempDel" (`#22c55e`, hotkey `3`) — created project "Canvas Project"
+attached to it, uploaded `text3.pdf`, opened the annotation canvas. Zoom held at 50% except during
+the dedicated zoom test (175%). Zero `pageerror`/console errors were captured across the entire
+run.
+
+- ✓ **Select a label, draw a box on the page — it appears immediately with the correct label
+  color and name tag** (previously-failing item, re-tested with 3 separate drags to rule out a
+  fluke) — drew three separate boxes in sequence: "Name" (`#ef4444`) at (10%,10%)→(30%,25%),
+  "Address" (`#3b82f6`) at (40%,35%)→(55%,45%), "TempDel" (`#22c55e`) at (60%,60%)→(75%,70%).
+  After **each individual drag**, checked both the on-screen box count and a direct IndexedDB
+  `annotations.getAll()` read: after drag 1, exactly 1 box on screen / 1 DB row (not 2); after
+  drag 2, exactly 2 boxes / 2 DB rows total (i.e. +1, not +2); after drag 3, exactly 3 boxes / 3
+  DB rows total (+1, not +2). Rendered box 1's computed `border-color` was `rgb(239, 68, 68)`
+  (exact match for `#ef4444`), name-tag text was "Name", and its stored geometry
+  (`x=0.0997, y=0.0997, w=0.1993, h=0.1503`) matched the drag coordinates within 0.01. The
+  region-list panel showed exactly one row per label ("TempDel", "Address", "Name" — no
+  duplicates), confirmed visually in screenshot. **The duplicate-row bug is gone across all 3
+  independent drags — the fix holds, it is not a fluke of one lucky drag.**
+  Screenshots: `verification-screenshots/M3b-draw-box1-label-color.png`,
+  `M3b-draw-box2.png`, `M3b-draw-box3.png` (the last one shows all 3 distinct single boxes with
+  3 distinct region-list rows).
+- ✓ Draw a box, then release the mouse outside the image bounds (drag off the edge) — confirm it
+  still finalizes correctly — selected "Address", started a drag inside the image at (15%,75%),
+  moved the mouse 600px past the actual browser window's edge (viewport 1700×1000, released at
+  (2300,1600)). The drag finalized into exactly 1 new annotation row (not 2), clamped precisely to
+  the image's right/bottom edges (`x+width=1.0000`, `y+height=1.0000`). Screenshot:
+  `verification-screenshots/M3b-drag-outside-bounds.png`.
+- ✓ Zoom in, then draw a box — confirm the box's stored coordinates are correct at a different
+  zoom level after zooming back out — zoomed to 175%, drew a box; the drag produced exactly 1 new
+  row (not 2). Stored fraction (`x=0.3497, y=0.0498, w=0.1503, h=0.0999`) matched the intended drag
+  fraction (0.35, 0.05, 0.15, 0.10) within 0.015. Zoomed back to 50%: the same row's x/y/w/h in
+  IndexedDB were bit-for-bit unchanged. Did a full browser reload and renavigated into the canvas
+  from scratch (Projects → project → doc → Open annotation canvas): same row's geometry still
+  bit-for-bit identical. Screenshots: `verification-screenshots/M3b-zoom-coords-at-175.png`,
+  `M3b-zoom-coords-at-50.png`.
+- ✓ Navigate to page 2 of a multi-page document, draw a box there, navigate back to page 1 —
+  confirm page 1's boxes are unaffected and page 2's box only shows on page 2 — before navigating,
+  page 1 had 5 rows (from the 3 draws + 1 clamped-drag + 1 zoom-drag above). Clicked "Next page";
+  page 2's region list/canvas started empty (0 boxes). Drew a "TempDel" box on page 2 — exactly 1
+  new row was added (not 2), tagged `pageIndex: 1`. Page 1's row count was unaffected, staying at
+  5 (verified via direct IndexedDB read, same count before and after the page-2 draw). On-screen
+  box count on page 2 matched its 1 DB row; navigating back to page 1 showed exactly 5 boxes on
+  screen, matching its 5 DB rows. Screenshots: `verification-screenshots/M3b-page2-box.png`,
+  `M3b-page1-after-page2-box.png`.
+- ✓ Select an existing box, delete it via the Delete key and separately via a delete button — both
+  remove it from the canvas and from IndexedDB after reload — **keyboard case:** clicked the first
+  rendered box on page 1 to select it (5 rows present), pressed Delete: row count dropped to
+  exactly 4 (removed exactly 1, not 0, not more), on-screen box count matched the new DB count. A
+  full browser reload + re-navigation into the canvas confirmed the row count stayed at 4 —
+  permanent, not just an in-memory change. **Button case:** clicked a "Delete" button in the
+  region list (4 rows present): row count dropped to exactly 3, on-screen count matched, and a
+  full reload confirmed persistence at 3. Since each draw now produces exactly one row (per the
+  item-1 fix), a single Delete action now visibly and correctly removes the box entirely — no
+  "un-deleted ghost box" remains, unlike attempt 1. Screenshots:
+  `verification-screenshots/M3b-delete-key.png`, `M3b-delete-button.png`.
+- ✓ Resize the browser window while boxes exist — confirm they stay visually aligned with the
+  underlying image — at 175% zoom, selected an existing box, recorded its on-screen position as a
+  fraction of the rendered image (`x=0.3987, y=0.3497, w=0.1503, h=0.0997`), resized the viewport
+  from 1700×1000 down to 1100×750, and re-measured: the fraction was unchanged to 4 decimal
+  places, confirming no drift. Screenshot: `verification-screenshots/M3b-resize-before.png`.
+
+### Supplementary (cheap checks re-run per CLAUDE.md policy)
+
+- `npm run lint` — `eslint .`, exited 0, no output.
+- `npm test` (vitest) — 4 test files, 18 tests, all passed, exited 0.
+- `npm run build` — `tsc -b && vite build`, exited 0, produced `dist/` (main bundle 327KB,
+  pdf.js chunk 427KB + a 2.2MB worker chunk — unrelated to this fix, unchanged from prior builds).
+
+### Summary (attempt 2)
+
+**All 6 M3 checklist items now pass, including the previously-failing item.** The duplicate-
+annotation bug from attempt 1 is confirmed fixed: 3 independent drags in this session each
+produced exactly one canvas box and exactly one IndexedDB row, with zero duplicates, under the
+same conditions (React 18 StrictMode enabled, `npm run dev`) that reliably reproduced 2 rows per
+drag in attempt 1. The fix (`dragRef` read synchronously in `handleUp`'s own function body, rather
+than `onCreateAnnotation` being invoked inside a `setDrag` functional updater) is visible in the
+source and matches the suggested fix direction from the attempt-1 report. As a direct consequence,
+the delete-item checks — which in attempt 1 only ever removed one of a pair of duplicates, leaving
+a visible "ghost" box behind — now behave correctly end-to-end: one Delete action removes the box
+entirely. No new regressions were observed in the previously-passing items (off-canvas-release
+clamping, zoom-coordinate normalization + reload persistence, page-navigation isolation, and
+resize alignment), and `lint`/`test`/`build` all remain clean.
