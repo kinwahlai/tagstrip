@@ -32,6 +32,11 @@ export interface Doc {
   sourceType: 'pdf' | 'image'
   notes?: string
   createdAt: number
+  // Original PDF bytes, kept so unvisited pages can still be rasterized lazily
+  // after a reload (not in SPEC.md's literal Doc shape, but required to make
+  // the lazy-rendering requirement in section 6 survive a reload). Not set for
+  // sourceType "image", where the page's own `image` Blob already is the source.
+  sourceBlob?: Blob
 }
 
 export interface PdfTextItem {
@@ -46,7 +51,11 @@ export interface Page {
   id: string
   documentId: string
   pageIndex: number
-  image: Blob
+  // Undefined until the page is first rendered. Pages are rasterized lazily
+  // (see src/lib/pdf.ts) so uploading a many-page PDF doesn't rasterize every
+  // page up front (SPEC.md section 6). Plain image uploads populate this
+  // immediately since the source file already is the raster.
+  image?: Blob
   width: number
   height: number
   contentType: 'text' | 'scanned' | 'unknown'

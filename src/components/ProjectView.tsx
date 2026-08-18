@@ -1,0 +1,176 @@
+import { useState } from 'react'
+import type { ChangeEvent } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { db } from '../db/db'
+import { addImageDocument, addPdfDocument, deleteDoc } from '../db/docs'
+import { ConfirmDialog } from './ConfirmDialog'
+import { DocDetail } from './DocDetail'
+import type { Doc } from '../db/types'
+
+interface ProjectViewProps {
+  projectId: string
+  onOpenAnnotate: (docId: string) => void
+  onBack: () => void
+}
+
+const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])
+
+export function ProjectView({ projectId, onOpenAnnotate, onBack }: ProjectViewProps) {
+  const project = useLiveQuery(() => db.projects.get(projectId), [projectId])
+  const schema = useLiveQuery(
+    () => (project ? db.labelSchemas.get(project.schemaId) : undefined),
+    [project],
+  )
+  const docs = useLiveQuery(
+    () => db.docs.where('projectId').equals(projectId).sortBy('createdAt'),
+    [projectId],
+  )
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null)
+  const [uploadState, setUploadState] = useState<{
+    filename: string
+    done: number
+    total: number
+  } | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<Doc | null>(null)
+
+  async function handleUpload(e: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? [])
+    e.target.value = ''
+    setError(null)
+
+    for (const file of files) {
+      setUploadState({ filename: file.name, done: 0, total: 1 })
+      try {
+        let docId: string
+        if (file.type === 'application/pdf') {
+          docId = await addPdfDocument(projectId, file, (done, total) =>
+            setUploadState({ filename: file.name, done, total }),
+          )
+        } else if (IMAGE_TYPES.has(file.type)) {
+          docId = await addImageDocument(projectId, file)
+        } else {
+          setError(`Unsupported file type for "${file.name}": ${file.type || 'unknown'}.`)
+          continue
+        }
+        setSelectedDocId(docId)
+      } catch (err) {
+        setError(
+          `Failed to process "${file.name}": ${err instanceof Error ? err.message : String(err)}`,
+        )
+      }
+    }
+    setUploadState(null)
+  }
+
+  async function handleDeleteConfirmed() {
+    if (!pendingDelete) return
+    await deleteDoc(pendingDelete.id)
+    if (selectedDocId === pendingDelete.id) setSelectedDocId(null)
+    setPendingDelete(null)
+  }
+
+  if (project === undefined || docs === undefined) return null
+  if (project === null) return <p className="text-sm text-slate-500">Project not found.</p>
+
+  const selectedDoc = docs.find((d) => d.id === selectedDocId) ?? null
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={onBack}
+        className="text-sm text-indigo-600 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:text-indigo-400"
+      >
+        ← All projects
+      </button>
+      <h1 className="mt-2 text-xl font-semibold text-slate-900 dark:text-slate-100">
+        {project.name}
+      </h1>
+      <p className="text-sm text-slate-500 dark:text-slate-400">
+        Schema: {schema?.name ?? 'unknown'}
+      </p>
+
+      <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-[320px_1fr]">
+        <div>
+          <label
+            htmlFor="doc-upload"
+            className="inline-block cursor-pointer rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-indigo-500"
+          >
+            Upload document
+          </label>
+          <input
+            id="doc-upload"
+            type="file"
+            accept=".pdf,application/pdf,image/png,image/jpeg,image/webp"
+            multiple
+            onChange={handleUpload}
+            className="sr-only"
+          />
+
+          {uploadState && (
+            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400" role="status">
+              Processing {uploadState.filename}
+              {uploadState.total > 1 ? ` (page ${uploadState.done}/${uploadState.total})` : '…'}
+            </p>
+          )}
+          {error && (
+            <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">
+              {error}
+            </p>
+          )}
+
+          {docs.length === 0 ? (
+            <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+              No documents yet. Upload a PDF or image to get started.
+            </p>
+          ) : (
+            <ul className="mt-3 divide-y divide-slate-200 rounded-md border border-slate-200 dark:divide-slate-700 dark:border-slate-700">
+              {docs.map((doc) => (
+                <li key={doc.id} className="flex items-center gap-2 px-3 py-2">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedDocId(doc.id)}
+                    className={`flex-1 truncate text-left text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${
+                      selectedDocId === doc.id
+                        ? 'font-medium text-indigo-700 dark:text-indigo-300'
+                        : 'text-slate-800 dark:text-slate-100'
+                    }`}
+                  >
+                    {doc.filename}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPendingDelete(doc)}
+                    className="rounded px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 dark:text-red-400 dark:hover:bg-red-950"
+                  >
+                    Delete
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div>
+          {selectedDoc ? (
+            <DocDetail doc={selectedDoc} onOpenAnnotate={onOpenAnnotate} />
+          ) : (
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Select a document to view its pages, or upload a new one.
+            </p>
+          )}
+        </div>
+      </div>
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title="Delete document"
+          message={`Delete "${pendingDelete.filename}" and all its annotations? This cannot be undone.`}
+          onConfirm={handleDeleteConfirmed}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
+    </div>
+  )
+}
