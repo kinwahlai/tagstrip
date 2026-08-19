@@ -72,6 +72,7 @@ src/
 ```
 
 - [`SPEC.md`](SPEC.md) — full product spec, data model, and milestone plan
+- [`FORMATS.md`](FORMATS.md) — the native schema-export and project-export JSON shapes
 - [`VERIFICATION.md`](VERIFICATION.md) — the acceptance rubric each milestone was checked against
 - `VERIFICATION_REPORT.md` / `verification-screenshots/` — the record of those checks actually
   being run, kept in the repo as an audit trail

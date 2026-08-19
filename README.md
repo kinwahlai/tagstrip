@@ -21,7 +21,8 @@ server to stand up.
 
 - Rectangle (bounding box) annotation, each with an editable **text transcription field**
 - User-defined, reusable **label schemas** (name, color, optional 1–9 hotkey per label) —
-  create once, reuse across projects
+  create once, reuse across projects, and export/import a schema on its own to share a label set
+  with a team without dragging any documents along
 - **Projects**: a project pairs one label schema with a set of uploaded documents and their
   annotations
 - PDF and image upload, multi-page documents, with pages rasterized lazily (only when you
@@ -31,7 +32,9 @@ server to stand up.
   document
 - Local persistence via IndexedDB — reload the page, everything's still there
 - **Import/export**: a self-describing native JSON format (round-trips a whole project, including
-  the source documents) and a best-effort **Label Studio-compatible export**
+  the source documents), a lightweight standalone schema export/import for sharing just a label
+  set, and a best-effort **Label Studio-compatible export** — see [`FORMATS.md`](FORMATS.md) for
+  the exact shape of each
 - **"Suggest text"** per box: exact text-layer extraction when the page has one (instant, no
   model), falling back to on-device OCR ([Tesseract.js](https://tesseract.projectnaptha.com/),
   English only for now) only when there's no text layer to read from — the OCR engine and its
