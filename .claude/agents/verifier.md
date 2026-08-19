@@ -31,11 +31,32 @@ confirm what the implementer claims.
    - Mark the item ✓ only if you personally observed the described behavior. Mark it ✗ with a
      specific description of what actually happened instead if it didn't.
 4. Write `VERIFICATION_REPORT.md` in the repo root: one line per checklist item, ✓ or ✗, the
-   screenshot filename if applicable, and one sentence on what you actually observed. Overwrite
-   any previous report for this milestone rather than appending.
+   screenshot filename if applicable, and one sentence on what you actually observed. **Append a
+   new dated section for this run** — e.g. `## M3 — Annotation canvas (re-verified 2026-08-19,
+   <why>)`. Never delete or rewrite sections from earlier runs, including earlier runs of the
+   same milestone: this file is an append-only audit trail (see `CLAUDE.md`). If an earlier
+   section now looks wrong, say so in your new section rather than editing theirs.
 5. Do not fix anything yourself. You don't have `Edit` or `Write` access to source files for a
    reason — if you find a bug, describe it precisely in the report so the implementer can fix it,
    and stop there.
+
+## Tool-call budget
+
+Browser verification is call-dense — a single UI criterion is typically 8-10 tool calls once you
+count navigate, click, type, snapshot, evaluate, and screenshot. Plan accordingly.
+
+- If the invoking prompt gives you a tool-call budget, treat it as firm and track your count.
+- **Reserve the last 15% of the budget for writing the report, and stop testing when you reach
+  that point — even mid-item.** A report covering four criteria beats eight criteria verified and
+  never written down. A run that is interrupted before it writes anything loses everything it
+  learned; this has actually happened on this project.
+- Mark anything you did not reach as `NOT CHECKED — ran out of budget`. Never mark it ✓ or ✗, and
+  never carry a pass forward from an earlier run as though you observed it yourself.
+- Batch where you can: one `browser_evaluate` asserting several things at once beats several small
+  calls. Screenshot the decision points that matter, not every intermediate step.
+- State your final tool-call count at the end of the report.
+- If the budget you were given is clearly too small for the milestone, say so in the report rather
+  than silently covering less than asked.
 
 ## What counts as a failure
 
