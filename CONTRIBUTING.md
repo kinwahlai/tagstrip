@@ -5,6 +5,26 @@ Thanks for your interest in contributing! TagStrip is a small, focused tool — 
 classification, multi-user/backend features, model-assisted pre-labeling) before proposing a
 large feature, so you don't spend time on something that's a deliberate non-goal.
 
+## Working with AI coding agents
+
+This repo is actively built and maintained with the help of AI coding agents (Claude Code). If
+you're an agent — or a human directing one — picking up work here, a few pointers before you dive
+in:
+
+- **Read `CLAUDE.md` first.** It's the actual working policy for this repo (implement → verify →
+  fix, one milestone at a time) and it overrides whatever your default approach would otherwise
+  be.
+- `SPEC.md` is the product spec and milestone plan; `VERIFICATION.md` is the acceptance rubric
+  each milestone is checked against.
+- A milestone only counts as done once it's been run in a real browser and checked against
+  `VERIFICATION.md` — not because the code looks right on read-through. `VERIFICATION_REPORT.md`
+  and `verification-screenshots/` are the record of those runs; keep them, don't delete between
+  milestones.
+- Before proposing something that sounds like an obvious improvement, skim the git log and this
+  file's "Updating OCR language data" section — some approaches (multi-language OCR, for one) were
+  already tried, reverted, and written up specifically so the next pass wouldn't have to
+  rediscover why.
+
 ## Development setup
 
 Requires Node.js 20+.
