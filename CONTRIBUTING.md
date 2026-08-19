@@ -58,26 +58,20 @@ src/
 
 ## Updating OCR language data
 
-`public/tessdata/*.traineddata.gz` are static copies of Tesseract's language models — English,
-Chinese (Simplified + Traditional), Malay, Tamil, Thai, and Vietnamese today — checked in so OCR
-works fully offline (no CDN fetch at runtime). Each is sourced from the matching
-`@tesseract.js-data/<code>` devDependency — run `npm run update-tessdata` after bumping those
-packages to refresh all of them.
+`public/tessdata/eng.traineddata.gz` is a static copy of Tesseract's English model, checked in so
+OCR works fully offline (no CDN fetch at runtime). It's sourced from the `@tesseract.js-data/eng`
+devDependency — run `npm run update-tessdata` after bumping that package to refresh the file.
 
-"Suggest text" runs exactly one Tesseract language per call, picked via the `<select>` in the
-canvas sidebar (`BUNDLED_OCR_LANGUAGES` / `DEFAULT_OCR_LANGUAGE`, both in
-`src/lib/ocr/languages.ts`) — it does not combine languages. An earlier version tried Tesseract's
-multi-language mode (joining several languages with `+` in one pass, auto-detecting per character)
-but reverted it after confirming in practice that combining several visually-distinct scripts made
-Tesseract misidentify the script entirely on some inputs (e.g. Chinese text coming back as Tamil),
-not just misread an ambiguous character within one script. A single explicit language per call is
-the only way to guarantee the right model is actually used.
-
-To add another language: install its `@tesseract.js-data/<code>` package as a devDependency, add
-it to the `update-tessdata` script in `package.json`, and add `{ code, label }` to
-`BUNDLED_OCR_LANGUAGES` in `src/lib/ocr/languages.ts` — it'll show up in the picker automatically.
-Each additional language adds to the one-time OCR download for whoever selects it, so weigh that
-against how likely it is to actually appear in your documents.
+English-only is deliberate for now, not an oversight — multi-language support (both a language
+picker and, separately, combining several languages in one Tesseract pass) was tried and reverted.
+The picker mechanism itself worked fine, but two real problems showed up on actual documents: (1)
+combining multiple languages in one pass let Tesseract misidentify the script entirely on some
+inputs (e.g. Chinese text coming back as Tamil), and (2) even with a single language explicitly
+selected, Chinese recognition quality itself was too poor to be useful — the `_best_int` quantized
+traineddata used to keep bundle size small trades away far more accuracy for a script with
+thousands of character classes than it does for English's ~26 letterforms. Revisiting this would
+mean testing the full, non-quantized traineddata (tens of MB instead of ~3MB) before trying to
+bring languages back, not just re-adding the picker UI.
 
 ## Code style
 

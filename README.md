@@ -33,13 +33,9 @@ server to stand up.
 - **Import/export**: a self-describing native JSON format (round-trips a whole project, including
   the source documents) and a best-effort **Label Studio-compatible export**
 - **"Suggest text"** per box: exact text-layer extraction when the page has one (instant, no
-  model), falling back to on-device OCR ([Tesseract.js](https://tesseract.projectnaptha.com/))
-  only when there's no text layer to read from — with an explicit language picker (English,
-  Chinese Simplified/Traditional, Malay, Tamil, Thai, Vietnamese today; defaults to English).
-  Tesseract's multi-language auto-detect turned out unreliable once several visually-distinct
-  scripts were combined, so "Suggest text" always runs exactly the one language you've picked. The
-  OCR engine and its language data are self-hosted (no CDN) and only
-  downloaded the first time OCR is actually needed
+  model), falling back to on-device OCR ([Tesseract.js](https://tesseract.projectnaptha.com/),
+  English only for now) only when there's no text layer to read from — the OCR engine and its
+  language data are self-hosted (no CDN) and only downloaded the first time OCR is actually needed
 - Undo/redo, keyboard-driven workflow (hotkeys per label, arrow-key page nav, Delete key), and a
   responsive layout down to phone widths
 

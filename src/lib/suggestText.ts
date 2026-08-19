@@ -14,19 +14,11 @@ export interface SuggestTextResult {
 //      not cover every region and a manually-overridden page could still have
 //      a usable layer underneath.
 //   2. OCR fallback — only when step 1 finds nothing. Crops the region out of
-//      the page image and runs it through the OCR engine, using exactly the
-//      one Tesseract language code the caller passes (see
-//      src/lib/ocr/languages.ts's BUNDLED_OCR_LANGUAGES/DEFAULT_OCR_LANGUAGE
-//      — combining multiple languages per call was tried and reverted, since
-//      Tesseract could pick the wrong script's model entirely, not just
-//      misread an ambiguous character). The engine module (and its ~4MB+ of
-//      WASM/model assets) is dynamically imported here, so none of it is
-//      fetched unless this branch actually runs.
-export async function suggestText(
-  page: Page,
-  rect: NormalizedRect,
-  ocrLanguage: string,
-): Promise<SuggestTextResult> {
+//      the page image and runs it through the OCR engine (English only — see
+//      src/lib/ocr/tesseract.ts for why multi-language support was reverted).
+//      The engine module (and its ~4MB of WASM/model assets) is dynamically
+//      imported here, so it's never fetched unless this branch actually runs.
+export async function suggestText(page: Page, rect: NormalizedRect): Promise<SuggestTextResult> {
   if (page.textLayer) {
     const extracted = extractTextFromLayer(page.textLayer, rect)
     if (extracted) return { text: extracted, ocrSuggested: false }
@@ -38,6 +30,6 @@ export async function suggestText(
 
   const crop = await cropPageRegion(page.image, rect, page.width, page.height)
   const { tesseractEngine } = await import('./ocr/tesseract')
-  const result = await tesseractEngine.recognize(crop, { lang: ocrLanguage })
+  const result = await tesseractEngine.recognize(crop)
   return { text: result.text, ocrSuggested: true }
 }

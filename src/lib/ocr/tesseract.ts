@@ -8,53 +8,45 @@ import workerUrl from 'tesseract.js/dist/worker.min.js?url'
 import coreUrl from 'tesseract.js-core/tesseract-core-lstm.wasm.js?url'
 import type { OcrEngine } from './types'
 
-// Fallback only — every real call site (suggestText.ts) always passes an
-// explicit language string built from the current OCR language settings.
-const FALLBACK_LANG = 'eng'
+// English only. Multi-language support (a picker, and separately a combined
+// "eng+chi_sim+..." pass) was tried and reverted — see git history — after
+// finding both the language-selection mechanism worked fine but Chinese
+// recognition quality itself was poor on real documents (the "_best_int"
+// quantized traineddata used to keep bundle size down trades away accuracy,
+// much more painfully for a script with thousands of character classes than
+// for English's ~26 letterforms). Revisit with the full, non-quantized
+// Chinese model if that's needed again.
+const LANG = 'eng'
 
 // tesseract.js defaults workerPath/corePath/langPath to jsdelivr CDN URLs.
 // TagStrip is offline-capable by design (SPEC.md section 6), so all three are
 // pointed at locally-bundled assets instead: workerUrl/coreUrl are bundled via
-// Vite's ?url asset import (npm packages, not a CDN), and each language's
-// data is a static file at public/tessdata/<code>.traineddata.gz (copied from
-// the matching @tesseract.js-data npm package — see `npm run update-tessdata`
-// to refresh them). langPath must be a *directory* URL, since tesseract.js
-// always fetches `${langPath}/<code>.traineddata.gz` itself — that fixed
-// filename is why these assets live in public/ rather than going through
-// Vite's content-hashed ?url pipeline.
+// Vite's ?url asset import (npm packages, not a CDN), and the English
+// language data is a static file at public/tessdata/eng.traineddata.gz
+// (copied from the @tesseract.js-data/eng npm package — see
+// `npm run update-tessdata` to refresh it). langPath must be a *directory*
+// URL, since tesseract.js always fetches `${langPath}/eng.traineddata.gz`
+// itself — that fixed filename is why this asset lives in public/ rather
+// than going through Vite's content-hashed ?url pipeline.
 const TESS_LANG_PATH = `${import.meta.env.BASE_URL}tessdata`
 
 let workerPromise: Promise<Worker> | null = null
-let loadedLang: string | null = null
 
-// One worker is reused for the session; switching languages calls
-// worker.reinitialize() rather than spinning up a new worker each time.
-// tesseract.js only re-fetches a language's traineddata the first time it's
-// requested (per-worker), so flipping back and forth between two previously
-// used languages doesn't redownload anything.
-async function getWorker(lang: string): Promise<Worker> {
+function getWorker(): Promise<Worker> {
   if (!workerPromise) {
-    loadedLang = lang
-    workerPromise = createWorker(lang, undefined, {
+    workerPromise = createWorker(LANG, undefined, {
       workerPath: workerUrl,
       corePath: coreUrl,
       langPath: TESS_LANG_PATH,
     })
-    return workerPromise
   }
-
-  const worker = await workerPromise
-  if (loadedLang !== lang) {
-    await worker.reinitialize(lang)
-    loadedLang = lang
-  }
-  return worker
+  return workerPromise
 }
 
 export const tesseractEngine: OcrEngine = {
   name: 'Tesseract',
-  async recognize(imageBlob, options) {
-    const worker = await getWorker(options?.lang || FALLBACK_LANG)
+  async recognize(imageBlob) {
+    const worker = await getWorker()
     const {
       data: { text, confidence },
     } = await worker.recognize(imageBlob)

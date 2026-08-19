@@ -19,13 +19,13 @@ describe('suggestText', () => {
     const page = makePage({
       textLayer: [{ str: 'Jane Doe', x: 0.1, y: 0.1, width: 0.2, height: 0.03 }],
     })
-    const result = await suggestText(page, { x: 0.08, y: 0.09, width: 0.25, height: 0.05 }, 'eng')
+    const result = await suggestText(page, { x: 0.08, y: 0.09, width: 0.25, height: 0.05 })
     expect(result).toEqual({ text: 'Jane Doe', ocrSuggested: false })
   })
 
   it('throws a clear error instead of silently failing when OCR is needed but the page has no image yet', async () => {
     const page = makePage({ contentType: 'scanned', textLayer: undefined, image: undefined })
-    await expect(suggestText(page, { x: 0, y: 0, width: 0.1, height: 0.1 }, 'eng')).rejects.toThrow(
+    await expect(suggestText(page, { x: 0, y: 0, width: 0.1, height: 0.1 })).rejects.toThrow(
       /has not finished rendering/,
     )
   })
