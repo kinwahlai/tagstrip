@@ -126,31 +126,33 @@ export function ProjectView({ projectId, onOpenAnnotate, onBack }: ProjectViewPr
         </p>
       )}
 
+      <div className="mt-4">
+        <label className="inline-block cursor-pointer rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-indigo-500">
+          Upload document
+          <input
+            type="file"
+            accept=".pdf,application/pdf,image/png,image/jpeg,image/webp"
+            multiple
+            onChange={handleUpload}
+            className="sr-only"
+          />
+        </label>
+
+        {uploadState && (
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400" role="status">
+            Processing {uploadState.filename}
+            {uploadState.total > 1 ? ` (page ${uploadState.done}/${uploadState.total})` : '…'}
+          </p>
+        )}
+        {error && (
+          <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">
+            {error}
+          </p>
+        )}
+      </div>
+
       <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-[320px_1fr]">
         <div>
-          <label className="inline-block cursor-pointer rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-indigo-500">
-            Upload document
-            <input
-              type="file"
-              accept=".pdf,application/pdf,image/png,image/jpeg,image/webp"
-              multiple
-              onChange={handleUpload}
-              className="sr-only"
-            />
-          </label>
-
-          {uploadState && (
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400" role="status">
-              Processing {uploadState.filename}
-              {uploadState.total > 1 ? ` (page ${uploadState.done}/${uploadState.total})` : '…'}
-            </p>
-          )}
-          {error && (
-            <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">
-              {error}
-            </p>
-          )}
-
           {docs.length === 0 ? (
             <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
               No documents yet. Upload a PDF or image to get started.
@@ -183,7 +185,7 @@ export function ProjectView({ projectId, onOpenAnnotate, onBack }: ProjectViewPr
           )}
         </div>
 
-        <div>
+        <div className="max-w-md rounded-md border border-slate-200 p-4 dark:border-slate-700">
           {selectedDoc ? (
             <DocDetail doc={selectedDoc} onOpenAnnotate={onOpenAnnotate} />
           ) : (

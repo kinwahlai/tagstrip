@@ -62,7 +62,7 @@ export function DocDetail({
           onBlur={handleNotesBlur}
           rows={3}
           placeholder="Free-form notes about this document..."
-          className="mt-1 w-full max-w-md rounded-md border border-slate-300 px-2 py-1.5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+          className="mt-1 w-full rounded-md border border-slate-300 px-2 py-1.5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
         />
       </div>
 
@@ -71,7 +71,7 @@ export function DocDetail({
         {pages === undefined ? null : (
           <ul
             data-testid="page-nav-strip"
-            className="mt-1 max-w-md divide-y divide-slate-200 rounded-md border border-slate-200 dark:divide-slate-700 dark:border-slate-700"
+            className="mt-1 divide-y divide-slate-200 rounded-md border border-slate-200 dark:divide-slate-700 dark:border-slate-700"
           >
             {pages.map((page) => (
               <li key={page.id} className="flex items-center gap-3 px-3 py-1.5">
