@@ -34,9 +34,10 @@ server to stand up.
   the source documents) and a best-effort **Label Studio-compatible export**
 - **"Suggest text"** per box: exact text-layer extraction when the page has one (instant, no
   model), falling back to on-device OCR ([Tesseract.js](https://tesseract.projectnaptha.com/))
-  only when there's no text layer to read from — with a per-canvas language picker (English,
-  Simplified Chinese, Traditional Chinese today). The OCR engine and its language data are
-  self-hosted (no CDN) and only downloaded the first time OCR is actually needed for that language
+  only when there's no text layer to read from — auto-detecting across every bundled language
+  (English, Chinese Simplified/Traditional, Malay, Tamil, Thai, Vietnamese today) in one pass, no
+  language picker needed. The OCR engine and its language data are self-hosted (no CDN) and only
+  downloaded the first time OCR is actually needed
 - Undo/redo, keyboard-driven workflow (hotkeys per label, arrow-key page nav, Delete key), and a
   responsive layout down to phone widths
 

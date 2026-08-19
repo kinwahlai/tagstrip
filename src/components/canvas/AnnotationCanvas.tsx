@@ -8,7 +8,6 @@ import {
   restoreAnnotation,
 } from '../../db/annotations'
 import { suggestText } from '../../lib/suggestText'
-import { DEFAULT_OCR_LANGUAGE, OCR_LANGUAGES } from '../../lib/ocr/languages'
 import { Toolbar, ZOOM_MIN } from './Toolbar'
 import { PageStageLoader } from './PageStageLoader'
 import { RegionList } from './RegionList'
@@ -58,7 +57,6 @@ export function AnnotationCanvas({ docId, onBack }: AnnotationCanvasProps) {
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null)
   const [undoStack, setUndoStack] = useState<AnnotationCommand[]>([])
   const [redoStack, setRedoStack] = useState<AnnotationCommand[]>([])
-  const [ocrLanguage, setOcrLanguage] = useState(DEFAULT_OCR_LANGUAGE)
   const canvasAreaRef = useRef<HTMLDivElement>(null)
   const didAutoFitZoom = useRef(false)
 
@@ -120,7 +118,7 @@ export function AnnotationCanvas({ docId, onBack }: AnnotationCanvasProps) {
   async function handleSuggestText(id: string) {
     const annotation = annotations?.find((a) => a.id === id)
     if (!annotation || !currentPage) return
-    const result = await suggestText(currentPage, annotation, ocrLanguage)
+    const result = await suggestText(currentPage, annotation)
     await applySuggestedText(id, result.text, result.ocrSuggested)
   }
 
@@ -274,23 +272,6 @@ export function AnnotationCanvas({ docId, onBack }: AnnotationCanvasProps) {
           <h2 className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Regions on this page
           </h2>
-          <div className="flex items-center gap-2 border-b border-slate-200 px-3 pb-2 dark:border-slate-700">
-            <label htmlFor="ocr-language" className="text-xs text-slate-500 dark:text-slate-400">
-              OCR language
-            </label>
-            <select
-              id="ocr-language"
-              value={ocrLanguage}
-              onChange={(e) => setOcrLanguage(e.target.value)}
-              className="rounded border border-slate-300 px-1 py-0.5 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-            >
-              {OCR_LANGUAGES.map((lang) => (
-                <option key={lang.code} value={lang.code}>
-                  {lang.label}
-                </option>
-              ))}
-            </select>
-          </div>
           <RegionList
             annotations={annotations ?? []}
             labelsById={labelsById}
