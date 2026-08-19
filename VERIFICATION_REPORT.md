@@ -375,3 +375,107 @@ a visible "ghost" box behind — now behave correctly end-to-end: one Delete act
 entirely. No new regressions were observed in the previously-passing items (off-canvas-release
 clamping, zoom-coordinate normalization + reload persistence, page-navigation isolation, and
 resize alignment), and `lint`/`test`/`build` all remain clean.
+
+---
+
+## M4 — Import / export
+
+*Verified 2026-08-19. M4.5 (OCR) was deliberately not implemented this pass per explicit
+instruction and is excluded from this section (not treated as a failure of any M4 item).*
+
+**Test setup:** Created a fresh schema ("M4 Verify Schema …") with two labels — "Name" (`#ef4444`,
+hotkey 1) and "Address" (`#3b82f6`, hotkey 2) — and a fresh project attached to it. Uploaded a
+locally-generated 3-page text PDF (`text3.pdf`, real embedded text, no image libraries used to
+build it — raw PDF object/xref bytes written by a small Python script). Drew 3 boxes: "Name" and
+"Address" on page 1, "Address" on page 2 (pageIndex 1), and set the transcription text field on
+the page-1 "Name" region to "John Doe". All Playwright interaction was real mouse drag (`mouse.move
+→ down → move → up`) against the actual rendered `<img>` bounding box, not synthetic DOM events.
+Downloads were captured via `page.waitForEvent('download')` + `download.saveAs()` before/around
+each button click, per the environment note on `<a download>`-triggered downloads.
+
+- ✓ **Export a project's native JSON — confirm it contains the label schema, all annotations with
+  correct page indices, and any transcription text.** Clicked "Export JSON", captured the real
+  downloaded file, and parsed it directly (not read from source code). Verified: `labelSchema.labels`
+  contains both "Name" (`#ef4444`) and "Address" (`#3b82f6`) with their ids; `documents[0].annotations`
+  has exactly 3 entries with `pageIndex` 0, 0, 1 (matching where each box was drawn — the third
+  box, drawn after navigating to page 2, correctly serialized as `pageIndex: 1`, not 0); the
+  "Name" annotation's `text` field is `"John Doe"`, exactly as typed. The PDF's own bytes were
+  embedded as `sourceBase64` (1524 chars, `sourceMimeType: application/pdf`), and per-page
+  `width`/`height`/`contentType` (`1224×1584`, `text`) were present for all 3 pages.
+  Screenshot: `M4-export-json-clicked.png`, `M4-page1-two-boxes.png`, `M4-page2-box.png`.
+
+- ✓ **Import that same file into a fresh project — confirm all annotations reappear correctly
+  positioned.** Used the "Import project…" file picker on the Projects tab with the exact file
+  downloaded above. The app auto-navigated into a brand-new project. Confirmed via direct
+  IndexedDB reads (raw `indexedDB.open('tagstrip')` + `objectStore.getAll()`, not app code) that:
+  project count went from 1 → 2 (a new row, not an overwrite); the new project's `id`, the new
+  doc's `id`, the new annotations' `id`s, and the new label `id`s were all disjoint from the
+  originals (no aliasing); and all 3 imported annotations matched the original 3 bit-for-bit on
+  `pageIndex`, `x`, `y`, `width`, `height`, and `text` (diffs of 0 to 9 decimal places). Beyond the
+  DB check, opened the imported project's document in the actual annotation canvas: page 1 showed
+  the PDF's real text ("Sample text page 1") with the "Name" box (red, labeled "Name", transcription
+  input pre-filled "John Doe") and "Address" box (blue) at visually identical positions to the
+  original; navigating to page 2 showed "Sample text page 2" with the single "Address" box in the
+  right place and page 1's boxes correctly absent. This confirms the import is a fully independent,
+  immediately-viewable document — not a metadata stub. Screenshots: `M4-after-import.png`,
+  `M4-imported-page1-canvas.png`, `M4-imported-page2-canvas.png`.
+
+- ✓ **Export to Label Studio format — confirm paired `bbox`/`label` result entries share the same
+  `id`, coordinates are 0–100 (not 0–1), and `original_width`/`original_height` match the actual
+  page dimensions.** Parsed the real downloaded Label Studio JSON. For every annotation, its
+  `rectangle` (`from_name: bbox`) and `labels` (`from_name: label`) result entries shared the exact
+  same `id` (e.g. both entries for the page-1 "Name" box had `id: 0abafa9f-08a5-4fbf-969c-cab78b66ffe8`,
+  and no other entry reused that id) — 3 annotations, 3 distinct shared ids, confirmed by grouping
+  all result entries by `id` and checking each group was exactly `{rectangle, labels}` (or
+  `{rectangle, labels, textarea}` in the transcription-enabled run). Coordinate values were in the
+  0–100 range (e.g. `x: 9.97, y: 9.97, width: 20.02, height: 15.03` for a box whose normalized
+  fraction was `~0.0997/0.0997/0.2002/0.1503` — a clean ×100 scale-up, not raw 0–1 fractions).
+  `original_width`/`original_height` on every result entry were `1224`/`1584`, matching the native
+  export's own recorded page dimensions for that page exactly. Screenshot:
+  `M4-label-studio-dialog-transcription-checked.png` (dialog mid-use, showing the tag-name fields
+  and checkbox).
+
+- ✓ **If any annotation has transcription text, confirm the Label Studio export only includes a
+  `textarea` result entry when that export option was explicitly enabled — tested both cases.**
+  With "Include transcription text" left unchecked (the default), the downloaded export had zero
+  `textarea` entries anywhere, even though the "Name" annotation had transcription text `"John Doe"`
+  set — confirmed by scanning all result-entry `type` fields across all 3 tasks. Re-opened the
+  dialog, checked the box, exported again: this time exactly one `textarea` entry appeared, on the
+  "Name" annotation's result group (same shared `id` as its `rectangle`/`labels` entries), with
+  `value.text: ["John Doe"]`; the "Address" annotations (which have no transcription text) still
+  had no `textarea` entry even in this transcription-enabled export — confirming the option gates
+  it per-export *and* the field is only emitted per-annotation when that annotation actually has
+  text, not blindly for every annotation once the checkbox is on.
+
+- ✓ **Negative-path check (malformed JSON import, cross-referenced for M5):** Wrote a `.json` file
+  containing only `{"foo": "bar"}` (not a TagStrip export) and selected it via "Import project…".
+  The app did not crash, did not silently no-op, and did not create a phantom project (project
+  count stayed at 2 before and after, confirmed via direct IndexedDB read). Instead it displayed a
+  specific, actionable error message: **"This file is missing a valid \"project.name\" — it
+  doesn't look like a TagStrip export."** — which names the exact missing field and states plainly
+  that the file isn't a recognized export type, rather than a generic "Import failed" or a raw
+  exception string. Screenshot: `M4-malformed-import-error.png`.
+
+### Supplementary (cheap checks re-run per CLAUDE.md policy)
+
+- `npm run lint` — `eslint .`, exited 0, no output.
+- `npm test` (vitest) — 6 test files, 28 tests, all passed, exited 0.
+- `npm run build` — `tsc -b && vite build`, exited 0, produced `dist/` (main bundle 342KB, pdf.js
+  chunk 427KB, pdf worker chunk 2.2MB).
+- Zero `console.error`/`pageerror` events captured across the entire Playwright run (schema/label
+  creation, project creation, PDF upload, 3 box draws across 2 pages, transcription text entry,
+  native export, both Label Studio exports, import, and the malformed-import negative test).
+
+### Summary
+
+**All 5 M4 checklist items pass.** Native export/import round-trips annotations, schema, and
+transcription text with byte-identical geometry and fully independent new IDs; the imported
+project's document is immediately viewable and correctly rendered in the annotation canvas (not a
+metadata stub), consistent with the embedded-PDF-bytes design described for this milestone. The
+Label Studio export correctly pairs `bbox`/`labels` result entries under a shared `id`, scales
+coordinates to 0–100, and reports accurate `original_width`/`original_height`; the transcription
+`textarea` entry is gated both by the export-dialog checkbox and by per-annotation text presence.
+The malformed-JSON import path fails safely with a specific, field-naming error message (relevant
+to the M5 error-message rubric item — this is the exact message a future M5 verification pass
+should compare against). M4.5 (OCR) was not evaluated, per explicit instruction, and its absence
+is not counted against this section.
