@@ -185,9 +185,11 @@ export function ProjectView({ projectId, onOpenAnnotate, onBack }: ProjectViewPr
           )}
         </div>
 
-        <div className="max-w-md rounded-md border border-slate-200 p-4 dark:border-slate-700">
+        <div>
           {selectedDoc ? (
-            <DocDetail doc={selectedDoc} onOpenAnnotate={onOpenAnnotate} />
+            <div className="max-w-md rounded-md border border-slate-200 p-4 dark:border-slate-700">
+              <DocDetail doc={selectedDoc} onOpenAnnotate={onOpenAnnotate} />
+            </div>
           ) : (
             <p className="text-sm text-slate-500 dark:text-slate-400">
               Select a document to view its pages, or upload a new one.
