@@ -42,6 +42,7 @@ Browser: Playwright (Chromium), driven via a Node script using the `playwright` 
 invoked directly through Bash instead)
 
 Test fixtures (synthesized for this run, no external files used):
+
 - `text3.pdf` — a hand-written 3-page PDF (`%PDF-1.4`, real `Catalog`/`Pages`/`Page` objects, a
   Helvetica `Font` resource, content stream `BT /F1 12 Tf 72 700 Td (Sample text page N) Tj ET`
   per page) — has real embedded text via genuine `Tj` operators.
@@ -115,7 +116,7 @@ this milestone's rubric.
 
 ## M3 — Annotation canvas
 
-*(Highest-risk milestone per VERIFICATION.md — verified with extra scrutiny.)*
+_(Highest-risk milestone per VERIFICATION.md — verified with extra scrutiny.)_
 
 Verifier run date: 2026-08-18
 Dev server: `npm run dev` on http://localhost:5173/ (Vite), confirmed already running; also spun
@@ -125,6 +126,7 @@ Browser: Playwright (Chromium 1.62.1), driven via a Node script using the `playw
 package directly (no MCP/browser tool was available in this session's toolset).
 
 Test fixtures reused from the M2 run's scratchpad (no external/personal files used):
+
 - `text3.pdf` — a hand-built 3-page PDF with real embedded text per page (`Sample text page N`).
 
 Setup performed fresh for this milestone: created label schema "Canvas Schema" with three labels
@@ -144,7 +146,7 @@ viewport without scrolling, to keep drag-target math unambiguous.
   the single drag; a direct IndexedDB read confirmed 2 distinct annotation rows with identical
   labelId/x/y/width/height and `createdAt` timestamps 1ms apart (call order, not async completion
   order). Root cause identified in the source: `PageStage.tsx`'s `handleUp()` calls the
-  side-effecting `onCreateAnnotation(finalRect)` *inside* a `setDrag(prev => {...})` functional
+  side-effecting `onCreateAnnotation(finalRect)` _inside_ a `setDrag(prev => {...})` functional
   state-updater callback. React 18 Strict Mode (the app wraps `<App/>` in `<StrictMode>` in
   `main.tsx`) intentionally invokes state-updater functions passed to `setState` twice in
   development specifically to surface exactly this kind of impurity — so the side effect

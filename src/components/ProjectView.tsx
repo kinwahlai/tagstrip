@@ -3,8 +3,10 @@ import type { ChangeEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { addImageDocument, addPdfDocument, deleteDoc } from '../db/docs'
+import { exportProjectToFile } from '../lib/nativeExport'
 import { ConfirmDialog } from './ConfirmDialog'
 import { DocDetail } from './DocDetail'
+import { LabelStudioExportDialog } from './LabelStudioExportDialog'
 import type { Doc } from '../db/types'
 
 interface ProjectViewProps {
@@ -33,6 +35,17 @@ export function ProjectView({ projectId, onOpenAnnotate, onBack }: ProjectViewPr
   } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Doc | null>(null)
+  const [showLabelStudioDialog, setShowLabelStudioDialog] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
+
+  async function handleExportNative() {
+    setExportError(null)
+    try {
+      await exportProjectToFile(projectId)
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : String(err))
+    }
+  }
 
   async function handleUpload(e: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
@@ -90,6 +103,28 @@ export function ProjectView({ projectId, onOpenAnnotate, onBack }: ProjectViewPr
       <p className="text-sm text-slate-500 dark:text-slate-400">
         Schema: {schema?.name ?? 'unknown'}
       </p>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        <button
+          type="button"
+          onClick={handleExportNative}
+          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+        >
+          Export JSON
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowLabelStudioDialog(true)}
+          className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+        >
+          Export to Label Studio…
+        </button>
+      </div>
+      {exportError && (
+        <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">
+          {exportError}
+        </p>
+      )}
 
       <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-[320px_1fr]">
         <div>
@@ -169,6 +204,13 @@ export function ProjectView({ projectId, onOpenAnnotate, onBack }: ProjectViewPr
           message={`Delete "${pendingDelete.filename}" and all its annotations? This cannot be undone.`}
           onConfirm={handleDeleteConfirmed}
           onCancel={() => setPendingDelete(null)}
+        />
+      )}
+
+      {showLabelStudioDialog && (
+        <LabelStudioExportDialog
+          projectId={projectId}
+          onClose={() => setShowLabelStudioDialog(false)}
         />
       )}
     </div>

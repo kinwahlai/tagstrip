@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import type { FormEvent } from 'react'
+import type { ChangeEvent, FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createProject, deleteProject } from '../db/projects'
+import { importNativeExport, parseNativeExport } from '../lib/nativeImport'
 import { ConfirmDialog } from './ConfirmDialog'
 import type { Project } from '../db/types'
 
@@ -17,6 +18,30 @@ export function ProjectManager({ onOpenProject }: ProjectManagerProps) {
   const [schemaId, setSchemaId] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Project | null>(null)
+  const [importError, setImportError] = useState<string | null>(null)
+
+  async function handleImport(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setImportError(null)
+
+    try {
+      const text = await file.text()
+      let json: unknown
+      try {
+        json = JSON.parse(text)
+      } catch {
+        setImportError(`"${file.name}" is not valid JSON — it couldn’t be parsed at all.`)
+        return
+      }
+      const data = parseNativeExport(json)
+      const projectId = await importNativeExport(data)
+      onOpenProject(projectId)
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : String(err))
+    }
+  }
 
   if (projects === undefined || schemas === undefined) return null
 
@@ -47,7 +72,29 @@ export function ProjectManager({ onOpenProject }: ProjectManagerProps) {
 
   return (
     <div>
-      <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Projects</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Projects</h1>
+        <div>
+          <label
+            htmlFor="project-import"
+            className="inline-block cursor-pointer rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-indigo-500 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+          >
+            Import project…
+          </label>
+          <input
+            id="project-import"
+            type="file"
+            accept="application/json,.json"
+            onChange={handleImport}
+            className="sr-only"
+          />
+        </div>
+      </div>
+      {importError && (
+        <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">
+          {importError}
+        </p>
+      )}
 
       {projects.length === 0 ? (
         <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
