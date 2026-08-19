@@ -629,3 +629,131 @@ the `focus-within` styling to actually observe the input as a descendant), or sw
 `peer`/`peer-focus-visible:` styling with the input declared as a `peer` before the label in DOM
 order, or apply the focus-ring class directly based on a `:focus-visible` state tracked in React
 state on the input's `onFocus`/`onBlur`.
+
+---
+
+## M5 — Polish (attempt 2)
+
+*Re-verified 2026-08-19. This pass follows a fix to the file-upload focus-ring bug found in
+attempt 1 (root cause: the `sr-only` `<input type="file">` and its `<label>` were DOM siblings
+associated only via `htmlFor`/`id`, so Tailwind's `focus-within:` variant never triggered).
+Source reviewed directly before testing (`src/components/ProjectView.tsx`,
+`src/components/ProjectManager.tsx`): both `<input type="file">` elements are now nested inside
+their `<label>` (no `id`/`htmlFor` pair — confirmed via DOM dump, `label.contains(input)` is
+`true` for both), and the styling now uses `has-[:focus-visible]:outline...` instead of
+`focus-within:outline...`. All 5 M5 checklist items (matching attempt 1's accounting, including
+the bonus reduced-motion check) were re-run in full, not just the previously-failing item, per
+instruction, since the fix touched shared file-input markup used across two components.*
+
+**Environment:** killed the two stale dev servers left over from earlier sessions and started a
+fresh `npm run dev` (port 5175, since 5173/5174 were in use) so the bundle actually served
+reflects the fix on disk, not an HMR-patched module. Browser: Playwright (Chromium), driven via a
+Node script using the `playwright` npm package directly against a fresh persistent profile (clean
+IndexedDB, `indexedDB.deleteDatabase` run before any test). No MCP browser tool was available in
+this session's toolset. Fixtures: a hand-built 3-page PDF with real embedded text
+(`text3.pdf`, raw PDF bytes written by a small Python script, no PDF library used) and a malformed
+`{"foo": "bar"}` `.json` file, both synthesized fresh in the scratchpad — no files outside the
+repo/scratchpad were used. Test setup: schema "M5b Verify Schema" with one label ("Field",
+indigo `#6366f1`, hotkey 1), project "M5b Verify Project" with `text3.pdf` uploaded (3 pages,
+confirmed "PDF · 3 pages" in UI).
+
+- ✓ **Undo removes the most recent action; redo restores it — verified via IndexedDB.** Drew a
+  box on page 1 (selected "Field", dragged 10%→30% / 10%→25% on the rendered `<img>`); a direct
+  `indexedDB.open('tagstrip')` → `annotations.getAll()` read showed exactly 1 row. Clicked the
+  toolbar **Undo** button (`button[aria-label="Undo"]`): the row count dropped to 0 (the
+  annotation was gone from IndexedDB entirely, not just hidden). Clicked **Redo**
+  (`button[aria-label="Redo"]`): the row count went back to 1, with the exact same `id`
+  (`3573f5e0-...`) and identical `x`/`y`/`width`/`height`/`labelId` as before the undo — a true
+  re-insert, not a new annotation. Separately tested the delete/undo/redo cycle via keyboard:
+  clicked the rendered box to select it, pressed **Delete** (row count → 0), pressed **Ctrl+Z**
+  (row count → 1, same id/geometry as the original), pressed **Ctrl+Shift+Z** (row count → 0
+  again). Zero console/page errors throughout. Screenshots: `M5b-undo-01-box-drawn.png`,
+  `M5b-undo-02-after-undo.png`, `M5b-undo-03-after-redo.png`.
+
+- ✓ **Tab through the interface using only the keyboard — every interactive element has a
+  visible focus outline (previously-failing item, re-tested with extra scrutiny).** Confirmed the
+  fix directly: `page.evaluate` on the focused `document.activeElement` showed, for **both**
+  previously-broken controls, `label.contains(input) === true` (the input is now a real DOM
+  descendant of the label) and the label's own computed style at that focus moment was
+  `outlineStyle: "solid"`, `outlineWidth: "2px"`, `outlineColor` matching the app's indigo accent
+  (`oklch(0.585 0.233 277.117)` ≈ `#6366f1`) — for the **"Import project…"** trigger on the
+  Projects list and the **"Upload document"** trigger on the project/document view. Screenshots
+  taken at the exact focus moment show a clearly visible indigo ring around each button
+  (`M5b-focus-fileupload-project-import.png`, `M5b-focus-fileupload-doc-upload.png`) — a visible,
+  unambiguous change from attempt 1's screenshots of the same controls, which showed no ring at
+  all. Also did a quick regression sweep of 12 Tab stops through the document-detail screen (← All
+  projects, Export JSON, Export to Label Studio…, the file input itself, the uploaded-doc list
+  button, its Delete button, nav Schemas/Projects, wrapping back around) — every non-file-input
+  stop showed `outlineStyle: "solid"`, `outlineWidth: "2px"`, confirming the fix did not regress
+  any of the controls that already passed in attempt 1.
+
+- ✓ **Resize the browser to ~375px wide — the app remains usable, not just visually unbroken.**
+  At 375×812: schema editor, project list, document-detail, and the annotation canvas all showed
+  zero horizontal overflow (`document.documentElement.scrollWidth === clientWidth`, 375=375, on
+  every screen). In the annotation canvas, the region-list `<aside>` (`y=711`, full 375px width)
+  correctly stacked below the page-image pane (single-column layout under the `md:` breakpoint),
+  and the toolbar (label button, zoom, page-nav, Undo/Redo) stayed fully visible without
+  scrolling. Reduced zoom to 50% and drew a box in the visible portion of the page — it rendered
+  correctly and a direct IndexedDB read confirmed a properly normalized fraction
+  (`x:0.049, y:0.126, width:0.147, height:0.076`) was stored, and the region-list panel below
+  showed the new "Field" region with a working Delete button and transcription input, all legible
+  and tappable at this width. Same caveat as attempt 1 (not a failure): the rendered page image
+  itself (612px at 50% zoom) is still wider than the 375px viewport, so viewing/annotating the
+  full width of a page requires horizontal scroll within the image pane — inherent to a
+  px-precise annotation tool, not a layout bug. Screenshots:
+  `M5b-responsive-375-schema-editor.png`, `M5b-responsive-375-project-list.png`,
+  `M5b-responsive-375-doc-detail.png`, `M5b-responsive-375-canvas-top.png`,
+  `M5b-responsive-375-canvas-regionlist.png`, `M5b-responsive-375-draw.png`.
+
+- ✓ **Trigger an error state on purpose — confirm the error message is specific and actionable.**
+  Re-ran all three triggers from attempt 1, fresh:
+  1. **Duplicate label name** — added a second "Field" label (same name, different color) to the
+     schema. Label list stayed at exactly 1 "Field" row; message shown: *"A label named \"Field\"
+     already exists in this schema."*
+  2. **Delete a schema in use by a project** — clicked the (opacity-revealed) Delete button next
+     to "M5b Verify Schema", confirmed in the app's own custom confirm dialog. The schema was
+     **not** deleted (IndexedDB `labelSchemas.getAll()` still returned 1 row afterward; the schema
+     remained in the list, shown with its label count "(1)"); message shown: *"This schema is used
+     by 1 project. Delete or reassign that project first."*
+  3. **Malformed JSON import** — selected a `{"foo": "bar"}` file via "Import project…". No crash,
+     no phantom project (project count in IndexedDB stayed at 1 before and after); message shown:
+     *"This file is missing a valid \"project.name\" — it doesn't look like a TagStrip export."*
+  All three name the specific problem and, where applicable, the remedy — none are generic
+  "something went wrong" messages or silent no-ops. Screenshots:
+  `M5b-error-duplicate-label.png`, `M5b-error-delete-schema-in-use.png`,
+  `M5b-error-malformed-import.png`.
+
+- ✓ **`prefers-reduced-motion: reduce` — nothing looks/behaves differently in a way that suggests
+  missing motion-reduction (vacuous pass, as in attempt 1).** Emulated via
+  `page.emulateMedia({ reducedMotion: 'reduce' })`; confirmed
+  `window.matchMedia('(prefers-reduced-motion: reduce)').matches === true` and that the
+  defensive CSS rule is live (`getComputedStyle(document.body).transitionDuration` /
+  `animationDuration` both pinned to `1e-05s`, matching the `@media (prefers-reduced-motion:
+  reduce)` block in `src/index.css`). Navigated to the Projects screen under this emulation with
+  no layout shift or missing content. Screenshot: `M5b-reduced-motion-projects.png`.
+
+### Supplementary (cheap checks re-run per CLAUDE.md policy)
+
+- `npm run lint` — `eslint .`, exited 0, no output.
+- `npm test` (vitest) — 6 test files, 28 tests, all passed, exited 0.
+- `npm run build` — `tsc -b && vite build`, exited 0, produced `dist/` (main bundle 342.51 KB, css
+  21.76 KB, pdf.js chunk 427.33 KB, pdf worker chunk 2,222.99 KB).
+- Zero `console.error`/`pageerror` events captured across the entire attempt-2 session (schema/
+  label creation, project creation, PDF upload, focus-ring checks on both file inputs, undo/redo
+  round-trips including keyboard shortcuts, all three error-state triggers, and the 375px
+  responsive sweep including a real box draw).
+
+### Summary (attempt 2)
+
+**All 5 M5 checklist items now pass, including the previously-failing focus-states item.** The
+fix — nesting each `sr-only` `<input type="file">` inside its `<label>` (removing the
+`id`/`htmlFor` pair, which is no longer needed once the label wraps its control) and switching the
+ring styling from `focus-within:` to `has-[:focus-visible]:` — is confirmed present in both
+`src/components/ProjectView.tsx` and `src/components/ProjectManager.tsx`, and produces a real,
+visible indigo focus ring on both the "Upload document" and "Import project…" triggers when
+reached by Tab (previously: zero visual change on focus for either control). A 12-stop regression
+sweep through the rest of the document-detail screen confirmed no other control's focus ring
+regressed as a side effect of this change. Undo/redo, the 375px responsive layout, the three
+error-state triggers, and the vacuous reduced-motion check all continue to pass exactly as in
+attempt 1, re-verified fresh in a clean IndexedDB session against a newly started dev server (not
+an HMR-patched one). `lint`/`test`/`build` remain clean.
