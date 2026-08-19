@@ -6,11 +6,16 @@ interface ToolbarProps {
   onSelectLabel: (labelId: string) => void
   zoom: number
   onZoomChange: (zoom: number) => void
+  minZoom: number
   pageIndex: number
   pageCount: number
   onPageChange: (pageIndex: number) => void
 }
 
+// Default zoom bounds. minZoom is only the floor for a "normal"-sized page —
+// AnnotationCanvas passes a smaller value (via the minZoom prop) for pages
+// too large to fit the viewport at 50%, so "zoom out" can always reach a
+// level that actually shows the whole page width.
 export const ZOOM_MIN = 0.5
 export const ZOOM_MAX = 3
 export const ZOOM_STEP = 0.25
@@ -21,6 +26,7 @@ export function Toolbar({
   onSelectLabel,
   zoom,
   onZoomChange,
+  minZoom,
   pageIndex,
   pageCount,
   onPageChange,
@@ -59,7 +65,7 @@ export function Toolbar({
         <div className="flex items-center gap-1">
           <button
             type="button"
-            onClick={() => onZoomChange(Math.max(ZOOM_MIN, zoom - ZOOM_STEP))}
+            onClick={() => onZoomChange(Math.max(minZoom, zoom - ZOOM_STEP))}
             aria-label="Zoom out"
             className="rounded border border-slate-300 px-2 py-1 text-sm hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-600 dark:hover:bg-slate-800"
           >

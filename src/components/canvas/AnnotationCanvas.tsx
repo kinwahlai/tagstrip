@@ -52,6 +52,7 @@ export function AnnotationCanvas({ docId, onBack }: AnnotationCanvasProps) {
 
   const [pageIndex, setPageIndex] = useState(0)
   const [zoom, setZoom] = useState(1)
+  const [minZoom, setMinZoom] = useState(ZOOM_MIN)
   const [selectedLabelId, setSelectedLabelId] = useState<string | null>(null)
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null)
   const [undoStack, setUndoStack] = useState<AnnotationCommand[]>([])
@@ -64,19 +65,30 @@ export function AnnotationCanvas({ docId, onBack }: AnnotationCanvasProps) {
   // Opening a document always starts at 100% zoom otherwise, which is wider
   // than the viewport for most real page sizes — most noticeably on narrow
   // screens, where that meant scrolling sideways just to see the whole page.
-  // Runs once per document open (not on every page navigation, so it never
-  // fights a zoom level the user picked themselves) and never zooms IN past
-  // 100%, only ever out to fit.
+  // The initial fit-to-width only runs once per document open (not on every
+  // page navigation, so it never fights a zoom level the user picked
+  // themselves) and never zooms IN past 100%, only ever out to fit.
+  //
+  // minZoom, on the other hand, is recomputed on every page change: a fixed
+  // 50% floor doesn't fit an oversized page any better than 100% does, so the
+  // floor itself drops (below the usual 50%) whenever a page's true fit-zoom
+  // is smaller than that — otherwise "zoom out" on a very large page hits a
+  // wall well before the whole page is visible.
   useEffect(() => {
-    if (didAutoFitZoom.current) return
     const container = canvasAreaRef.current
     if (!currentPage || !container) return
-    didAutoFitZoom.current = true
 
     const availableWidth = container.clientWidth - PAGE_STAGE_PADDING_X
     if (availableWidth <= 0) return
-    const fitZoom = Math.min(1, availableWidth / currentPage.width)
-    if (fitZoom < 1) setZoom(Math.max(ZOOM_MIN, fitZoom))
+    const fitZoom = availableWidth / currentPage.width
+    const effectiveMinZoom = Math.min(ZOOM_MIN, fitZoom)
+    setMinZoom(effectiveMinZoom)
+
+    if (!didAutoFitZoom.current) {
+      didAutoFitZoom.current = true
+      const initialZoom = Math.min(1, fitZoom)
+      if (initialZoom < 1) setZoom(Math.max(effectiveMinZoom, initialZoom))
+    }
   }, [currentPage])
 
   const annotations = useLiveQuery(
@@ -224,6 +236,7 @@ export function AnnotationCanvas({ docId, onBack }: AnnotationCanvasProps) {
         onSelectLabel={setSelectedLabelId}
         zoom={zoom}
         onZoomChange={setZoom}
+        minZoom={minZoom}
         pageIndex={pageIndex}
         pageCount={pages.length}
         onPageChange={goToPage}
