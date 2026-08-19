@@ -948,3 +948,95 @@ math (e.g. deriving width from `item.width * viewport.scale` and height from the
 rotation/scale magnitude only, the same approach pdf.js's own bundled `text_layer.js` uses,
 rather than transforming `item.width`/`item.height` through the full combined matrix) before this
 item can be marked passing.
+
+---
+
+## M4.5 — OCR assist (attempt 2)
+
+_Verified 2026-08-19, re-run against the fix described for the attempt-1 failure. Dev server:
+`npm run dev` (Vite) on `http://localhost:5173`, already running and reused as-is. Also ran
+`npm run lint` (exit 0) and `npm run build` (exit 0, `tsc -b && vite build` succeeded) and
+`npm test` (`vitest run`, 9 files / 37 tests, all passed, including the new
+`src/lib/pdfTextItemGeometry.test.ts` regression tests) before starting UI checks. Reused the
+exact same fixtures as attempt 1 for direct comparison: the hand-rolled `text-layer.pdf`
+("HELLO TAGSTRIP" at 24pt on a 400×200pt page), the independently-generated
+`text-layer-real.pdf` (Chromium's own PDF printer, same text), `scanned-image.png` (rendered
+"SCANNED WIDGET" text, no text layer), and the 3-page `text3.pdf` used in the M2/M4 passes. All
+interactions were real Playwright mouse drag against the actual rendered `<img>` bounding box,
+same box coordinates/percentages as attempt 1 for apples-to-apples comparison, with IndexedDB
+read directly via raw `indexedDB.open('tagstrip')` (not app code)._
+
+- ✓ **Text-layer extraction returns exact PDF text for a `contentType: text` page, with zero OCR
+  engine network activity — RE-TESTED, NOW PASSES.** Drew the identical box as attempt 1 around
+  "HELLO TAGSTRIP" on `text-layer.pdf` (page confirmed `contentType: text` beforehand) and clicked
+  "Suggest text": the transcription input resolved to the exact string `"HELLO TAGSTRIP"`
+  immediately, with the network request log captured for the full 2s around the click containing
+  **zero** requests of any kind (empty array), let alone any matching `tesseract|traineddata|wasm`
+  — confirming the free text-layer tier now actually short-circuits before touching the network at
+  all. The OCR badge count after the suggestion was 0 (i.e. not tagged as OCR-derived, correctly,
+  since it came from the text layer). Directly inspected the stored `page.textLayer` record in
+  IndexedDB and confirmed the bounding box is now sane and within the valid 0–1 range:
+  `{ str: "HELLO TAGSTRIP", x: 0.1, y: 0.38, width: 0.5135, height: 0.12 }` — a stark contrast to
+  attempt 1's corrupted `{ x: 0.0667, y: -0.3875, width: 6.095, height: 0.54 }` for the equivalent
+  fixture. Repeated the identical flow against the second, independently-generated
+  `text-layer-real.pdf` (Chromium's own PDF printer) as a robustness check, not just the
+  hand-rolled fixture — same result: exact text `"HELLO TAGSTRIP"`, 0 OCR badge, 0 suspicious
+  network requests. As a further regression spot-check, uploaded the 3-page `text3.pdf` (M2/M4
+  fixture, real embedded 12pt Helvetica text, US Letter pages) and read all three pages'
+  `textLayer` records directly from IndexedDB without touching "Suggest text" at all: all three
+  produced sane, near-identical bounding boxes (`x: 0.1176, y: 0.101, width: 0.169,
+  height: 0.0152` for each of "Sample text page 1/2/3"), confirming the fix generalizes beyond the
+  one hand-picked fixture. Screenshots: `M4.5-attempt2-doc-uploaded-textlayer.png`,
+  `M4.5-attempt2-box-drawn-textlayer.png`, `M4.5-attempt2-suggest-text-textlayer-result.png`,
+  `M4.5-attempt2-realpdf-suggest-result.png`.
+
+- ✓ **OCR fallback works on a page with no text layer (plain image upload), producing a
+  plausible transcription, and does fetch the OCR engine — RE-CONFIRMED, still passes.** Uploaded
+  `scanned-image.png` (rendered text "SCANNED WIDGET"); IndexedDB confirmed `contentType: "scanned"`
+  and no `textLayer` field on that page. Drew a box around the text and clicked "Suggest text"
+  with a generous poll (up to 90s): observed the "Suggesting…" busy state, then a resolved value of
+  exactly `"SCANNED WIDGET"` (correct, not empty/garbage) after ~2s in this warm dev-server
+  environment. Network log for the click showed the genuine Tesseract asset-fetch sequence —
+  `src/lib/ocr/tesseract.ts`, `tesseract__js.js`, `tesseract.js/dist/worker.min.js` (x2, module
+  resolution + fetch), `tesseract.js-core/tesseract-core-lstm.wasm.js` (x2), and
+  `tessdata/eng.traineddata.gz` — confirming this tier still genuinely engages the OCR engine
+  rather than silently no-opping. No `[role=alert]` errors, no console errors. This confirms the
+  fix to the text-layer geometry did not regress or short-circuit the OCR fallback path itself.
+  Screenshots: `M4.5-attempt2-box-drawn-image.png`, `M4.5-attempt2-ocr-fallback-result.png`.
+
+- ✓ **OCR engine/weights are not part of the initial page load — RE-CONFIRMED, still passes.**
+  Fresh browser context, loaded the app, waited for `networkidle` plus an extra 1.5s: of 85 total
+  requests, zero matched `tesseract|traineddata|wasm`. Zero console/page errors. Screenshot:
+  `M4.5-attempt2-fresh-load-no-ocr-assets.png`.
+
+- ✓ **OCR badge appears on OCR-derived text (`ocrSuggested: true`) and clears to `false` on
+  manual edit — RE-CONFIRMED, still passes.** After the image-upload OCR run above, the region
+  showed the amber "OCR" badge and the IndexedDB `annotations` record had
+  `{ text: "SCANNED WIDGET", ocrSuggested: true }`. Typed a new value directly into the
+  transcription input ("Manually typed value attempt2"): the badge count dropped from 1 to 0
+  immediately, and re-reading the same IndexedDB record confirmed `ocrSuggested` had flipped to
+  `false` (same annotation `id`, `text` updated to the manually-typed value, `updatedAt` bumped) —
+  a genuine field change, not just a hidden badge. Screenshot:
+  `M4.5-attempt2-ocr-badge-cleared-after-edit.png`.
+
+**M2 regression spot-check (shared `extractPageMetadata` / `textItemBoundingBox` code path used at
+upload time):** Uploaded `text3.pdf` (3 pages, real embedded text, US Letter 612×792pt) to a fresh
+project. IndexedDB `docs` record showed `pageCount: 3` (correct). All 3 `pages` records showed
+`contentType: "text"` (correctly auto-detected, none fell back to `scanned`) with
+`width: 1224, height: 1584` for every page (correct: 612×2 / 792×2 at `RENDER_SCALE=2`, matching
+the dimensions recorded in the original M4 pass exactly), and each had exactly one populated
+`textLayer` entry with a sane, in-range bounding box (see above). No regression from the geometry
+fix in the upload-time code path — page count and dimension detection are unaffected, and the
+text-layer geometry the fix touches is now *more* correct than before, not just different.
+
+### Summary (M4.5, attempt 2)
+
+4 of 4 checklist items now pass, plus a clean M2 regression spot-check. The bug found in attempt 1
+— `extractPageMetadata` double-applying the font-size scale when computing text-layer item
+bounding boxes, which inflated boxes far outside 0–1 and made the free text-layer tier of
+"Suggest text" permanently unreachable — is fixed. Verified directly: the stored `textLayer`
+records are now sane (`0 ≤ x,y,width,height`, values that make geometric sense against the page
+size and font size), "Suggest text" on a `contentType: text` page now resolves to the exact PDF
+text with zero network activity (checked against two independently-generated PDF fixtures), and
+none of the previously-passing OCR-fallback / no-preload / badge-lifecycle behavior regressed as a
+side effect of the fix. `npm run lint`, `npm test`, and `npm run build` all exit 0.
