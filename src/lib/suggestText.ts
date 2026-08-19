@@ -14,12 +14,14 @@ export interface SuggestTextResult {
 //      not cover every region and a manually-overridden page could still have
 //      a usable layer underneath.
 //   2. OCR fallback — only when step 1 finds nothing. Crops the region out of
-//      the page image and runs it through the OCR engine. ocrLanguage is the
-//      '+'-joined Tesseract language string to run (see
-//      src/lib/ocr/languages.ts's buildOcrLanguage) — the caller decides it,
-//      since which Chinese script to include isn't knowable here. The engine
-//      module (and its ~4MB+ of WASM/model assets) is dynamically imported
-//      here, so none of it is fetched unless this branch actually runs.
+//      the page image and runs it through the OCR engine, using exactly the
+//      one Tesseract language code the caller passes (see
+//      src/lib/ocr/languages.ts's BUNDLED_OCR_LANGUAGES/DEFAULT_OCR_LANGUAGE
+//      — combining multiple languages per call was tried and reverted, since
+//      Tesseract could pick the wrong script's model entirely, not just
+//      misread an ambiguous character). The engine module (and its ~4MB+ of
+//      WASM/model assets) is dynamically imported here, so none of it is
+//      fetched unless this branch actually runs.
 export async function suggestText(
   page: Page,
   rect: NormalizedRect,

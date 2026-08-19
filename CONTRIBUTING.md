@@ -64,20 +64,20 @@ works fully offline (no CDN fetch at runtime). Each is sourced from the matching
 `@tesseract.js-data/<code>` devDependency — run `npm run update-tessdata` after bumping those
 packages to refresh all of them.
 
-"Suggest text" runs every bundled language combined in one Tesseract pass (see
-`buildOcrLanguage()` in `src/lib/ocr/languages.ts`, which joins them with `+`) rather than asking
-the user to pick a script — Tesseract auto-detects per-character which one fits. The one exception
-is Simplified vs Traditional Chinese: they share so many identical or near-identical characters
-that combining both lets Tesseract pick the wrong script's reading for an ambiguous glyph (seen in
-practice — simplified text misread as traditional), so that one choice stays a small toggle in the
-canvas sidebar (`CHINESE_SCRIPT_OPTIONS`) instead of being auto-combined.
+"Suggest text" runs exactly one Tesseract language per call, picked via the `<select>` in the
+canvas sidebar (`BUNDLED_OCR_LANGUAGES` / `DEFAULT_OCR_LANGUAGE`, both in
+`src/lib/ocr/languages.ts`) — it does not combine languages. An earlier version tried Tesseract's
+multi-language mode (joining several languages with `+` in one pass, auto-detecting per character)
+but reverted it after confirming in practice that combining several visually-distinct scripts made
+Tesseract misidentify the script entirely on some inputs (e.g. Chinese text coming back as Tamil),
+not just misread an ambiguous character within one script. A single explicit language per call is
+the only way to guarantee the right model is actually used.
 
-To add another (non-Chinese) language: install its `@tesseract.js-data/<code>` package as a
-devDependency, add it to the `update-tessdata` script in `package.json`, and add `{ code, label }`
-to `BUNDLED_OCR_LANGUAGES` in `src/lib/ocr/languages.ts` — `buildOcrLanguage()` picks it up
-automatically. Each additional language adds to the one-time OCR download and to how long that
-first "Suggest text" call takes to initialize, so weigh that against how likely it is to actually
-appear in your documents.
+To add another language: install its `@tesseract.js-data/<code>` package as a devDependency, add
+it to the `update-tessdata` script in `package.json`, and add `{ code, label }` to
+`BUNDLED_OCR_LANGUAGES` in `src/lib/ocr/languages.ts` — it'll show up in the picker automatically.
+Each additional language adds to the one-time OCR download for whoever selects it, so weigh that
+against how likely it is to actually appear in your documents.
 
 ## Code style
 

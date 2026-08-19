@@ -4,7 +4,14 @@ export interface OcrLanguageOption {
 }
 
 // Every language whose model is bundled under public/tessdata/ (see
-// `npm run update-tessdata` and CONTRIBUTING.md).
+// `npm run update-tessdata` and CONTRIBUTING.md). "Suggest text" runs exactly
+// ONE of these per call, picked via the canvas's OCR language selector — not
+// combined. Tesseract's multi-language mode was tried first (see git history)
+// but proved unreliable once several visually-distinct scripts were combined
+// in one pass: it would sometimes identify the wrong script entirely (e.g.
+// Chinese text coming back as Tamil), not just misread an ambiguous
+// character. A single explicit language per call is the only way to
+// guarantee Tesseract actually uses the right model.
 export const BUNDLED_OCR_LANGUAGES: OcrLanguageOption[] = [
   { code: 'eng', label: 'English' },
   { code: 'chi_sim', label: '简体中文 (Chinese Simplified)' },
@@ -15,27 +22,4 @@ export const BUNDLED_OCR_LANGUAGES: OcrLanguageOption[] = [
   { code: 'vie', label: 'Tiếng Việt (Vietnamese)' },
 ]
 
-// "Suggest text" auto-combines every bundled language into one Tesseract
-// pass EXCEPT Simplified vs Traditional Chinese — those two share so many
-// identical or near-identical characters that combining both lets Tesseract
-// pick the wrong script's reading for an ambiguous glyph (confirmed in
-// practice: simplified text coming back misread as traditional). The other
-// languages here are visually distinct enough from each other that this
-// isn't a problem. So Chinese script is the one thing still a user choice —
-// everything else stays fully automatic.
-export const CHINESE_SCRIPT_OPTIONS: OcrLanguageOption[] = [
-  { code: 'chi_sim', label: '简体 (Simplified)' },
-  { code: 'chi_tra', label: '繁體 (Traditional)' },
-]
-
-export const DEFAULT_CHINESE_SCRIPT = 'chi_sim'
-
-const NON_CHINESE_OCR_CODES = BUNDLED_OCR_LANGUAGES.map((lang) => lang.code).filter(
-  (code) => code !== 'chi_sim' && code !== 'chi_tra',
-)
-
-// Builds the '+'-joined language string Tesseract expects: every non-Chinese
-// language plus whichever Chinese script the user picked.
-export function buildOcrLanguage(chineseScript: string): string {
-  return [...NON_CHINESE_OCR_CODES, chineseScript].join('+')
-}
+export const DEFAULT_OCR_LANGUAGE = 'eng'
