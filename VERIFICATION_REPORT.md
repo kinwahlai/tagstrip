@@ -380,8 +380,8 @@ resize alignment), and `lint`/`test`/`build` all remain clean.
 
 ## M4 — Import / export
 
-*Verified 2026-08-19. M4.5 (OCR) was deliberately not implemented this pass per explicit
-instruction and is excluded from this section (not treated as a failure of any M4 item).*
+_Verified 2026-08-19. M4.5 (OCR) was deliberately not implemented this pass per explicit
+instruction and is excluded from this section (not treated as a failure of any M4 item)._
 
 **Test setup:** Created a fresh schema ("M4 Verify Schema …") with two labels — "Name" (`#ef4444`,
 hotkey 1) and "Address" (`#3b82f6`, hotkey 2) — and a fresh project attached to it. Uploaded a
@@ -444,7 +444,7 @@ each button click, per the environment note on `<a download>`-triggered download
   "Name" annotation's result group (same shared `id` as its `rectangle`/`labels` entries), with
   `value.text: ["John Doe"]`; the "Address" annotations (which have no transcription text) still
   had no `textarea` entry even in this transcription-enabled export — confirming the option gates
-  it per-export *and* the field is only emitted per-annotation when that annotation actually has
+  it per-export _and_ the field is only emitted per-annotation when that annotation actually has
   text, not blindly for every annotation once the checkbox is on.
 
 - ✓ **Negative-path check (malformed JSON import, cross-referenced for M5):** Wrote a `.json` file
@@ -484,10 +484,10 @@ is not counted against this section.
 
 ## M5 — Polish
 
-*Verified 2026-08-19. Dev server run via `npm run dev` (Vite, port 5174 since 5173 was already in
+_Verified 2026-08-19. Dev server run via `npm run dev` (Vite, port 5174 since 5173 was already in
 use). All interactions below were performed via real Playwright automation (Chromium 1234, driven
 through a persistent browser profile so IndexedDB state survived across separate script
-invocations) against the actual running app — not by reading source and assuming behavior.*
+invocations) against the actual running app — not by reading source and assuming behavior._
 
 **Test setup:** Reused/created a schema ("M5 Verify Schema") with one label ("Field", indigo,
 hotkey 1) and a project ("M5 Verify Project") with the same 3-page `text3.pdf` fixture used in the
@@ -525,8 +525,8 @@ M4 pass (locally generated, real embedded text, no external libraries).
   by Tab.** Root cause: in both `ProjectView.tsx` and `ProjectManager.tsx`, the visually-hidden
   (`sr-only`) `<input type="file">` and its `<label>` are **siblings**, not parent/child — e.g.
   `<div><label for="doc-upload" class="...focus-within:outline...">Upload document</label><input
-  id="doc-upload" class="sr-only" .../></div>`. Tailwind's `focus-within:` only applies when the
-  focused element is a *descendant* of the styled element; since the input is a sibling, not a
+id="doc-upload" class="sr-only" .../></div>`. Tailwind's `focus-within:` only applies when the
+  focused element is a _descendant_ of the styled element; since the input is a sibling, not a
   child, of the label, focusing the input via Tab never triggers the label's `focus-within`
   styling. Confirmed programmatically: `page.evaluate` showed `label.contains(input)` is `false`
   for both `#doc-upload` and `#project-import`, and the label's own computed `outlineStyle` stayed
@@ -545,14 +545,14 @@ M4 pass (locally generated, real embedded text, no external libraries).
   `clientWidth` exactly, 375=375) and every control (rename/delete, create form, content-type
   override selects) stayed legibly sized and tappable — confirmed by screenshot, not just the
   overflow check. In the annotation canvas specifically, the region-list `<aside>` correctly
-  stacked *below* the page-image pane (confirmed via `getBoundingClientRect`: aside `y=707`,
+  stacked _below_ the page-image pane (confirmed via `getBoundingClientRect`: aside `y=707`,
   belonging to the `md:flex-row` → single-column layout below Tailwind's 768px breakpoint) and
   remained fully usable there — its Delete button and transcription input were both interactable
   and correctly sized (region button bounding box 296×20px, well within the 375px viewport). The
   toolbar (label buttons, zoom −/+, page-nav arrows, Undo/Redo) wrapped cleanly via `flex-wrap`
   and stayed fully visible without scrolling. One caveat worth flagging (not treated as a failure):
   at 375px the PDF page image itself is still wider than the viewport even at the app's minimum
-  zoom of 50% (612px rendered vs. 375px viewport), so viewing/drawing across the *entire* page
+  zoom of 50% (612px rendered vs. 375px viewport), so viewing/drawing across the _entire_ page
   width in one glance requires horizontal scroll within the dedicated image pane. This is not
   "broken" — actually drew a box in the visible portion of the image at 50% zoom on page 2 and
   confirmed via IndexedDB that a correctly-proportioned normalized box was stored
@@ -569,20 +569,20 @@ M4 pass (locally generated, real embedded text, no external libraries).
   field-naming messages rather than generic failures:
   1. **Duplicate label name** — added a second label named "Field" (identical to an existing one)
      in the same schema. The app did not create a duplicate (label list still showed exactly one
-     "Field" row afterward) and displayed: *"A label named \"Field\" already exists in this
-     schema."* — naming the exact conflicting value.
+     "Field" row afterward) and displayed: _"A label named \"Field\" already exists in this
+     schema."_ — naming the exact conflicting value.
   2. **Delete a schema in use by a project** — clicked Delete on "M5 Verify Schema" while a project
      was still attached to it, confirmed the delete in the confirmation dialog. The app blocked the
-     deletion (schema still present in the list afterward) and displayed: *"This schema is used by
-     1 project. Delete or reassign that project first."* — stating the exact reason and what to do
+     deletion (schema still present in the list afterward) and displayed: _"This schema is used by
+     1 project. Delete or reassign that project first."_ — stating the exact reason and what to do
      about it, not a generic "cannot delete" message.
   3. **Malformed JSON import** (cross-referencing the M4 pass's finding, re-run here fresh) —
      imported a `{"foo": "bar"}` file via "Import project…". No crash, no phantom project created,
-     and the message: *"This file is missing a valid \"project.name\" — it doesn't look like a
-     TagStrip export."*
-  All three messages name the specific problem and, where applicable, the remedy.
-  Screenshots: `M5-error-duplicate-label.png`, `M5-error-delete-schema-in-use.png`,
-  `M5-error-malformed-import.png`.
+     and the message: _"This file is missing a valid \"project.name\" — it doesn't look like a
+     TagStrip export."_
+     All three messages name the specific problem and, where applicable, the remedy.
+     Screenshots: `M5-error-duplicate-label.png`, `M5-error-delete-schema-in-use.png`,
+     `M5-error-malformed-import.png`.
 
 - ✓ **`prefers-reduced-motion: reduce` — confirm nothing looks/behaves differently in a way that
   suggests missing motion-reduction (vacuous pass, no animations exist to reduce).** Emulated via
@@ -620,7 +620,7 @@ inherent) caveat about needing horizontal scroll to see a full wide page at once
 specific and actionable in all three cases tested (duplicate label, schema-in-use deletion,
 malformed import). **Focus states fail specifically for the two file-upload trigger controls**
 ("Upload document" and "Import project…") due to a `focus-within` CSS class being applied to a
-`<label>` that is a DOM *sibling* rather than *parent* of the `sr-only` file input it's meant to
+`<label>` that is a DOM _sibling_ rather than _parent_ of the `sr-only` file input it's meant to
 visually represent — Tab navigation reaches the input but produces no visible indication anywhere
 on screen that it has focus. Every other interactive control checked (buttons, text/color inputs,
 selects including the per-page content-type override, textareas, and the region-list's items)
@@ -634,7 +634,7 @@ state on the input's `onFocus`/`onBlur`.
 
 ## M5 — Polish (attempt 2)
 
-*Re-verified 2026-08-19. This pass follows a fix to the file-upload focus-ring bug found in
+_Re-verified 2026-08-19. This pass follows a fix to the file-upload focus-ring bug found in
 attempt 1 (root cause: the `sr-only` `<input type="file">` and its `<label>` were DOM siblings
 associated only via `htmlFor`/`id`, so Tailwind's `focus-within:` variant never triggered).
 Source reviewed directly before testing (`src/components/ProjectView.tsx`,
@@ -643,7 +643,7 @@ their `<label>` (no `id`/`htmlFor` pair — confirmed via DOM dump, `label.conta
 `true` for both), and the styling now uses `has-[:focus-visible]:outline...` instead of
 `focus-within:outline...`. All 5 M5 checklist items (matching attempt 1's accounting, including
 the bonus reduced-motion check) were re-run in full, not just the previously-failing item, per
-instruction, since the fix touched shared file-input markup used across two components.*
+instruction, since the fix touched shared file-input markup used across two components._
 
 **Environment:** killed the two stale dev servers left over from earlier sessions and started a
 fresh `npm run dev` (port 5175, since 5173/5174 were in use) so the bundle actually served
@@ -708,20 +708,20 @@ confirmed "PDF · 3 pages" in UI).
 - ✓ **Trigger an error state on purpose — confirm the error message is specific and actionable.**
   Re-ran all three triggers from attempt 1, fresh:
   1. **Duplicate label name** — added a second "Field" label (same name, different color) to the
-     schema. Label list stayed at exactly 1 "Field" row; message shown: *"A label named \"Field\"
-     already exists in this schema."*
+     schema. Label list stayed at exactly 1 "Field" row; message shown: _"A label named \"Field\"
+     already exists in this schema."_
   2. **Delete a schema in use by a project** — clicked the (opacity-revealed) Delete button next
      to "M5b Verify Schema", confirmed in the app's own custom confirm dialog. The schema was
      **not** deleted (IndexedDB `labelSchemas.getAll()` still returned 1 row afterward; the schema
-     remained in the list, shown with its label count "(1)"); message shown: *"This schema is used
-     by 1 project. Delete or reassign that project first."*
+     remained in the list, shown with its label count "(1)"); message shown: _"This schema is used
+     by 1 project. Delete or reassign that project first."_
   3. **Malformed JSON import** — selected a `{"foo": "bar"}` file via "Import project…". No crash,
      no phantom project (project count in IndexedDB stayed at 1 before and after); message shown:
-     *"This file is missing a valid \"project.name\" — it doesn't look like a TagStrip export."*
-  All three name the specific problem and, where applicable, the remedy — none are generic
-  "something went wrong" messages or silent no-ops. Screenshots:
-  `M5b-error-duplicate-label.png`, `M5b-error-delete-schema-in-use.png`,
-  `M5b-error-malformed-import.png`.
+     _"This file is missing a valid \"project.name\" — it doesn't look like a TagStrip export."_
+     All three name the specific problem and, where applicable, the remedy — none are generic
+     "something went wrong" messages or silent no-ops. Screenshots:
+     `M5b-error-duplicate-label.png`, `M5b-error-delete-schema-in-use.png`,
+     `M5b-error-malformed-import.png`.
 
 - ✓ **`prefers-reduced-motion: reduce` — nothing looks/behaves differently in a way that suggests
   missing motion-reduction (vacuous pass, as in attempt 1).** Emulated via
@@ -729,7 +729,7 @@ confirmed "PDF · 3 pages" in UI).
   `window.matchMedia('(prefers-reduced-motion: reduce)').matches === true` and that the
   defensive CSS rule is live (`getComputedStyle(document.body).transitionDuration` /
   `animationDuration` both pinned to `1e-05s`, matching the `@media (prefers-reduced-motion:
-  reduce)` block in `src/index.css`). Navigated to the Projects screen under this emulation with
+reduce)` block in `src/index.css`). Navigated to the Projects screen under this emulation with
   no layout shift or missing content. Screenshot: `M5b-reduced-motion-projects.png`.
 
 ### Supplementary (cheap checks re-run per CLAUDE.md policy)

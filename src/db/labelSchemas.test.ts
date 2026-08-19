@@ -45,6 +45,16 @@ describe('addLabel', () => {
       SchemaValidationError,
     )
   })
+
+  it('does not lose an update when two labels are added concurrently', async () => {
+    const schemaId = await createSchema('Race Schema')
+    await Promise.all([
+      addLabel(schemaId, { name: 'label_a', color: '#ff0000' }),
+      addLabel(schemaId, { name: 'label_b', color: '#00ff00' }),
+    ])
+    const schema = await db.labelSchemas.get(schemaId)
+    expect(schema?.labels.map((l) => l.name).sort()).toEqual(['label_a', 'label_b'])
+  })
 })
 
 describe('removeLabel', () => {
