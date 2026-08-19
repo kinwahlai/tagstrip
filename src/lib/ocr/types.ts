@@ -7,7 +7,13 @@ export interface OcrResult {
   confidence?: number
 }
 
+export interface OcrRecognizeOptions {
+  // Engine-specific language hint. Tesseract treats this as one of its
+  // language codes (e.g. "eng", "chi_sim") — see src/lib/ocr/languages.ts.
+  lang?: string
+}
+
 export interface OcrEngine {
   name: string
-  recognize(imageBlob: Blob): Promise<OcrResult>
+  recognize(imageBlob: Blob, options?: OcrRecognizeOptions): Promise<OcrResult>
 }

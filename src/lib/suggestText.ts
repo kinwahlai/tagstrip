@@ -17,7 +17,11 @@ export interface SuggestTextResult {
 //      the page image and runs it through the OCR engine. The engine module
 //      (and its ~4MB of WASM/model assets) is dynamically imported here, so
 //      it's never fetched unless this branch actually runs.
-export async function suggestText(page: Page, rect: NormalizedRect): Promise<SuggestTextResult> {
+export async function suggestText(
+  page: Page,
+  rect: NormalizedRect,
+  ocrLanguage: string,
+): Promise<SuggestTextResult> {
   if (page.textLayer) {
     const extracted = extractTextFromLayer(page.textLayer, rect)
     if (extracted) return { text: extracted, ocrSuggested: false }
@@ -29,6 +33,6 @@ export async function suggestText(page: Page, rect: NormalizedRect): Promise<Sug
 
   const crop = await cropPageRegion(page.image, rect, page.width, page.height)
   const { tesseractEngine } = await import('./ocr/tesseract')
-  const result = await tesseractEngine.recognize(crop)
+  const result = await tesseractEngine.recognize(crop, { lang: ocrLanguage })
   return { text: result.text, ocrSuggested: true }
 }

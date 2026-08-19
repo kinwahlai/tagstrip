@@ -58,9 +58,14 @@ src/
 
 ## Updating OCR language data
 
-`public/tessdata/eng.traineddata.gz` is a static copy of Tesseract's English model, checked in so
-OCR works fully offline (no CDN fetch at runtime). It's sourced from the `@tesseract.js-data/eng`
-devDependency — run `npm run update-tessdata` after bumping that package to refresh the file.
+`public/tessdata/*.traineddata.gz` are static copies of Tesseract's language models (English,
+Simplified Chinese, Traditional Chinese), checked in so OCR works fully offline (no CDN fetch at
+runtime). Each is sourced from the matching `@tesseract.js-data/<code>` devDependency — run
+`npm run update-tessdata` after bumping those packages to refresh all three.
+
+To add another language: install its `@tesseract.js-data/<code>` package as a devDependency, add
+it to the `update-tessdata` script in `package.json`, and add `{ code, label }` for it in
+`src/lib/ocr/languages.ts` — it'll then show up in the canvas's OCR language picker automatically.
 
 ## Code style
 

@@ -985,7 +985,7 @@ read directly via raw `indexedDB.open('tagstrip')` (not app code)._
   fixture, real embedded 12pt Helvetica text, US Letter pages) and read all three pages'
   `textLayer` records directly from IndexedDB without touching "Suggest text" at all: all three
   produced sane, near-identical bounding boxes (`x: 0.1176, y: 0.101, width: 0.169,
-  height: 0.0152` for each of "Sample text page 1/2/3"), confirming the fix generalizes beyond the
+height: 0.0152` for each of "Sample text page 1/2/3"), confirming the fix generalizes beyond the
   one hand-picked fixture. Screenshots: `M4.5-attempt2-doc-uploaded-textlayer.png`,
   `M4.5-attempt2-box-drawn-textlayer.png`, `M4.5-attempt2-suggest-text-textlayer-result.png`,
   `M4.5-attempt2-realpdf-suggest-result.png`.
@@ -1027,7 +1027,7 @@ project. IndexedDB `docs` record showed `pageCount: 3` (correct). All 3 `pages` 
 the dimensions recorded in the original M4 pass exactly), and each had exactly one populated
 `textLayer` entry with a sane, in-range bounding box (see above). No regression from the geometry
 fix in the upload-time code path — page count and dimension detection are unaffected, and the
-text-layer geometry the fix touches is now *more* correct than before, not just different.
+text-layer geometry the fix touches is now _more_ correct than before, not just different.
 
 ### Summary (M4.5, attempt 2)
 
