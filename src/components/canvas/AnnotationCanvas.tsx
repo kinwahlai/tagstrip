@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
 import {
@@ -8,11 +8,15 @@ import {
   restoreAnnotation,
 } from '../../db/annotations'
 import { suggestText } from '../../lib/suggestText'
-import { Toolbar } from './Toolbar'
+import { Toolbar, ZOOM_MIN } from './Toolbar'
 import { PageStageLoader } from './PageStageLoader'
 import { RegionList } from './RegionList'
 import type { NormalizedRect } from '../../lib/geometry'
 import type { Annotation } from '../../db/types'
+
+// Horizontal padding inside the page stage's scroll container (p-6 = 24px each
+// side — see PageStage.tsx) that isn't available for the page image itself.
+const PAGE_STAGE_PADDING_X = 48
 
 interface AnnotationCanvasProps {
   docId: string
@@ -52,8 +56,28 @@ export function AnnotationCanvas({ docId, onBack }: AnnotationCanvasProps) {
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null)
   const [undoStack, setUndoStack] = useState<AnnotationCommand[]>([])
   const [redoStack, setRedoStack] = useState<AnnotationCommand[]>([])
+  const canvasAreaRef = useRef<HTMLDivElement>(null)
+  const didAutoFitZoom = useRef(false)
 
   const currentPage = pages?.[pageIndex]
+
+  // Opening a document always starts at 100% zoom otherwise, which is wider
+  // than the viewport for most real page sizes — most noticeably on narrow
+  // screens, where that meant scrolling sideways just to see the whole page.
+  // Runs once per document open (not on every page navigation, so it never
+  // fights a zoom level the user picked themselves) and never zooms IN past
+  // 100%, only ever out to fit.
+  useEffect(() => {
+    if (didAutoFitZoom.current) return
+    const container = canvasAreaRef.current
+    if (!currentPage || !container) return
+    didAutoFitZoom.current = true
+
+    const availableWidth = container.clientWidth - PAGE_STAGE_PADDING_X
+    if (availableWidth <= 0) return
+    const fitZoom = Math.min(1, availableWidth / currentPage.width)
+    if (fitZoom < 1) setZoom(Math.max(ZOOM_MIN, fitZoom))
+  }, [currentPage])
 
   const annotations = useLiveQuery(
     () => db.annotations.where('[documentId+pageIndex]').equals([docId, pageIndex]).toArray(),
@@ -206,7 +230,7 @@ export function AnnotationCanvas({ docId, onBack }: AnnotationCanvasProps) {
       />
 
       <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
-        <div className="flex-1 overflow-auto">
+        <div ref={canvasAreaRef} className="flex-1 overflow-auto">
           {!currentPage ? (
             <p className="p-6 text-sm text-slate-500">This document has no pages.</p>
           ) : (
