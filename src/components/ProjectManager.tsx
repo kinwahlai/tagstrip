@@ -72,7 +72,7 @@ export function ProjectManager({ onOpenProject }: ProjectManagerProps) {
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Projects</h1>
         <div>
           <label

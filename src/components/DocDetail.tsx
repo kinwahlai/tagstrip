@@ -88,7 +88,7 @@ export function DocDetail({
                     aria-label={`Content type for page ${page.pageIndex + 1}`}
                     value={page.contentType}
                     onChange={(e) => handleOverride(page.id, e)}
-                    className="rounded border border-slate-300 px-1 py-0.5 text-xs dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                    className="rounded border border-slate-300 px-1 py-0.5 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
                   >
                     {CONTENT_TYPES.map((type) => (
                       <option key={type} value={type}>

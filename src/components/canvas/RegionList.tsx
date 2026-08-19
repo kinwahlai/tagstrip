@@ -1,4 +1,4 @@
-import { deleteAnnotation, updateAnnotationText } from '../../db/annotations'
+import { updateAnnotationText } from '../../db/annotations'
 import type { Annotation, Label } from '../../db/types'
 
 interface RegionListProps {
@@ -6,12 +6,21 @@ interface RegionListProps {
   labelsById: Map<string, Label>
   selectedId: string | null
   onSelect: (id: string) => void
+  onDelete: (id: string) => void
 }
 
-export function RegionList({ annotations, labelsById, selectedId, onSelect }: RegionListProps) {
+export function RegionList({
+  annotations,
+  labelsById,
+  selectedId,
+  onSelect,
+  onDelete,
+}: RegionListProps) {
   if (annotations.length === 0) {
     return (
-      <p className="p-3 text-sm text-slate-500 dark:text-slate-400">No regions on this page yet.</p>
+      <p className="p-3 text-sm text-slate-500 dark:text-slate-400">
+        No regions on this page yet. Pick a label above, then drag on the page to draw one.
+      </p>
     )
   }
 
@@ -43,7 +52,7 @@ export function RegionList({ annotations, labelsById, selectedId, onSelect }: Re
               </button>
               <button
                 type="button"
-                onClick={() => deleteAnnotation(annotation.id)}
+                onClick={() => onDelete(annotation.id)}
                 aria-label={`Delete region for ${label?.name ?? 'unknown label'}`}
                 className="rounded px-1.5 py-0.5 text-xs font-medium text-red-600 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 dark:text-red-400 dark:hover:bg-red-950"
               >

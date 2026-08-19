@@ -14,7 +14,7 @@ export async function createAnnotation(
   pageIndex: number,
   labelId: string,
   geometry: AnnotationGeometry,
-): Promise<string> {
+): Promise<Annotation> {
   const now = Date.now()
   const annotation: Annotation = {
     id: createId(),
@@ -26,7 +26,14 @@ export async function createAnnotation(
     updatedAt: now,
   }
   await db.annotations.add(annotation)
-  return annotation.id
+  return annotation
+}
+
+// Re-inserts a previously-deleted annotation with its original id and
+// timestamps intact — used to undo a delete (or redo a create) without
+// losing identity across further undo/redo cycles.
+export async function restoreAnnotation(annotation: Annotation): Promise<void> {
+  await db.annotations.add(annotation)
 }
 
 export async function updateAnnotationGeometry(

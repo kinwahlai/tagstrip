@@ -3,6 +3,7 @@ import { db } from './db'
 import {
   createAnnotation,
   deleteAnnotation,
+  restoreAnnotation,
   updateAnnotationGeometry,
   updateAnnotationText,
 } from './annotations'
@@ -12,14 +13,13 @@ beforeEach(async () => {
 })
 
 describe('createAnnotation', () => {
-  it('stores normalized geometry for a page', async () => {
-    const id = await createAnnotation('doc-1', 0, 'label-1', {
+  it('stores normalized geometry for a page and returns the full record', async () => {
+    const annotation = await createAnnotation('doc-1', 0, 'label-1', {
       x: 0.1,
       y: 0.2,
       width: 0.3,
       height: 0.4,
     })
-    const annotation = await db.annotations.get(id)
     expect(annotation).toMatchObject({
       documentId: 'doc-1',
       pageIndex: 0,
@@ -29,12 +29,13 @@ describe('createAnnotation', () => {
       width: 0.3,
       height: 0.4,
     })
+    expect(await db.annotations.get(annotation.id)).toMatchObject({ x: 0.1, y: 0.2 })
   })
 })
 
 describe('updateAnnotationGeometry', () => {
   it('overwrites the box position and size', async () => {
-    const id = await createAnnotation('doc-1', 0, 'label-1', {
+    const { id } = await createAnnotation('doc-1', 0, 'label-1', {
       x: 0,
       y: 0,
       width: 0.1,
@@ -48,7 +49,7 @@ describe('updateAnnotationGeometry', () => {
 
 describe('updateAnnotationText', () => {
   it('sets the transcription and clears the OCR-suggested flag', async () => {
-    const id = await createAnnotation('doc-1', 0, 'label-1', {
+    const { id } = await createAnnotation('doc-1', 0, 'label-1', {
       x: 0,
       y: 0,
       width: 0.1,
@@ -63,7 +64,7 @@ describe('updateAnnotationText', () => {
 
 describe('deleteAnnotation', () => {
   it('removes the annotation', async () => {
-    const id = await createAnnotation('doc-1', 0, 'label-1', {
+    const { id } = await createAnnotation('doc-1', 0, 'label-1', {
       x: 0,
       y: 0,
       width: 0.1,
@@ -71,5 +72,25 @@ describe('deleteAnnotation', () => {
     })
     await deleteAnnotation(id)
     expect(await db.annotations.get(id)).toBeUndefined()
+  })
+})
+
+describe('restoreAnnotation', () => {
+  it('re-inserts a deleted annotation with its original id intact', async () => {
+    const annotation = await createAnnotation('doc-1', 0, 'label-1', {
+      x: 0,
+      y: 0,
+      width: 0.1,
+      height: 0.1,
+    })
+    await deleteAnnotation(annotation.id)
+    expect(await db.annotations.get(annotation.id)).toBeUndefined()
+
+    await restoreAnnotation(annotation)
+    expect(await db.annotations.get(annotation.id)).toMatchObject({
+      id: annotation.id,
+      x: 0,
+      y: 0,
+    })
   })
 })
