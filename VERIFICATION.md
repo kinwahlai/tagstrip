@@ -7,7 +7,7 @@ not by reading the code and reasoning that it should work. Reading code tells yo
 
 **Policy for whoever is implementing (see also CLAUDE.md):**
 1. Implement a milestone.
-2. Run the cheap checks yourself: `npm run lint`, `npm run build`, `npm test`.
+2. Run the cheap checks yourself: `pnpm run lint`, `pnpm run build`, `pnpm test`.
 3. Invoke the `verifier` subagent with the milestone number and this file.
 4. If it reports any ✗, fix the specific failure and re-invoke the verifier. Repeat up to 3 times.
 5. If still failing after 3 attempts, stop and report to the human with the verifier's actual
@@ -22,17 +22,17 @@ not by reading the code and reasoning that it should work. Reading code tells yo
   files `M<milestone>-<criterion-slug>.png`.
 - Produce `VERIFICATION_REPORT.md` at the end: one line per criterion, ✓ or ✗, with the screenshot
   filename and a one-sentence note on what you actually observed.
-- If a criterion can't be checked for a reason unrelated to the feature (e.g. `npm install` itself
+- If a criterion can't be checked for a reason unrelated to the feature (e.g. `pnpm install` itself
   fails), report that plainly as a blocker — don't mark surrounding items ✓ by assumption.
 
 ---
 
 ## M0 — Scaffold
 
-- [ ] `npm install && npm run dev` starts without errors; the app loads in a browser at the
+- [ ] `pnpm install && pnpm run dev` starts without errors; the app loads in a browser at the
       printed local URL
-- [ ] `npm run build` exits 0 and produces a `dist/` (or equivalent) folder
-- [ ] `npm run lint` exits 0
+- [ ] `pnpm run build` exits 0 and produces a `dist/` (or equivalent) folder
+- [ ] `pnpm run lint` exits 0
 - [ ] The empty-state screen is visible on first load (no console errors in the browser devtools)
 - [ ] `LICENSE` file exists and its content matches the MIT license text with a real year/holder,
       not a placeholder

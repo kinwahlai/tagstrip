@@ -8,7 +8,7 @@ per-milestone acceptance rubric.
 Work through the milestones in `SPEC.md` in order (M0, M1, M2, ...). For each milestone:
 
 1. **Implement** it fully before moving on to the next one. Don't start M2 with M1 half-working.
-2. **Run the cheap checks yourself**: `npm run lint`, `npm run build`, `npm test`. Fix anything
+2. **Run the cheap checks yourself**: `pnpm run lint`, `pnpm run build`, `pnpm test`. Fix anything
    these catch before going further — don't hand a broken build to the verifier.
 3. **Invoke the `verifier` subagent**, telling it which milestone to check against
    `VERIFICATION.md`. This subagent has its own context and a real browser (Playwright) — it will

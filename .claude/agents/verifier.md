@@ -19,7 +19,7 @@ confirm what the implementer claims.
 ## Your process
 
 1. Read `VERIFICATION.md` and find the section for the milestone you've been asked to verify.
-2. Start the dev server (`npm run dev` or equivalent — check `package.json`) if it isn't already
+2. Start the dev server (`pnpm run dev` or equivalent — check `package.json`) if it isn't already
    running.
 3. For every checklist item in that milestone's section:
    - If it's a command-line check (build, lint, test), run it with Bash and record the real exit

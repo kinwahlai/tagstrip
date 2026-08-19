@@ -5,3 +5,4 @@ node_modules
 SPEC.md
 VERIFICATION.md
 CLAUDE.md
+pnpm-lock.yaml

@@ -56,8 +56,8 @@ Requires Node.js 20+.
 ```bash
 git clone <this-repo-url>
 cd tagstrip
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
 Then open the printed local URL (typically `http://localhost:5173`) in your browser. Create a
@@ -65,15 +65,15 @@ label schema, create a project against it, and upload a PDF or image to start an
 
 ## Scripts
 
-| Command                | What it does                                                           |
-| ---------------------- | ---------------------------------------------------------------------- |
-| `npm run dev`          | Start the local dev server                                             |
-| `npm run build`        | Type-check and produce a production build in `dist/`                   |
-| `npm run preview`      | Serve the production build locally, for a final check before deploying |
-| `npm run lint`         | Run ESLint                                                             |
-| `npm run format`       | Format the codebase with Prettier                                      |
-| `npm run format:check` | Check formatting without writing changes (used in CI)                  |
-| `npm test`             | Run the test suite (Vitest)                                            |
+| Command                 | What it does                                                           |
+| ----------------------- | ---------------------------------------------------------------------- |
+| `pnpm run dev`          | Start the local dev server                                             |
+| `pnpm run build`        | Type-check and produce a production build in `dist/`                   |
+| `pnpm run preview`      | Serve the production build locally, for a final check before deploying |
+| `pnpm run lint`         | Run ESLint                                                             |
+| `pnpm run format`       | Format the codebase with Prettier                                      |
+| `pnpm run format:check` | Check formatting without writing changes (used in CI)                  |
+| `pnpm test`             | Run the test suite (Vitest)                                            |
 
 ## Build & deploy
 
@@ -81,8 +81,8 @@ TagStrip builds to a static site — no server-side code, so it can be hosted an
 static files.
 
 ```bash
-npm run build   # outputs to dist/
-npm run preview # sanity-check the build locally before deploying
+pnpm run build   # outputs to dist/
+pnpm run preview # sanity-check the build locally before deploying
 ```
 
 Deploy the contents of `dist/` to any static host (GitHub Pages, Netlify, Vercel, S3, or just

@@ -30,8 +30,8 @@ in:
 Requires Node.js 20+.
 
 ```bash
-npm install
-npm run dev
+pnpm install
+pnpm run dev
 ```
 
 ## Proposing a change
@@ -45,13 +45,13 @@ npm run dev
 ## Before opening a PR
 
 ```bash
-npm run lint
-npm test
-npm run build
+pnpm run lint
+pnpm test
+pnpm run build
 ```
 
 All three must pass — this is exactly what CI (`.github/workflows/ci.yml`) checks on every PR.
-Run `npm run format` first if `npm run lint` or CI flags formatting issues.
+Run `pnpm run format` first if `pnpm run lint` or CI flags formatting issues.
 
 If your change affects the annotation canvas (drawing, selection, zoom, or keyboard shortcuts),
 please actually exercise it in a browser before opening the PR — that code is interaction-heavy
@@ -81,7 +81,7 @@ src/
 
 `public/tessdata/eng.traineddata.gz` is a static copy of Tesseract's English model, checked in so
 OCR works fully offline (no CDN fetch at runtime). It's sourced from the `@tesseract.js-data/eng`
-devDependency — run `npm run update-tessdata` after bumping that package to refresh the file.
+devDependency — run `pnpm run update-tessdata` after bumping that package to refresh the file.
 
 English-only is deliberate for now, not an oversight — multi-language support (both a language
 picker and, separately, combining several languages in one Tesseract pass) was tried and reverted.
