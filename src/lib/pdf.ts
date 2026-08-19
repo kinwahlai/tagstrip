@@ -1,18 +1,13 @@
 import * as pdfjsLib from 'pdfjs-dist'
 import type { PDFDocumentProxy } from 'pdfjs-dist'
 import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url'
+import { textItemBoundingBox } from './pdfTextItemGeometry'
+import type { PdfTextRunLike } from './pdfTextItemGeometry'
 import type { PdfTextItem } from '../db/types'
 
 // pdf.js's getTextContent() returns (TextItem | TextMarkedContent)[], but only
 // TextItem is exported as a public type. Mirror the shape we actually use.
-interface PdfTextRunItem {
-  str: string
-  transform: number[]
-  width: number
-  height: number
-}
-
-function isTextRunItem(item: object): item is PdfTextRunItem {
+function isTextRunItem(item: object): item is PdfTextRunLike {
   return 'str' in item
 }
 
@@ -47,7 +42,7 @@ export async function extractPageMetadata(
   const height = Math.round(viewport.height)
 
   const textContent = await page.getTextContent()
-  const meaningfulItems = (textContent.items as unknown as PdfTextRunItem[]).filter(
+  const meaningfulItems = (textContent.items as unknown as PdfTextRunLike[]).filter(
     (item) => isTextRunItem(item) && item.str.trim().length > 0,
   )
 
@@ -55,33 +50,9 @@ export async function extractPageMetadata(
     return { width, height, contentType: 'scanned' }
   }
 
-  const textLayer: PdfTextItem[] = meaningfulItems.map((item) => {
-    const combined = pdfjsLib.Util.transform(viewport.transform, item.transform)
-    const corners = [
-      [0, 0],
-      [item.width, 0],
-      [0, item.height],
-      [item.width, item.height],
-    ].map(([x, y]) => {
-      const p: [number, number] = [x, y]
-      pdfjsLib.Util.applyTransform(p, combined)
-      return p
-    })
-    const xs = corners.map((p) => p[0])
-    const ys = corners.map((p) => p[1])
-    const minX = Math.min(...xs)
-    const minY = Math.min(...ys)
-    const maxX = Math.max(...xs)
-    const maxY = Math.max(...ys)
-
-    return {
-      str: item.str,
-      x: minX / width,
-      y: minY / height,
-      width: (maxX - minX) / width,
-      height: (maxY - minY) / height,
-    }
-  })
+  const textLayer: PdfTextItem[] = meaningfulItems.map((item) =>
+    textItemBoundingBox(item, viewport.transform, width, height),
+  )
 
   return { width, height, contentType: 'text', textLayer }
 }
