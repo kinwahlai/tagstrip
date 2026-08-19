@@ -46,6 +46,7 @@ src/
   components/canvas/  # the annotation canvas specifically: drawing surface, toolbar, region list
   db/           # Dexie (IndexedDB) schema (db.ts, types.ts) and typed data-access functions
   lib/          # PDF rendering (pdf.js), geometry math, native + Label Studio export/import
+  lib/ocr/      # pluggable OcrEngine interface (types.ts) + the Tesseract.js implementation
   App.tsx       # top-level view switching (Schemas / Projects / annotation canvas) — there's no
                 # router; view state is plain useState here since the navigation is shallow
 ```
@@ -54,6 +55,12 @@ src/
 - [`VERIFICATION.md`](VERIFICATION.md) — the acceptance rubric each milestone was checked against
 - `VERIFICATION_REPORT.md` / `verification-screenshots/` — the record of those checks actually
   being run, kept in the repo as an audit trail
+
+## Updating OCR language data
+
+`public/tessdata/eng.traineddata.gz` is a static copy of Tesseract's English model, checked in so
+OCR works fully offline (no CDN fetch at runtime). It's sourced from the `@tesseract.js-data/eng`
+devDependency — run `npm run update-tessdata` after bumping that package to refresh the file.
 
 ## Code style
 

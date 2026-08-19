@@ -47,6 +47,18 @@ export async function updateAnnotationText(id: string, text: string): Promise<vo
   await db.annotations.update(id, { text, ocrSuggested: false, updatedAt: Date.now() })
 }
 
+// Applies a "Suggest text" result. Unlike updateAnnotationText (a manual
+// hand-edit, which always clears ocrSuggested), this preserves whatever
+// ocrSuggested value the suggestion pipeline determined — true for an OCR
+// guess awaiting review, false for an exact text-layer extraction.
+export async function applySuggestedText(
+  id: string,
+  text: string,
+  ocrSuggested: boolean,
+): Promise<void> {
+  await db.annotations.update(id, { text, ocrSuggested, updatedAt: Date.now() })
+}
+
 export async function deleteAnnotation(id: string): Promise<void> {
   await db.annotations.delete(id)
 }

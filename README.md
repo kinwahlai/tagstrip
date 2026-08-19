@@ -32,6 +32,10 @@ server to stand up.
 - Local persistence via IndexedDB — reload the page, everything's still there
 - **Import/export**: a self-describing native JSON format (round-trips a whole project, including
   the source documents) and a best-effort **Label Studio-compatible export**
+- **"Suggest text"** per box: exact text-layer extraction when the page has one (instant, no
+  model), falling back to on-device OCR ([Tesseract.js](https://tesseract.projectnaptha.com/))
+  only when there's no text layer to read from — the OCR engine and its language data are
+  self-hosted (no CDN) and only downloaded the first time OCR is actually needed
 - Undo/redo, keyboard-driven workflow (hotkeys per label, arrow-key page nav, Delete key), and a
   responsive layout down to phone widths
 
@@ -93,12 +97,12 @@ it for your fork/repo under **Settings → Pages → Source: GitHub Actions**.
 src/
   components/   # UI components (schema editor, project views, annotation canvas)
   db/           # Dexie (IndexedDB) schema and typed data-access functions
-  lib/          # PDF rendering, geometry math, import/export (native + Label Studio)
+  lib/          # PDF rendering, geometry math, import/export, OCR (native + Label Studio + Tesseract)
   App.tsx       # top-level view switching (Schemas / Projects / annotation canvas)
 ```
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for more, and [`SPEC.md`](SPEC.md) section 7 for the
-intended full structure as later milestones (OCR assist, etc.) land.
+suggested full structure.
 
 ## Tech stack
 
@@ -107,10 +111,12 @@ React + TypeScript + Vite, Tailwind CSS, Dexie.js over IndexedDB, pdf.js. See
 
 ## Status
 
-Milestones M0–M5 (scaffold, schema management, projects/documents, annotation canvas,
-import/export, polish) are implemented and verified against [`VERIFICATION.md`](VERIFICATION.md)
-— see `VERIFICATION_REPORT.md` for the run-by-run results. OCR-assisted transcription (M4.5) is
-stretch work, not yet built.
+Milestones M0–M5 and M4.5 (scaffold, schema management, projects/documents, annotation canvas,
+import/export, OCR-assisted transcription, polish) are implemented and verified against
+[`VERIFICATION.md`](VERIFICATION.md) — see `VERIFICATION_REPORT.md` for the run-by-run results.
+M4.5's Transformers.js/Donut engine (an alternate OCR backend for messier scans, per SPEC.md
+section 2) is not yet built — Tesseract.js is the only engine today, behind a pluggable
+`OcrEngine` interface a second engine can implement later.
 
 ## Contributing
 

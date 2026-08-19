@@ -10,18 +10,22 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "preview": "vite preview",
-    "test": "vitest run"
+    "test": "vitest run",
+    "update-tessdata": "cp node_modules/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz public/tessdata/eng.traineddata.gz"
   },
   "dependencies": {
     "dexie": "^4.4.5",
     "dexie-react-hooks": "^4.4.0",
     "pdfjs-dist": "^6.2.108",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8"
+    "react-dom": "^19.2.8",
+    "tesseract.js": "^7.0.0",
+    "tesseract.js-core": "^7.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.3.3",
+    "@tesseract.js-data/eng": "^1.0.0",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^24.13.3",

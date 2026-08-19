@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
-import { createAnnotation, deleteAnnotation, restoreAnnotation } from '../../db/annotations'
+import {
+  applySuggestedText,
+  createAnnotation,
+  deleteAnnotation,
+  restoreAnnotation,
+} from '../../db/annotations'
+import { suggestText } from '../../lib/suggestText'
 import { Toolbar } from './Toolbar'
 import { PageStageLoader } from './PageStageLoader'
 import { RegionList } from './RegionList'
@@ -71,6 +77,13 @@ export function AnnotationCanvas({ docId, onBack }: AnnotationCanvasProps) {
     deleteAnnotation(id)
     pushCommand({ type: 'delete', annotation })
     if (selectedAnnotationId === id) setSelectedAnnotationId(null)
+  }
+
+  async function handleSuggestText(id: string) {
+    const annotation = annotations?.find((a) => a.id === id)
+    if (!annotation || !currentPage) return
+    const result = await suggestText(currentPage, annotation)
+    await applySuggestedText(id, result.text, result.ocrSuggested)
   }
 
   function handleUndo() {
@@ -228,6 +241,7 @@ export function AnnotationCanvas({ docId, onBack }: AnnotationCanvasProps) {
             selectedId={selectedAnnotationId}
             onSelect={setSelectedAnnotationId}
             onDelete={handleDeleteAnnotation}
+            onSuggestText={handleSuggestText}
           />
         </aside>
       </div>

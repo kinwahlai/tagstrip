@@ -762,7 +762,7 @@ an HMR-patched one). `lint`/`test`/`build` remain clean.
 
 # M6 — Open source packaging
 
-*(Verified 2026-08-19. M4.5 (OCR) is deliberately unimplemented stretch work and was not tested.)*
+_(Verified 2026-08-19. M4.5 (OCR) is deliberately unimplemented stretch work and was not tested.)_
 
 - ✓ **README quickstart works from a clean clone.** Cloned the local repo with
   `git clone /home/snaic-darren/projects/tagstrip /tmp/.../tagstrip-clean-clone` (no remote
@@ -772,7 +772,7 @@ an HMR-patched one). `lint`/`test`/`build` remain clean.
   empty-state ("Label schemas" / "No label schemas yet...", "New schema name" input, "Create"
   button, Schemas/Projects nav) — zero `console.error`/`pageerror` events and zero
   `requestfailed` network events captured during load. Also separately confirmed `npm run
-  preview` (the command the README's "Build & deploy" section tells readers to sanity-check with)
+preview` (the command the README's "Build & deploy" section tells readers to sanity-check with)
   serves the production build and returns HTTP 200 on the printed local port. `docs/screenshot.png`
   exists, is a real non-empty PNG (1280×800, 83,751 bytes, valid PNG per `file`), and is referenced
   correctly in README.md line 10 via standard markdown image syntax
