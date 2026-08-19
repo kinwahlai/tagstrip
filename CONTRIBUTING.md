@@ -26,8 +26,8 @@ npm run dev
 
 ```bash
 npm run lint
-npm run build
 npm test
+npm run build
 ```
 
 All three must pass — this is exactly what CI (`.github/workflows/ci.yml`) checks on every PR.

@@ -757,3 +757,75 @@ regressed as a side effect of this change. Undo/redo, the 375px responsive layou
 error-state triggers, and the vacuous reduced-motion check all continue to pass exactly as in
 attempt 1, re-verified fresh in a clean IndexedDB session against a newly started dev server (not
 an HMR-patched one). `lint`/`test`/`build` remain clean.
+
+---
+
+# M6 — Open source packaging
+
+*(Verified 2026-08-19. M4.5 (OCR) is deliberately unimplemented stretch work and was not tested.)*
+
+- ✓ **README quickstart works from a clean clone.** Cloned the local repo with
+  `git clone /home/snaic-darren/projects/tagstrip /tmp/.../tagstrip-clean-clone` (no remote
+  needed), then literally followed the Quickstart: `npm install` (exit 0, 261 packages, 0
+  vulnerabilities) and `npm run dev` (Vite ready in 220ms, printed `http://localhost:5183/`).
+  Loaded that exact URL with Playwright: page title `TagStrip`, body rendered the expected
+  empty-state ("Label schemas" / "No label schemas yet...", "New schema name" input, "Create"
+  button, Schemas/Projects nav) — zero `console.error`/`pageerror` events and zero
+  `requestfailed` network events captured during load. Also separately confirmed `npm run
+  preview` (the command the README's "Build & deploy" section tells readers to sanity-check with)
+  serves the production build and returns HTTP 200 on the printed local port. `docs/screenshot.png`
+  exists, is a real non-empty PNG (1280×800, 83,751 bytes, valid PNG per `file`), and is referenced
+  correctly in README.md line 10 via standard markdown image syntax
+  (`![...](docs/screenshot.png)`) with a descriptive alt text. Screenshot:
+  `M6-readme-quickstart-clean-clone.png`.
+
+- ✓ **CI workflow file exists and lint/test/build all pass when run the way CI runs them.**
+  `.github/workflows/ci.yml` exists, parses as valid YAML (`yaml.safe_load` succeeded, no
+  `actionlint` binary available on this machine so relied on the parse plus manual structural
+  review). Structure reviewed line-by-line: top-level `on:` triggers on `push` to `main` and
+  `pull_request` into `main`; `build` job does `checkout` → `setup-node@v4` (node 22, npm cache)
+  → `npm ci` → `npm run lint` → `npm test` → `npm run build`, in that exact order, matching the
+  milestone's description; `deploy` job has `needs: build` and
+  `if: github.ref == 'refs/heads/main' && github.event_name == 'push'` — correctly gated so it is
+  unreachable on PR runs (a PR's `github.event_name` is `pull_request`, not `push`) and only runs
+  after `build` completes on a push to `main`; it uses `actions/configure-pages`,
+  `actions/upload-pages-artifact`, and `actions/deploy-pages` as described. Then actually ran the
+  exact command sequence from a clean checkout (fresh `node_modules` removed and `npm ci` re-run,
+  not just reusing the `npm install` from the quickstart check above):
+  `npm ci` → exit 0 (261 packages, 0 vulnerabilities); `npm run lint` (`eslint .`) → exit 0, no
+  output; `npm test` (`vitest run`) → exit 0, 6 test files / 29 tests all passed; `npm run build`
+  (`tsc -b && vite build`) → exit 0, produced `dist/` with `index.html`, `assets/`, `favicon.svg`.
+  Confirmed `dist/index.html` references its JS/CSS/favicon via relative `./assets/...` and
+  `./favicon.svg` paths (not root-absolute `/assets/...`), which is what makes the GitHub Pages
+  project-subpath claim in the README true — verified concretely, not just by reading
+  `vite.config.ts`'s `base: './'` setting.
+
+- ✓ **CONTRIBUTING.md exists and is not a placeholder/stub.** 69 lines of substantive,
+  specific content: a "Development setup" section, a "Proposing a change" section that
+  distinguishes small fixes (PR directly) from data-model/format changes (open an issue first,
+  with a specific rationale referencing `src/db/types.ts`), a "Before opening a PR" checklist
+  (`npm run lint`, `npm run build`, `npm test`) explicitly stated to be "exactly what CI
+  checks", a specific callout to manually exercise the annotation canvas in a browser before
+  submitting canvas-related PRs, a "Project structure" tree, and a "Code style" note naming the
+  actual tool config files (`eslint.config.js`, `.prettierrc.json`). Cross-checked the project
+  structure section against the real `src/` tree (`find src -maxdepth 2 -type d`): it lists
+  `components/`, `components/canvas/`, `db/`, `lib/`, and `App.tsx`, all of which exist exactly as
+  described (there is also a `src/test/` directory not mentioned in either doc, which is a minor
+  omission but not a misstatement — nothing in either doc claims the list is exhaustive). Minor
+  note: the checklist commands are listed as `lint` → `build` → `test` in CONTRIBUTING.md but CI
+  actually runs `lint` → `test` → `build` — the same three commands are present in both places and
+  the claim "this is exactly what CI checks" is true in substance, but the stated order doesn't
+  literally match CI's order. Not a functional bug (all three still must pass regardless of
+  order), just an inaccuracy in an otherwise-accurate sentence — worth a one-line fix if the
+  implementer wants the order to literally match.
+
+## Summary (M6)
+
+All three M6 checklist items pass. The quickstart works verbatim from a genuinely fresh clone
+with zero console errors; the CI workflow's YAML is well-formed, its job/step logic (build order,
+deploy gating to push-to-main-only, `needs: build`) is correct on manual review, and the exact
+`npm ci` → `lint` → `test` → `build` sequence it runs passes cleanly from a clean install;
+CONTRIBUTING.md is a real, specific document that accurately describes the repo. One
+non-blocking documentation nit: CONTRIBUTING.md's pre-PR checklist lists the three commands in a
+different order (`lint, build, test`) than CI actually executes them (`lint, test, build`) — the
+set matches, the order in the prose doesn't.
