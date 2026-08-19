@@ -8,6 +8,11 @@ import {
   restoreAnnotation,
 } from '../../db/annotations'
 import { suggestText } from '../../lib/suggestText'
+import {
+  buildOcrLanguage,
+  CHINESE_SCRIPT_OPTIONS,
+  DEFAULT_CHINESE_SCRIPT,
+} from '../../lib/ocr/languages'
 import { Toolbar, ZOOM_MIN } from './Toolbar'
 import { PageStageLoader } from './PageStageLoader'
 import { RegionList } from './RegionList'
@@ -57,6 +62,7 @@ export function AnnotationCanvas({ docId, onBack }: AnnotationCanvasProps) {
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null)
   const [undoStack, setUndoStack] = useState<AnnotationCommand[]>([])
   const [redoStack, setRedoStack] = useState<AnnotationCommand[]>([])
+  const [chineseScript, setChineseScript] = useState(DEFAULT_CHINESE_SCRIPT)
   const canvasAreaRef = useRef<HTMLDivElement>(null)
   const didAutoFitZoom = useRef(false)
 
@@ -118,7 +124,7 @@ export function AnnotationCanvas({ docId, onBack }: AnnotationCanvasProps) {
   async function handleSuggestText(id: string) {
     const annotation = annotations?.find((a) => a.id === id)
     if (!annotation || !currentPage) return
-    const result = await suggestText(currentPage, annotation)
+    const result = await suggestText(currentPage, annotation, buildOcrLanguage(chineseScript))
     await applySuggestedText(id, result.text, result.ocrSuggested)
   }
 
@@ -272,6 +278,26 @@ export function AnnotationCanvas({ docId, onBack }: AnnotationCanvasProps) {
           <h2 className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
             Regions on this page
           </h2>
+          <div className="flex items-center gap-2 border-b border-slate-200 px-3 pb-2 dark:border-slate-700">
+            <span className="text-xs text-slate-500 dark:text-slate-400">OCR Chinese script</span>
+            <div className="flex gap-1">
+              {CHINESE_SCRIPT_OPTIONS.map((option) => (
+                <button
+                  key={option.code}
+                  type="button"
+                  onClick={() => setChineseScript(option.code)}
+                  aria-pressed={chineseScript === option.code}
+                  className={`rounded border px-1.5 py-0.5 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${
+                    chineseScript === option.code
+                      ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950'
+                      : 'border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800'
+                  }`}
+                >
+                  {option.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <RegionList
             annotations={annotations ?? []}
             labelsById={labelsById}

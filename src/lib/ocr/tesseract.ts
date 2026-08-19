@@ -6,8 +6,11 @@ import workerUrl from 'tesseract.js/dist/worker.min.js?url'
 // wrong inside a worker) — see the comment on TESS_LANG_PATH below for why
 // that matters here.
 import coreUrl from 'tesseract.js-core/tesseract-core-lstm.wasm.js?url'
-import { DEFAULT_OCR_LANGUAGE } from './languages'
 import type { OcrEngine } from './types'
+
+// Fallback only — every real call site (suggestText.ts) always passes an
+// explicit language string built from the current OCR language settings.
+const FALLBACK_LANG = 'eng'
 
 // tesseract.js defaults workerPath/corePath/langPath to jsdelivr CDN URLs.
 // TagStrip is offline-capable by design (SPEC.md section 6), so all three are
@@ -51,7 +54,7 @@ async function getWorker(lang: string): Promise<Worker> {
 export const tesseractEngine: OcrEngine = {
   name: 'Tesseract',
   async recognize(imageBlob, options) {
-    const worker = await getWorker(options?.lang || DEFAULT_OCR_LANGUAGE)
+    const worker = await getWorker(options?.lang || FALLBACK_LANG)
     const {
       data: { text, confidence },
     } = await worker.recognize(imageBlob)

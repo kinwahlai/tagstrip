@@ -65,11 +65,16 @@ works fully offline (no CDN fetch at runtime). Each is sourced from the matching
 packages to refresh all of them.
 
 "Suggest text" runs every bundled language combined in one Tesseract pass (see
-`DEFAULT_OCR_LANGUAGE` in `src/lib/ocr/languages.ts`, which joins them with `+`) rather than
-asking the user to pick a script — Tesseract auto-detects per-character which one fits. To add
-another language: install its `@tesseract.js-data/<code>` package as a devDependency, add it to
-the `update-tessdata` script in `package.json`, and add `{ code, label }` to
-`BUNDLED_OCR_LANGUAGES` in `src/lib/ocr/languages.ts` — the combined default picks it up
+`buildOcrLanguage()` in `src/lib/ocr/languages.ts`, which joins them with `+`) rather than asking
+the user to pick a script — Tesseract auto-detects per-character which one fits. The one exception
+is Simplified vs Traditional Chinese: they share so many identical or near-identical characters
+that combining both lets Tesseract pick the wrong script's reading for an ambiguous glyph (seen in
+practice — simplified text misread as traditional), so that one choice stays a small toggle in the
+canvas sidebar (`CHINESE_SCRIPT_OPTIONS`) instead of being auto-combined.
+
+To add another (non-Chinese) language: install its `@tesseract.js-data/<code>` package as a
+devDependency, add it to the `update-tessdata` script in `package.json`, and add `{ code, label }`
+to `BUNDLED_OCR_LANGUAGES` in `src/lib/ocr/languages.ts` — `buildOcrLanguage()` picks it up
 automatically. Each additional language adds to the one-time OCR download and to how long that
 first "Suggest text" call takes to initialize, so weigh that against how likely it is to actually
 appear in your documents.
