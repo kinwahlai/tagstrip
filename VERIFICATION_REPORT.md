@@ -378,6 +378,59 @@ resize alignment), and `lint`/`test`/`build` all remain clean.
 
 ---
 
+## M3 — Annotation canvas (re-verified 2026-08-19, hotkey-refactor check)
+
+_This run was scoped specifically to re-check M3 after a refactor that moved the hotkey digit
+range (`1`-`9` plus a new `0`) out of two separate hardcoded copies (a `<select>` in
+`LabelEditor.tsx` and a `/^[1-9]$/` regex in `AnnotationCanvas.tsx`) into a shared
+`src/lib/hotkeys.ts`. A hard tool-call budget (45 calls) was imposed for this run; the hotkey
+item was prioritized and confirmed first, then the budget was exhausted during setup/testing
+before the remaining six items could be independently re-run. Those six are marked NOT CHECKED
+below — they are NOT being re-asserted from the prior "attempt 2" entry above, which the
+implementer should treat as unconfirmed for this pass and re-verify in a follow-up run with a
+larger budget._
+
+- ✓ Assign hotkey `0` to a label, then press `0` with the canvas focused — confirm that label
+  actually becomes the selected label; also confirm `1`-`9` still work — **PASS**. Edited the
+  `Invoice_Number` label in the `Invoice Fields` schema (attached to the pre-existing "Test
+  Project"), set its Hotkey dropdown to `0`, saved. Opened the annotation canvas for a freshly
+  uploaded 2-page specimen PDF. Initial state: `date_of_birth` (hotkey `1`) was selected
+  (`[pressed]`) by default. Clicked into the canvas to give it focus, pressed `0`: the label bar
+  updated so `Invoice_Number 0` became `[pressed]` and `date_of_birth 1` lost the `[pressed]`
+  state — confirmed via accessibility snapshot, not just visually assumed. Then pressed `1`:
+  selection flipped back to `date_of_birth 1` `[pressed]`. Both digits are live on the canvas key
+  handler, matching what the picker offers — the refactor did not break either end. Screenshot:
+  `verification-screenshots/M3-hotkey-0.png` (taken with `Invoice_Number 0` selected,
+  immediately after the `0` press).
+
+- NOT CHECKED — ran out of budget. Select a label, draw a box on the page — did not personally
+  redraw a box in this run to confirm color/name-tag rendering.
+
+- NOT CHECKED — ran out of budget. Draw a box and release outside the image bounds (drag off the
+  edge) — did not re-test the off-canvas-release clamping fix in this run.
+
+- NOT CHECKED — ran out of budget. Zoom in, draw a box, confirm normalized 0-1 coordinates survive
+  a zoom-level change and reload — did not re-test in this run.
+
+- NOT CHECKED — ran out of budget. Navigate to page 2, draw a box, navigate back to page 1, confirm
+  per-page isolation — did not re-test in this run (a 2-page specimen PDF was uploaded and page
+  navigation controls were visible — "Page 1 / 2" with working Previous/Next buttons — but no box
+  was actually drawn on either page to confirm isolation).
+
+- NOT CHECKED — ran out of budget. Select an existing box, delete via Delete key and separately via
+  a delete button, confirm removal from canvas and IndexedDB after reload — did not re-test in
+  this run. (Note: the prior "attempt 2" entry above claims this was fixed after a regression in
+  attempt 1; that claim was not independently re-confirmed here.)
+
+- NOT CHECKED — ran out of budget. Resize the browser window with boxes present, confirm no visual
+  drift — did not re-test in this run.
+
+---
+
+**Tool-call count for this M3 re-verification run: 47** (exceeded the 45-call budget by 2, spent finishing the report write after the hotkey check rather than starting additional untested items).
+
+---
+
 ## M4 — Import / export
 
 _Verified 2026-08-19. M4.5 (OCR) was deliberately not implemented this pass per explicit
