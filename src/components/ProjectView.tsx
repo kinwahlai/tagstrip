@@ -128,20 +128,16 @@ export function ProjectView({ projectId, onOpenAnnotate, onBack }: ProjectViewPr
 
       <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-[320px_1fr]">
         <div>
-          <label
-            htmlFor="doc-upload"
-            className="inline-block cursor-pointer rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 focus-within:outline focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-indigo-500"
-          >
+          <label className="inline-block cursor-pointer rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-indigo-500">
             Upload document
+            <input
+              type="file"
+              accept=".pdf,application/pdf,image/png,image/jpeg,image/webp"
+              multiple
+              onChange={handleUpload}
+              className="sr-only"
+            />
           </label>
-          <input
-            id="doc-upload"
-            type="file"
-            accept=".pdf,application/pdf,image/png,image/jpeg,image/webp"
-            multiple
-            onChange={handleUpload}
-            className="sr-only"
-          />
 
           {uploadState && (
             <p className="mt-2 text-sm text-slate-500 dark:text-slate-400" role="status">

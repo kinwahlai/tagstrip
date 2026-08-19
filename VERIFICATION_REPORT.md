@@ -479,3 +479,153 @@ The malformed-JSON import path fails safely with a specific, field-naming error 
 to the M5 error-message rubric item — this is the exact message a future M5 verification pass
 should compare against). M4.5 (OCR) was not evaluated, per explicit instruction, and its absence
 is not counted against this section.
+
+---
+
+## M5 — Polish
+
+*Verified 2026-08-19. Dev server run via `npm run dev` (Vite, port 5174 since 5173 was already in
+use). All interactions below were performed via real Playwright automation (Chromium 1234, driven
+through a persistent browser profile so IndexedDB state survived across separate script
+invocations) against the actual running app — not by reading source and assuming behavior.*
+
+**Test setup:** Reused/created a schema ("M5 Verify Schema") with one label ("Field", indigo,
+hotkey 1) and a project ("M5 Verify Project") with the same 3-page `text3.pdf` fixture used in the
+M4 pass (locally generated, real embedded text, no external libraries).
+
+- ✓ **Undo removes the most recent action; redo restores it — verified via IndexedDB, not just
+  visually.** Drew a box on page 1, confirmed it existed in `db.annotations` (read directly via
+  raw `indexedDB.open('tagstrip')`, not app code). Clicked the toolbar **Undo** button: the
+  annotation disappeared from IndexedDB entirely (row gone, not just hidden), the Undo button
+  became disabled, and Redo became enabled. Clicked **Redo**: the exact same row reappeared —
+  same `id` (`7b7a5c59-...`), same `x`/`y`/`width`/`height`, same `labelId` — a byte-for-byte match
+  against the pre-undo snapshot, confirming it's a genuine re-insert of the original row rather
+  than a new annotation with new geometry. Repeated the same round-trip for **delete**: selected
+  the annotation and pressed the **Delete key** — row vanished from IndexedDB; pressed **Ctrl+Z**
+  — the identical row (same id, same geometry) came back; pressed **Ctrl+Shift+Z** — deleted
+  again. Separately tested deleting via the **region list's Delete button** (not the keyboard) and
+  undoing via the **toolbar Undo button** (not a shortcut) — same clean round-trip, confirmed via
+  IndexedDB. Also explicitly tested the **Ctrl+Y** redo shortcut on a fresh draw/undo pair — worked
+  identically to Ctrl+Shift+Z. Zero console/page errors across the whole sequence.
+  Screenshots: `M5-undo-01-box-drawn.png` through `M5-undo-09-undo-after-list-delete.png`.
+
+- ✗ **Tab through the interface using only the keyboard — every interactive element has a visible
+  focus outline.** Most controls pass cleanly: tabbing through the schema editor (rename/delete
+  schema buttons, new-schema-name input, Create button, Edit/Delete label buttons, label
+  name/color/hotkey inputs, Add label button), the project list (project-select button, Delete
+  button, project-name input, schema select, Create project button), the document detail screen
+  (Delete button, "Open annotation canvas" button, notes textarea, and **all three** per-page
+  content-type override `<select>` elements), and the annotation canvas (Undo/Redo, label toolbar
+  buttons, zoom in/out, page nav arrows, the drawn box itself as a focusable element, the region
+  list's Delete button, and the transcription `<input>`) all showed a clear `outline: solid 2px`
+  (indigo for most, red for delete-type actions) confirmed via `getComputedStyle` on
+  `document.activeElement` at every tab stop, and screenshots confirm it visually.
+  However, **the two file-upload trigger controls ("Upload document" on the project/document view,
+  and "Import project…" on the projects list) have no visible focus indicator at all when reached
+  by Tab.** Root cause: in both `ProjectView.tsx` and `ProjectManager.tsx`, the visually-hidden
+  (`sr-only`) `<input type="file">` and its `<label>` are **siblings**, not parent/child — e.g.
+  `<div><label for="doc-upload" class="...focus-within:outline...">Upload document</label><input
+  id="doc-upload" class="sr-only" .../></div>`. Tailwind's `focus-within:` only applies when the
+  focused element is a *descendant* of the styled element; since the input is a sibling, not a
+  child, of the label, focusing the input via Tab never triggers the label's `focus-within`
+  styling. Confirmed programmatically: `page.evaluate` showed `label.contains(input)` is `false`
+  for both `#doc-upload` and `#project-import`, and the label's own computed `outlineStyle` stayed
+  `"none"`/`boxShadow: "none"` even while `document.activeElement === input` was `true`. The
+  screenshot taken at that exact focus state (`M5-focus-fileupload-doc-upload.png`) shows the
+  "Upload document" button with **zero visual change** — a sighted keyboard user tabbing through
+  the page has no way to tell the file-upload control currently has focus. This is a real,
+  reproducible gap in an area the milestone specifically calls out ("the file-upload label
+  triggers"). Screenshots: `M5-focus-schema-editor-last-tab.png`, `M5-focus-project-list-last-tab.png`,
+  `M5-focus-doc-detail-last-tab.png`, `M5-focus-canvas-last-tab.png` (passing controls),
+  `M5-focus-fileupload-project-import.png`, `M5-focus-fileupload-doc-upload.png` (the failing case).
+
+- ✓ **Resize the browser to ~375px wide — the app remains usable, not just visually unbroken.**
+  At a 375×812 viewport: the schema editor, project list, and document-detail screens all render
+  with zero horizontal page overflow (`document.documentElement.scrollWidth` equaled
+  `clientWidth` exactly, 375=375) and every control (rename/delete, create form, content-type
+  override selects) stayed legibly sized and tappable — confirmed by screenshot, not just the
+  overflow check. In the annotation canvas specifically, the region-list `<aside>` correctly
+  stacked *below* the page-image pane (confirmed via `getBoundingClientRect`: aside `y=707`,
+  belonging to the `md:flex-row` → single-column layout below Tailwind's 768px breakpoint) and
+  remained fully usable there — its Delete button and transcription input were both interactable
+  and correctly sized (region button bounding box 296×20px, well within the 375px viewport). The
+  toolbar (label buttons, zoom −/+, page-nav arrows, Undo/Redo) wrapped cleanly via `flex-wrap`
+  and stayed fully visible without scrolling. One caveat worth flagging (not treated as a failure):
+  at 375px the PDF page image itself is still wider than the viewport even at the app's minimum
+  zoom of 50% (612px rendered vs. 375px viewport), so viewing/drawing across the *entire* page
+  width in one glance requires horizontal scroll within the dedicated image pane. This is not
+  "broken" — actually drew a box in the visible portion of the image at 50% zoom on page 2 and
+  confirmed via IndexedDB that a correctly-proportioned normalized box was stored
+  (`x:0.033, y:0.051, width:0.492, height:0.139`) and rendered in the right place — but a phone
+  user will need to scroll/pan to annotate content near the right edge of a wide page, which is a
+  real (if minor, and arguably inherent to any px-precise annotation tool) usability limitation at
+  this viewport width. Screenshots: `M5-responsive-375-schema-editor.png`,
+  `M5-responsive-375-project-list.png`, `M5-responsive-375-doc-detail.png`,
+  `M5-responsive-375-canvas-top.png`, `M5-responsive-375-canvas-scrolled-regionlist.png`,
+  `M5-responsive-375-draw-visible-portion.png`.
+
+- ✓ **Trigger an error state on purpose — confirm the error message is specific and actionable,
+  not generic/silent.** Tested three separate on-purpose error triggers, all producing specific,
+  field-naming messages rather than generic failures:
+  1. **Duplicate label name** — added a second label named "Field" (identical to an existing one)
+     in the same schema. The app did not create a duplicate (label list still showed exactly one
+     "Field" row afterward) and displayed: *"A label named \"Field\" already exists in this
+     schema."* — naming the exact conflicting value.
+  2. **Delete a schema in use by a project** — clicked Delete on "M5 Verify Schema" while a project
+     was still attached to it, confirmed the delete in the confirmation dialog. The app blocked the
+     deletion (schema still present in the list afterward) and displayed: *"This schema is used by
+     1 project. Delete or reassign that project first."* — stating the exact reason and what to do
+     about it, not a generic "cannot delete" message.
+  3. **Malformed JSON import** (cross-referencing the M4 pass's finding, re-run here fresh) —
+     imported a `{"foo": "bar"}` file via "Import project…". No crash, no phantom project created,
+     and the message: *"This file is missing a valid \"project.name\" — it doesn't look like a
+     TagStrip export."*
+  All three messages name the specific problem and, where applicable, the remedy.
+  Screenshots: `M5-error-duplicate-label.png`, `M5-error-delete-schema-in-use.png`,
+  `M5-error-malformed-import.png`.
+
+- ✓ **`prefers-reduced-motion: reduce` — confirm nothing looks/behaves differently in a way that
+  suggests missing motion-reduction (vacuous pass, no animations exist to reduce).** Emulated via
+  `page.emulateMedia({ reducedMotion: 'reduce' })` and confirmed
+  `window.matchMedia('(prefers-reduced-motion: reduce)').matches` was `true`. The defensive rule in
+  `src/index.css` was confirmed active: sampled computed styles on arbitrary elements (`html`,
+  `body`, etc.) showed `transitionDuration`/`animationDuration` pinned to `1e-05s` (0.01ms) exactly
+  as the `@media (prefers-reduced-motion: reduce)` block specifies, meaning the rule is live and
+  would suppress any future transition/animation. Navigated through Projects → project → document
+  → annotation canvas under this emulation and confirmed via screenshot that rendering was
+  identical to the non-reduced-motion runs elsewhere in this report — no layout shift, no missing
+  content, nothing that would suggest a transition-dependent reveal was silently broken. Per the
+  milestone's own framing, this is a vacuous pass since there are no transitions/animations in the
+  app to actually observe being reduced. Screenshots: `M5-reduced-motion-projects.png`,
+  `M5-reduced-motion-canvas.png`.
+
+### Supplementary (cheap checks re-run per CLAUDE.md policy)
+
+- `npm run lint` — `eslint .`, exited 0, no output.
+- `npm test` (vitest) — 6 test files, 28 tests, all passed, exited 0.
+- `npm run build` — `tsc -b && vite build`, exited 0, produced `dist/` (main bundle 342.53 KB, css
+  21.71 KB, pdf.js chunk 427.33 KB, pdf worker chunk 2,222.99 KB).
+- Zero `console.error`/`pageerror` events captured across a dedicated navigation sweep (Schemas →
+  Projects → project → document → annotation canvas) as well as across the entire undo/redo test
+  sequence.
+
+### Summary
+
+**4 of 5 M5 checklist items pass; 1 fails.** Undo/redo is solid and verified at the data layer for
+both mutating actions (draw and delete) via all four trigger paths (toolbar buttons, Ctrl+Z/
+Ctrl+Shift+Z/Ctrl+Y shortcuts, region-list Delete button) — round-trips preserve the exact
+annotation `id` and geometry every time. The responsive layout at 375px is genuinely usable across
+all four screens, including the canvas's stacked region-list sidebar, with only a minor (arguably
+inherent) caveat about needing horizontal scroll to see a full wide page at once. Error states are
+specific and actionable in all three cases tested (duplicate label, schema-in-use deletion,
+malformed import). **Focus states fail specifically for the two file-upload trigger controls**
+("Upload document" and "Import project…") due to a `focus-within` CSS class being applied to a
+`<label>` that is a DOM *sibling* rather than *parent* of the `sr-only` file input it's meant to
+visually represent — Tab navigation reaches the input but produces no visible indication anywhere
+on screen that it has focus. Every other interactive control checked (buttons, text/color inputs,
+selects including the per-page content-type override, textareas, and the region-list's items)
+showed a correct, visible focus ring. Fix: either nest the `<input>` inside the `<label>` (moving
+the `focus-within` styling to actually observe the input as a descendant), or switch to
+`peer`/`peer-focus-visible:` styling with the input declared as a `peer` before the label in DOM
+order, or apply the focus-ring class directly based on a `:focus-visible` state tracked in React
+state on the input's `onFocus`/`onBlur`.
