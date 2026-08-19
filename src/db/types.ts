@@ -5,7 +5,7 @@ export interface Label {
   id: string
   name: string
   color: string // hex
-  hotkey?: string // "1".."9"
+  hotkey?: string // "1".."9", "0"
 }
 
 export interface LabelSchema {

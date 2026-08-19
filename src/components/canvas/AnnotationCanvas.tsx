@@ -8,6 +8,7 @@ import {
   restoreAnnotation,
 } from '../../db/annotations'
 import { suggestText } from '../../lib/suggestText'
+import { isHotkey } from '../../lib/hotkeys'
 import { Toolbar, ZOOM_MIN } from './Toolbar'
 import { PageStageLoader } from './PageStageLoader'
 import { RegionList } from './RegionList'
@@ -162,7 +163,7 @@ export function AnnotationCanvas({ docId, onBack }: AnnotationCanvasProps) {
         handleRedo()
         return
       }
-      if (/^[1-9]$/.test(e.key) && schema) {
+      if (isHotkey(e.key) && schema) {
         const label = schema.labels.find((l) => l.hotkey === e.key)
         if (label) setSelectedLabelId(label.id)
         return

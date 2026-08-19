@@ -101,7 +101,7 @@ interface LabelSchema {
     id: string;
     name: string;                // e.g. "date_of_birth"
     color: string;                // hex
-    hotkey?: string;              // "1".."9"
+    hotkey?: string;              // "1".."9", "0"
   }[];
   createdAt: number;
   updatedAt: number;
@@ -176,7 +176,7 @@ Vite + React + TS + Tailwind + ESLint/Prettier project. Empty-state screen. `LIC
 
 **M1 — Schema management**
 Create / rename / delete label schemas. Add/edit/remove labels within a schema (name, color,
-optional hotkey 1–9). Persist to IndexedDB via Dexie. This directly replaces the prototype's
+optional hotkey 1–9 or 0). Persist to IndexedDB via Dexie. This directly replaces the prototype's
 hardcoded `DEFAULT_LABELS` array.
 
 **M2 — Projects & documents**

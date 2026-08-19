@@ -49,6 +49,24 @@ not by reading the code and reasoning that it should work. Reading code tells yo
 - [ ] Delete an entire schema that's in use by a project — confirm the app handles this
       explicitly (blocks deletion, or clearly warns, or reassigns) rather than leaving the
       project pointing at a nonexistent schema
+- [ ] The label color control is a fixed palette of selectable swatches — confirm there is no
+      native `<input type="color">` anywhere in the DOM (the OS picker was replaced because it
+      was hard to operate and allowed colors invisible against white paper)
+- [ ] Pick a non-default palette color (e.g. Teal), save the label, reload — the list swatch and
+      the hex stored in IndexedDB both match the palette entry that was clicked
+- [ ] Add several labels in a row without touching the color control — confirm each gets a
+      different palette color rather than all defaulting to the first
+- [ ] Reach the swatches by keyboard alone (Tab to the group, then arrow keys) — confirm the
+      focused swatch is visibly indicated and arrow keys change the selection (they are
+      visually-hidden radio inputs, a common accessibility trap)
+- [ ] Edit a label whose color is outside the palette (import a schema with e.g. `#123456`) —
+      confirm an extra swatch appears showing that current color as selected, and saving without
+      touching the color leaves the hex unchanged in IndexedDB
+- [ ] Type a label name containing spaces (e.g. `date of birth`) — confirm the field itself shows
+      `date_of_birth` as you type, with no error message shown, and the name stored in IndexedDB
+      uses underscores
+- [ ] The hotkey picker offers `0` in addition to `1`–`9`; assign `0` and confirm it persists to
+      IndexedDB after reload
 
 ## M2 — Projects & documents
 
@@ -82,6 +100,10 @@ not by reading the code and reasoning that it should work. Reading code tells yo
       both remove it from the canvas and from IndexedDB after reload
 - [ ] Resize the browser window while boxes exist — confirm they stay visually aligned with the
       underlying image (not drifted)
+- [ ] Assign hotkey `0` to a label, then press `0` with the canvas focused — confirm that label
+      actually becomes the selected label. (The picker and the canvas key handler used to hold
+      separate copies of the allowed digit range, so a hotkey could be assignable but dead;
+      pressing the key is the only way to catch that.)
 
 ## M4 — Import / export
 

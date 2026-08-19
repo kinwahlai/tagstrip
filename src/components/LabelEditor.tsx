@@ -4,10 +4,10 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { addLabel, removeLabel, SchemaValidationError, updateLabel } from '../db/labelSchemas'
 import { ConfirmDialog } from './ConfirmDialog'
+import { DEFAULT_LABEL_COLOR, LABEL_COLORS, suggestColor } from '../lib/labelColors'
+import { spacesToUnderscores } from '../lib/labelName'
+import { HOTKEY_OPTIONS } from '../lib/hotkeys'
 import type { Label } from '../db/types'
-
-const DEFAULT_COLOR = '#6366f1'
-const HOTKEY_OPTIONS = ['1', '2', '3', '4', '5', '6', '7', '8', '9']
 
 interface LabelFormState {
   name: string
@@ -15,7 +15,7 @@ interface LabelFormState {
   hotkey: string
 }
 
-const EMPTY_FORM: LabelFormState = { name: '', color: DEFAULT_COLOR, hotkey: '' }
+const EMPTY_FORM: LabelFormState = { name: '', color: DEFAULT_LABEL_COLOR, hotkey: '' }
 
 export function LabelEditor({ schemaId }: { schemaId: string }) {
   const schema = useLiveQuery(() => db.labelSchemas.get(schemaId), [schemaId])
@@ -27,6 +27,11 @@ export function LabelEditor({ schemaId }: { schemaId: string }) {
   if (schema === undefined) return null
   if (schema === null) return <p className="text-sm text-slate-500">Schema not found.</p>
 
+  const labelColors = schema.labels.map((l) => l.color)
+  const inPalette = LABEL_COLORS.some((c) => c.hex.toUpperCase() === form.color.toUpperCase())
+  const swatches = inPalette
+    ? LABEL_COLORS
+    : [...LABEL_COLORS, { name: 'Current color', hex: form.color }]
   const usedHotkeys = new Set(
     schema.labels
       .filter((l) => l.id !== editingId)
@@ -34,8 +39,12 @@ export function LabelEditor({ schemaId }: { schemaId: string }) {
       .filter(Boolean),
   )
 
-  function resetForm() {
-    setForm(EMPTY_FORM)
+  // useLiveQuery has not re-rendered with the label we just wrote, so `labelColors`
+  // is one render stale — the color just consumed still looks free. Callers that
+  // have just spent a color pass it in explicitly.
+  function resetForm(alsoUsed?: string) {
+    const used = alsoUsed ? [...labelColors, alsoUsed] : labelColors
+    setForm({ ...EMPTY_FORM, color: suggestColor(used) })
     setEditingId(null)
     setError(null)
   }
@@ -56,7 +65,7 @@ export function LabelEditor({ schemaId }: { schemaId: string }) {
       } else {
         await addLabel(schemaId, input)
       }
-      resetForm()
+      resetForm(input.color)
     } catch (err) {
       if (err instanceof SchemaValidationError) {
         setError(err.message)
@@ -130,26 +139,59 @@ export function LabelEditor({ schemaId }: { schemaId: string }) {
             id="label-name"
             type="text"
             value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            onChange={(e) => setForm((f) => ({ ...f, name: spacesToUnderscores(e.target.value) }))}
             placeholder="e.g. date_of_birth"
+            aria-describedby="label-name-hint"
             className="mt-1 w-48 rounded-md border border-slate-300 px-2 py-1.5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
           />
+          <p id="label-name-hint" className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+            Spaces become underscores
+          </p>
         </div>
-        <div>
-          <label
-            htmlFor="label-color"
-            className="block text-xs font-medium text-slate-600 dark:text-slate-300"
-          >
-            Color
-          </label>
-          <input
-            id="label-color"
-            type="color"
-            value={form.color}
-            onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
-            className="mt-1 h-9 w-16 cursor-pointer rounded-md border border-slate-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-600"
-          />
-        </div>
+        <fieldset>
+          <legend className="text-xs font-medium text-slate-600 dark:text-slate-300">Color</legend>
+          <div className="mt-1 grid grid-cols-6 gap-1.5">
+            {swatches.map((c) => {
+              const selected = c.hex.toUpperCase() === form.color.toUpperCase()
+              return (
+                <label
+                  key={c.hex}
+                  title={c.name}
+                  className="cursor-pointer"
+                  data-testid="color-option"
+                  data-selected={selected}
+                >
+                  <input
+                    type="radio"
+                    name="label-color"
+                    value={c.hex}
+                    checked={selected}
+                    onChange={() => setForm((f) => ({ ...f, color: c.hex }))}
+                    className="peer sr-only"
+                  />
+                  <span
+                    aria-hidden="true"
+                    style={{ backgroundColor: c.hex }}
+                    className="flex h-7 w-7 items-center justify-center rounded-md border border-black/20 ring-offset-1 peer-checked:ring-2 peer-checked:ring-slate-900 peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-500 dark:ring-offset-slate-900 dark:peer-checked:ring-slate-100"
+                  >
+                    {selected && (
+                      <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4">
+                        <path
+                          d="M5 10.5l3.5 3.5L15 7"
+                          stroke="white"
+                          strokeWidth="2.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    )}
+                  </span>
+                  <span className="sr-only">{c.name}</span>
+                </label>
+              )
+            })}
+          </div>
+        </fieldset>
         <div>
           <label
             htmlFor="label-hotkey"
@@ -180,7 +222,7 @@ export function LabelEditor({ schemaId }: { schemaId: string }) {
         {editingId && (
           <button
             type="button"
-            onClick={resetForm}
+            onClick={() => resetForm()}
             className="rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:text-slate-300 dark:hover:bg-slate-700"
           >
             Cancel
