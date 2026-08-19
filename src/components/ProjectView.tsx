@@ -154,11 +154,11 @@ export function ProjectView({ projectId, onOpenAnnotate, onBack }: ProjectViewPr
       <div className="mt-4 grid grid-cols-1 gap-6 md:grid-cols-[320px_1fr]">
         <div>
           {docs.length === 0 ? (
-            <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               No documents yet. Upload a PDF or image to get started.
             </p>
           ) : (
-            <ul className="mt-3 divide-y divide-slate-200 rounded-md border border-slate-200 dark:divide-slate-700 dark:border-slate-700">
+            <ul className="divide-y divide-slate-200 rounded-md border border-slate-200 dark:divide-slate-700 dark:border-slate-700">
               {docs.map((doc) => (
                 <li key={doc.id} className="flex items-center gap-2 px-3 py-2">
                   <button
