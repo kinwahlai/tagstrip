@@ -1093,3 +1093,99 @@ size and font size), "Suggest text" on a `contentType: text` page now resolves t
 text with zero network activity (checked against two independently-generated PDF fixtures), and
 none of the previously-passing OCR-fallback / no-preload / badge-lifecycle behavior regressed as a
 side effect of the fix. `npm run lint`, `npm test`, and `npm run build` all exit 0.
+
+## M3 — Annotation canvas (re-verified 2026-08-20, regression check after color palette / label-name / hotkey-range refactor)
+
+_Scope: the six M3 items left "NOT CHECKED" in the 2026-08-19 hotkey-refactor run above, treated
+as a regression check after later changes to the label color palette, label-name handling, and a
+refactor moving the hotkey digit range into `src/lib/hotkeys.ts` (which touches the same
+`AnnotationCanvas.tsx` keydown handler as the Delete/Backspace path). The hotkey-`0` item itself
+was explicitly out of scope per instruction (already confirmed in the prior run) and was not
+re-tested here. Reused the pre-existing "Test Project" (schema: Invoice Fields — labels
+`date_of_birth` (teal, hotkey 1), `Invoice_Number` (red/pink, hotkey 0), `Vendor_Name` (red/pink,
+no hotkey shown pressed)) and its existing `specimen.pdf` (2-page PDF, both pages `contentType:
+text`) rather than generating new fixtures. Dev server started via `pnpm run dev` (Vite, port
+5173)._
+
+- ✓ Select a label, draw a box on the page — appears immediately with correct label color and
+  name tag. With `date_of_birth` selected (teal swatch), dragged a box on page 1 over the line
+  "Page 1 sample text for TagStrip test". The box rendered immediately as a teal-outlined,
+  teal-tinted rectangle with a solid-teal `date_of_birth` name tag anchored at its top-left corner,
+  and a matching entry appeared instantly in the "Regions on this page" list. Screenshot:
+  `verification-screenshots/M3-draw-box-label-color.png`.
+
+- ✓ Draw a box and release the mouse outside the image bounds (drag off the edge) — still
+  finalizes correctly. Dragged from a point inside the page image to a point 200px past both the
+  right and bottom edges of the image element (well outside the `<img>`'s bounding box, and in one
+  earlier attempt outside the browser viewport entirely). The box finalized without error, and
+  read directly from IndexedDB the stored annotation was `x: 0.4085, y: 0.3157, width: 0.5915,
+  height: 0.6843` — i.e. `x + width = 1.0` and `y + height = 1.0` exactly, meaning the drag was
+  correctly clamped to the far corner of the page rather than being dropped, throwing, or storing
+  an out-of-range/negative value. Visually the box extended cleanly to the image's bottom-right
+  corner with no clipping artifact or overflow past the page. Screenshot:
+  `verification-screenshots/M3-drag-outside-bounds.png`.
+
+- ✓ Zoom in, draw a box, zoom back out — stored coordinates correct at a different zoom level
+  (truly normalized 0-1, not zoomed pixel space). Zoomed to 150%, selected `Invoice_Number`, drew
+  a box in the top area of page 1. Read the stored record immediately at 150% zoom:
+  `x: 0.39978, y: 0.019781, width: 0.19989, height: 0.039983` (all inside 0-1, matching the
+  intended ~0.4/0.02/0.2/0.04 drag ratios). Zoomed back down through 100% → 75% → 50% and re-read
+  IndexedDB: the record for that same annotation id (`9be6c397-...`) was byte-for-byte identical
+  (`x: 0.3997821350762527, y: 0.01978114478114478, width: 0.19989106753812635, height:
+  0.03998316498316498`) at 50% zoom as it was at 150% zoom — proving storage is in normalized page
+  fractions, not zoomed pixels. Visually, at 50% zoom all three boxes on the page (two
+  `date_of_birth`, one `Invoice_Number`) still sat correctly over their original content.
+  Screenshots: `verification-screenshots/M3-zoom-coords-at-150.png`,
+  `verification-screenshots/M3-zoom-coords-at-50.png`.
+
+- ✓ Draw on page 2 of a multi-page doc, navigate back to page 1 — page 1 unaffected, page 2's box
+  only on page 2. Navigated to page 2 (confirmed empty region list beforehand), selected
+  `Vendor_Name`, drew one box. Region list on page 2 showed exactly one `Vendor_Name` entry.
+  Navigated back to page 1: the region list showed exactly the 3 boxes that existed on page 1
+  before touching page 2 (two `date_of_birth`, one `Invoice_Number`) — no `Vendor_Name` box leaked
+  onto page 1, and none of page 1's boxes were altered or duplicated. Screenshots:
+  `verification-screenshots/M3-page2-box.png`, `verification-screenshots/M3-page1-after-page2-box.png`.
+
+- ✓ Delete a box via the Delete key and separately via a delete button — both remove it from
+  canvas and from IndexedDB after reload. Clicked the `Invoice_Number` box on the canvas to select
+  it (confirmed `[active]` in the accessibility tree), pressed the `Delete` key: the box and its
+  region-list entry disappeared immediately (screenshot: `verification-screenshots/M3-delete-key.png`).
+  Separately clicked the "Delete" button next to one of the two `date_of_birth` region-list entries:
+  that box and entry also disappeared immediately, leaving one `date_of_birth` region
+  (screenshot: `verification-screenshots/M3-delete-button.png`). Did a full browser reload
+  (`page.goto`, not SPA nav) and re-read the `annotations` table directly from IndexedDB: only 2
+  records remained — the surviving `date_of_birth` box on page 1 and the `Vendor_Name` box on page
+  2 — confirming both deletions (Delete key and delete button) persisted and did not resurrect
+  after reload. This directly confirms the `isHotkey()` refactor sitting above the delete-key
+  branch in the same `AnnotationCanvas.tsx` keydown handler did not disturb the Delete/Backspace
+  path.
+
+- ✓ Resize the browser window while boxes exist — they stay visually aligned with the underlying
+  image, not drifted. With the remaining `date_of_birth` box visible on page 1 at 100% zoom,
+  recorded the box's rendered position relative to the page image
+  (`getBoundingClientRect`: offset `(100, 150)` from the image's top-left, size `250×150`,
+  matching the stored `x:0.0817, y:0.0947, width:0.2042, height:0.0947` fractions of the
+  1224×1584 image). Resized the viewport from 1400×1900 down to 900×1200. Re-measured: the image
+  element's rect was unchanged (`1224×1584` at the same `(24,179)` — the app does not reflow the
+  rendered page size on window resize, only on explicit zoom/page-navigation actions) and the
+  box's rect was also byte-for-byte unchanged, remaining exactly overlaid on "Page 1 sample text
+  for" as before. No drift was observed. Screenshots:
+  `verification-screenshots/M3-resize-before.png`, `verification-screenshots/M3-resize-after.png`.
+
+No console errors were observed at any point during this run (`browser_console_messages` at
+`error` level, checked across the whole session, returned 0 messages).
+
+### Summary (M3, 2026-08-20 regression check)
+
+All six in-scope items pass. The label-color-palette, label-name-handling, and hotkey-range
+refactors described by the implementer did not regress drawing, geometry/normalization, per-page
+isolation, deletion (including the Delete-key path sharing a handler with the new `isHotkey()`
+call), or resize behavior. The hotkey-`0` item was out of scope for this run per instruction and
+remains as last confirmed on 2026-08-19.
+
+---
+
+**Tool-call count for this run: 88** (test coverage completed within budget; stopped shortly after
+to write this report, under the 100-call hard cap).
+
+---
