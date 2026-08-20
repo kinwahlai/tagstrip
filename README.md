@@ -9,13 +9,27 @@ pre-processing step, and no server at all.
 
 ![TagStrip annotation canvas showing labeled bounding boxes on a document, a label toolbar, and a region list with a transcription field](docs/screenshot.png)
 
+## Everything stays on your machine
+
+TagStrip has no backend. Documents, page images, annotations, and label schemas live in IndexedDB
+in your own browser. Nothing is uploaded, because there is nowhere to upload it to.
+
+That makes it usable on material you are not permitted to hand to a third party — customer KYC
+packets, identity documents, medical records, anything under NDA. The usual blocker for an
+annotation tool is not whether it works, it's whether you're allowed to put the documents in it.
+
+**You can verify this rather than take our word for it.** Load the page once, disconnect from the
+network, and keep working — including OCR. pdf.js's worker, the Tesseract worker, its WASM core,
+and the English model weights are all served from this app's own origin; tesseract.js normally
+pulls those from a CDN and TagStrip deliberately overrides it (see `src/lib/ocr/tesseract.ts`).
+Watch the network tab if you'd rather see it directly.
+
 ## Why
 
 Most bounding-box annotation tools assume a text layer already exists to copy from, or need a
 backend to store projects and images. TagStrip is built for the opposite case: scanned or
-image-only documents where the transcription itself is part of what you're labeling, and for
-people who want to run entirely offline with no account, no upload to a third party, and no
-server to stand up.
+image-only documents where the transcription itself is part of what you're labeling — with no
+account to create and no server to stand up.
 
 ## Features
 
