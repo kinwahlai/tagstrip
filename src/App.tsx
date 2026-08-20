@@ -3,6 +3,7 @@ import { SchemaManager } from './components/SchemaManager'
 import { ProjectManager } from './components/ProjectManager'
 import { ProjectView } from './components/ProjectView'
 import { AnnotationCanvas } from './components/canvas/AnnotationCanvas'
+import { LocalOnlyBadge } from './components/LocalOnlyBadge'
 
 type View =
   | { tab: 'schemas' }
@@ -16,7 +17,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      <header className="flex items-center gap-6 border-b border-slate-200 px-4 py-4 sm:px-6 dark:border-slate-800">
+      <header className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-slate-200 px-4 py-4 sm:px-6 dark:border-slate-800">
         <span className="text-lg font-bold text-slate-900 dark:text-slate-100">TagStrip</span>
         <nav className="flex gap-4">
           <button
@@ -42,6 +43,7 @@ function App() {
             Projects
           </button>
         </nav>
+        <LocalOnlyBadge />
       </header>
       <main className={view.tab === 'annotate' ? '' : 'mx-auto max-w-5xl px-4 py-8 sm:px-6'}>
         {view.tab === 'schemas' && <SchemaManager />}

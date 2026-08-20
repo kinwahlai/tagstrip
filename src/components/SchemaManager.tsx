@@ -6,6 +6,7 @@ import { createSchema, deleteSchema, renameSchema, SchemaValidationError } from 
 import { exportSchemaToFile } from '../lib/schemaExport'
 import { importSchemaExport, parseSchemaExport } from '../lib/schemaImport'
 import { ConfirmDialog } from './ConfirmDialog'
+import { LocalOnlyPanel } from './LocalOnlyPanel'
 import { LabelEditor } from './LabelEditor'
 import type { LabelSchema } from '../db/types'
 
@@ -227,9 +228,12 @@ export function SchemaManager() {
         {selectedId ? (
           <LabelEditor schemaId={selectedId} />
         ) : (
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Select a schema to manage its labels, or create a new one.
-          </p>
+          <div className="space-y-4">
+            <LocalOnlyPanel />
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              Select a schema to manage its labels, or create a new one.
+            </p>
+          </div>
         )}
       </section>
 

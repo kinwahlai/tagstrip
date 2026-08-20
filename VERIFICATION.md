@@ -138,6 +138,20 @@ not by reading the code and reasoning that it should work. Reading code tells yo
       unbroken
 - [ ] Trigger an error state on purpose (e.g. import a malformed JSON file) — confirm the error
       message is specific and actionable, not a generic failure or a silent no-op
+- [ ] The "Nothing leaves your browser" badge is visible in the header on every view (schemas,
+      projects, project detail, annotation canvas) and does not crowd the nav
+- [ ] The badge reads as a claim, not a muted status chip — it should be one of the first things
+      the eye lands on in the header, in both light and dark mode
+- [ ] With no schema selected, the local-only panel fills the right-hand pane: heading
+      "Your documents never leave this browser", a supporting sentence, and three points
+      (stored on your device / nothing is uploaded / works offline) each with an icon
+- [ ] The panel is legible in BOTH light and dark mode — check rendered contrast, not class names
+- [ ] The panel does not compete with the "Create" button as the page's primary action, and does
+      not push the schema list or create form below the fold at 1280x800
+- [ ] Selecting a schema replaces the panel with the label editor
+- [ ] Neither the badge, its tooltip, nor the panel uses "encrypted" or "secure" (IndexedDB is
+      plaintext at rest; overclaiming here is a bug)
+- [ ] At 375px wide the badge and panel still read correctly and nothing overflows horizontally
 
 ## M6 — Open source packaging
 
