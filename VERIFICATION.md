@@ -151,6 +151,13 @@ not by reading the code and reasoning that it should work. Reading code tells yo
 - [ ] The panel is legible in BOTH light and dark mode — check rendered contrast, not class names
 - [ ] The panel does not compete with the "Create" button as the page's primary action, and does
       not push the create form below the fold at 1280x800 — the create form is pinned above it
+- [ ] Leaving the empty state replaces the panel with the label editor: creating the first schema
+      from the pinned form, or opening any schema from the rail, lands on schema detail with the
+      add-label form. *(Reworded at R2 from "Selecting a schema replaces the panel with the label
+      editor". Selecting is now navigation to a route rather than a pane swap, and the panel only
+      exists while there are no schemas at all — but the behaviour it checks still has to hold, so
+      the item stays. It was dropped outright in the first R2 edit; that was a silent skip and the
+      verifier caught it.)*
 - [ ] Neither the badge, its tooltip, nor the panel uses "encrypted" or "secure" (IndexedDB is
       plaintext at rest; overclaiming here is a bug)
 - [ ] At 375px wide the badge and panel still read correctly and nothing overflows horizontally
