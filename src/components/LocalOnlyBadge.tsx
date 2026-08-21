@@ -7,16 +7,39 @@
 // most likely to check.
 export function LocalOnlyBadge() {
   return (
-    <span
+    <div
       data-testid="local-only-badge"
       title="Documents, annotations, and label schemas are stored in this browser (IndexedDB). Nothing is uploaded — TagStrip has no server."
-      className="ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700 dark:border-indigo-800 dark:bg-indigo-950 dark:text-indigo-300"
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '9px',
+        padding: '0 var(--space-4)',
+        borderLeft: '2px solid var(--color-divider)',
+        borderRight: '2px solid var(--color-divider)',
+      }}
     >
-      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="h-3.5 w-3.5">
-        <rect x="3" y="4" width="14" height="9" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
-        <path d="M2 16.5h16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <svg
+        viewBox="0 0 20 20"
+        fill="none"
+        stroke="currentColor"
+        aria-hidden="true"
+        style={{ width: 15, height: 15, flex: 'none', color: 'var(--color-accent-700)' }}
+      >
+        <rect x="3" y="4" width="14" height="9" strokeWidth="1.5" />
+        <path d="M2 16.5h16" strokeWidth="1.5" strokeLinecap="square" />
       </svg>
-      Nothing leaves your browser
-    </span>
+      <span
+        style={{
+          fontFamily: 'var(--font-heading)',
+          fontWeight: 800,
+          fontSize: '13.5px',
+          whiteSpace: 'nowrap',
+          color: 'var(--color-accent-700)',
+        }}
+      >
+        Nothing leaves your browser
+      </span>
+    </div>
   )
 }

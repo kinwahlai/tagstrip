@@ -1,72 +1,98 @@
 import { useState } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { db } from './db/db'
 import { SchemaManager } from './components/SchemaManager'
 import { ProjectManager } from './components/ProjectManager'
 import { ProjectView } from './components/ProjectView'
 import { AnnotationCanvas } from './components/canvas/AnnotationCanvas'
-import { LocalOnlyBadge } from './components/LocalOnlyBadge'
+import { AppShell } from './components/shell/AppShell'
 
 type View =
   | { tab: 'schemas' }
+  | { tab: 'schema'; schemaId: string }
   | { tab: 'projects' }
   | { tab: 'project'; projectId: string }
   | { tab: 'annotate'; projectId: string; docId: string }
 
 function App() {
   const [view, setView] = useState<View>({ tab: 'schemas' })
-  const topTab = view.tab === 'schemas' ? 'schemas' : 'projects'
+
+  const schemas = useLiveQuery(() => db.labelSchemas.orderBy('updatedAt').reverse().toArray(), [])
+  const projects = useLiveQuery(() => db.projects.orderBy('updatedAt').reverse().toArray(), [])
+  const annotatedDoc = useLiveQuery(
+    () => (view.tab === 'annotate' ? db.docs.get(view.docId) : undefined),
+    [view],
+  )
+
+  if (schemas === undefined || projects === undefined) return null
+
+  const schemaNameById = new Map(schemas.map((s) => [s.id, s.name]))
+  const currentSchemaId = view.tab === 'schema' ? view.schemaId : null
+  const currentProjectId = view.tab === 'project' || view.tab === 'annotate' ? view.projectId : null
+  const currentProject = projects.find((p) => p.id === currentProjectId) ?? null
+
+  // The name appears once, in the breadcrumb; the work surface's own headers name
+  // the section instead. It used to be repeated as an h1 or h2 on three screens.
+  const crumb: [string, string] = {
+    schemas: ['All work', 'Label schemas'] as [string, string],
+    schema: ['Label schema', schemaNameById.get(currentSchemaId ?? '') ?? ''] as [string, string],
+    projects: ['All work', 'Projects'] as [string, string],
+    project: ['Project', currentProject?.name ?? ''] as [string, string],
+    annotate: [currentProject?.name ?? 'Project', annotatedDoc?.filename ?? ''] as [string, string],
+  }[view.tab]
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950">
-      <header className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-slate-200 px-4 py-4 sm:px-6 dark:border-slate-800">
-        <span className="text-lg font-bold text-slate-900 dark:text-slate-100">TagStrip</span>
-        <nav className="flex gap-4">
-          <button
-            type="button"
-            onClick={() => setView({ tab: 'schemas' })}
-            className={`text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${
-              topTab === 'schemas'
-                ? 'text-indigo-700 dark:text-indigo-300'
-                : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100'
-            }`}
-          >
-            Schemas
-          </button>
-          <button
-            type="button"
-            onClick={() => setView({ tab: 'projects' })}
-            className={`text-sm font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${
-              topTab === 'projects'
-                ? 'text-indigo-700 dark:text-indigo-300'
-                : 'text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-slate-100'
-            }`}
-          >
-            Projects
-          </button>
-        </nav>
-        <LocalOnlyBadge />
-      </header>
-      <main className={view.tab === 'annotate' ? '' : 'mx-auto max-w-5xl px-4 py-8 sm:px-6'}>
-        {view.tab === 'schemas' && <SchemaManager />}
-        {view.tab === 'projects' && (
-          <ProjectManager onOpenProject={(projectId) => setView({ tab: 'project', projectId })} />
-        )}
-        {view.tab === 'project' && (
-          <ProjectView
-            projectId={view.projectId}
-            onBack={() => setView({ tab: 'projects' })}
-            onOpenAnnotate={(docId) =>
-              setView({ tab: 'annotate', projectId: view.projectId, docId })
-            }
-          />
-        )}
-        {view.tab === 'annotate' && (
-          <AnnotationCanvas
-            docId={view.docId}
-            onBack={() => setView({ tab: 'project', projectId: view.projectId })}
-          />
-        )}
-      </main>
-    </div>
+    <AppShell
+      crumbTop={crumb[0]}
+      crumbMain={crumb[1]}
+      onCrumbBack={
+        view.tab === 'annotate'
+          ? () => setView({ tab: 'project', projectId: view.projectId })
+          : undefined
+      }
+      surfaceScrolls={view.tab !== 'annotate'}
+      schemas={schemas}
+      projects={projects}
+      schemaNameById={schemaNameById}
+      atSchemas={view.tab === 'schemas'}
+      atProjects={view.tab === 'projects'}
+      currentSchemaId={currentSchemaId}
+      currentProjectId={currentProjectId}
+      onOpenSchemas={() => setView({ tab: 'schemas' })}
+      onOpenProjects={() => setView({ tab: 'projects' })}
+      onOpenSchema={(schemaId) => setView({ tab: 'schema', schemaId })}
+      onOpenProject={(projectId) => setView({ tab: 'project', projectId })}
+    >
+      {view.tab === 'annotate' ? (
+        <AnnotationCanvas
+          docId={view.docId}
+          onBack={() => setView({ tab: 'project', projectId: view.projectId })}
+        />
+      ) : (
+        <div style={{ padding: 'var(--space-6)' }}>
+          {(view.tab === 'schemas' || view.tab === 'schema') && (
+            <SchemaManager
+              selectedId={currentSchemaId}
+              onSelectSchema={(schemaId) =>
+                setView(schemaId ? { tab: 'schema', schemaId } : { tab: 'schemas' })
+              }
+            />
+          )}
+          {view.tab === 'projects' && (
+            <ProjectManager onOpenProject={(projectId) => setView({ tab: 'project', projectId })} />
+          )}
+          {view.tab === 'project' && (
+            <ProjectView
+              projectId={view.projectId}
+              onBack={() => setView({ tab: 'projects' })}
+              onOpenAnnotate={(docId) =>
+                setView({ tab: 'annotate', projectId: view.projectId, docId })
+              }
+            />
+          )}
+        </div>
+      )}
+    </AppShell>
   )
 }
 

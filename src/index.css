@@ -1,7 +1,27 @@
 @import 'tailwindcss';
+/* Loaded after Tailwind so the design system's own reset (body font, heading
+   scale, zero radius) wins over preflight. */
+@import './styles/ts-modernist.css';
 
+/* Tailwind v4 resolves `dark:` from prefers-color-scheme by default, which would
+   contradict ts-modernist.css — that keys off [data-theme="dark"], and the header
+   toggle has to beat the OS setting in both directions. Point both at the same
+   attribute so a page can never mix one theme's text with the other's ground. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+/* Form controls and scrollbars follow the chosen theme, not the OS one. */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
 }
 
 body {

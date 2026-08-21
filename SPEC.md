@@ -302,3 +302,61 @@ Suggested first prompt when starting the Claude Code session:
 Building milestone-by-milestone with a review checkpoint after M1 (data layer + schema UI) and
 after M3 (the canvas, which is the highest-risk/most-interactive part) is worth doing before
 letting it run further — those are the two places most likely to need course-correction.
+
+---
+
+## 9. Redesign: the Modernist shell (2026-08)
+
+A design handoff from Claude Design (`docs/ui-mockup-brief.md` was the brief) supplies six screens
+in a mail-client shell, in light and dark. Source bundle: `TagStrip Mockups.dc.html` (contact
+sheet), `Shell.dc.html` (the UI, parameterised by screen/state/theme), `ts-modernist.css` (the
+design system, vendored). `support.js` in that bundle is the design-canvas runtime — harness, not
+app code, and not ported.
+
+### Decisions taken before starting
+
+- **CSS.** `ts-modernist.css` is vendored as-is into `src/styles/` and its classes (`.btn`,
+  `.table`, `.ts-shell`, `.ts-chip`, …) are used directly. Tailwind stays for one-off layout only.
+  Not re-expressed as Tailwind theme tokens — the designed dark theme comes free this way.
+- **Label palette.** The five hues that fail 4.5:1 against a white region tag are darkened in
+  `src/lib/labelColors.ts`: Orange `#F58231`→`#B35C13`, Olive `#808000`→`#757500`, Green
+  `#3CB44B`→`#2A8034`, Teal `#469990`→`#3A7D75`, Magenta `#F032E6`→`#C024B6`. Verified
+  independently; all twelve then clear 4.5:1 and the other seven already did. Labels already in
+  IndexedDB keep their stored hex and surface as the off-palette swatch, which already exists.
+- **Invented data is deferred, not faked.** The mockups show region counts per schema and per
+  label, "used by", "last used", annotated ratio, disk usage and per-document region counts. None
+  of it is queryable today. Those columns are omitted until R6 rather than stubbed with em-dashes.
+- **Archivo is not bundled.** `ts-modernist.css` keeps Archivo first in the stack with a commented
+  `@font-face` block; until a self-hosted woff2 is dropped in, a system grotesque resolves. No font
+  CDN — that would falsify the product's own claim. Open item, not a blocker.
+- **Responsive is not designed.** The mockups are fixed 1440×900. R7 covers 375–1920 and is the
+  only milestone with no reference frames to work from.
+
+### Milestones
+
+- **R1 — Shell.** Vendor the stylesheet; reconcile theming (`ts-modernist.css` keys off
+  `[data-theme="dark"]` while Tailwind v4 defaults `dark:` to `prefers-color-scheme`, so a
+  `@custom-variant` must point Tailwind at the same attribute, and an explicit toggle must beat the
+  OS in both directions). Build the header (wordmark, breadcrumb, claim strip, theme toggle) and
+  the rail (group headers, schema and project lists, footer). Existing page components render
+  inside the work surface, still in their current styling. Group headers route to the existing
+  list pages until R2/R3 replace them. **Checkpoint — stop for human review.**
+- **R2 — Schema screens.** Label-schemas overview table (new; this is where "create a schema"
+  finally lives) and schema detail: add-label form pinned above the table it feeds, full
+  twelve-swatch palette inline, hotkey select, labels table.
+- **R3 — Project screens.** Projects overview table (new) and project detail as three columns —
+  documents list, then the selected document with notes and the per-page content-type list.
+- **R4 — Annotate.** Labels, undo/redo, zoom, page nav and layer tag in the toolbar; canvas; the
+  regions inspector with a transcription input and Suggest text per region; rail collapsed to 56px
+  with the document overlay; breadcrumb as back link with Esc. **Checkpoint — stop for human
+  review.** Highest-risk screen, same reasoning as M3.
+- **R5 — First run.** Accent hero at 52px, the "What this is not" strip naming the plaintext-at-rest
+  limit, the three points, and the start-here create form.
+- **R6 — Deferred aggregates.** The R-decisions above, made real: counts per schema and label,
+  used-by, last used, annotated ratio and progress bar, per-document region counts,
+  `navigator.storage.estimate()` for disk use, and the rail's Find box.
+- **R7 — Responsive.** 375–1920 with no horizontal overflow at any width; rail to 56px then
+  off-canvas; middle column folds into the surface.
+
+Checkpoints after R1 and R4 mirror section 8's reasoning: R1 because every later screen sits inside
+that shell, R4 because it is the most interactive surface in the app.

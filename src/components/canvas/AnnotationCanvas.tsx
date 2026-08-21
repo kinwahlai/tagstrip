@@ -198,7 +198,7 @@ export function AnnotationCanvas({ docId, onBack }: AnnotationCanvasProps) {
   const activeLabelId = selectedLabelId ?? schema.labels[0]?.id ?? null
 
   return (
-    <div className="flex h-[calc(100vh-65px)] flex-col">
+    <div className="flex h-full flex-col">
       <div className="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-2 dark:border-slate-800 dark:bg-slate-900">
         <button
           type="button"

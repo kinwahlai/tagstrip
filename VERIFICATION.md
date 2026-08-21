@@ -159,3 +159,92 @@ not by reading the code and reasoning that it should work. Reading code tells yo
       by actually following the quickstart steps from a clean clone
 - [ ] CI workflow file exists and, when checked (or manually triggered), lint/test/build all pass
 - [ ] `CONTRIBUTING.md` exists and is not a placeholder/stub
+
+---
+
+## R1 — Modernist shell
+
+*(Checkpoint milestone — every later screen sits inside this. Stop for human review after it passes.)*
+
+- [ ] The app loads with no console errors and every existing route still reaches its page:
+      schemas, projects, a project's detail, and the annotation canvas
+- [ ] Header shows the wordmark, a breadcrumb, the "Nothing leaves your browser" claim strip, and a
+      theme toggle
+- [ ] The rail lists label schemas and projects as two groups, each with a count; clicking a rail
+      item opens that schema or project; clicking a group header reaches that list page
+- [ ] The old top-level Schemas/Projects tabs are gone — confirm no orphaned nav remains
+- [ ] Theme toggle flips light↔dark and **beats the OS setting in both directions**: with the OS in
+      dark, choosing light must give a light page, and vice versa. Check the rendered result, not
+      the class names
+- [ ] Tailwind `dark:` utilities and `ts-modernist.css`'s `[data-theme="dark"]` rules agree — no
+      element shows one theme's text on the other theme's background. Scan a page in each theme
+- [ ] The shell fills the window with no 1024px centred cap, and the header no longer spans wider
+      than the content beneath it (survey finding 2)
+- [ ] The rail is one width on every screen (survey finding 3)
+- [ ] Keyboard: tab through header and rail — every control has a visible focus ring, and it is the
+      design system's 2px accent ring, not a browser default
+- [ ] No horizontal overflow at 1280×800 — measure `scrollWidth` against `clientWidth`, do not judge
+      from a screenshot
+- [ ] Existing pages still function inside the surface: create a schema, add a label, open a
+      document, draw a region. Mixed old/new styling is expected at this stage and is not a failure
+
+## R2 — Schema screens
+
+- [ ] Label-schemas overview lists every schema and creates a new one from a form pinned **above**
+      the table (survey finding 5)
+- [ ] Schema detail shows the labels table with the add-label form pinned above it
+- [ ] The colour control shows the twelve-swatch palette with the five darkened hues
+      (`#B35C13`, `#757500`, `#2A8034`, `#3A7D75`, `#C024B6`); a label saved from a swatch stores
+      that exact hex in IndexedDB
+- [ ] A schema imported with an off-palette hex still shows it as an extra swatch and editing the
+      label without touching colour leaves the hex unchanged
+- [ ] Hotkey select offers 1–9 then 0 and marks already-taken keys
+- [ ] Region tag text clears 4.5:1 on every swatch in the palette
+
+## R3 — Project screens
+
+- [ ] Projects overview lists every project, with the create form pinned above the list
+- [ ] Project detail renders three columns — documents, then the selected document
+- [ ] Document detail shows the page preview, the notes field (persisting on blur), and the
+      per-page content type with a working override that survives reload
+- [ ] Export JSON and Label Studio export are reachable and still produce valid files
+
+## R4 — Annotate
+
+*(Checkpoint milestone — highest-risk screen. Stop for human review after it passes.)*
+
+- [ ] Labels, undo/redo, zoom, page navigation and the layer tag all sit in the toolbar and work
+- [ ] Rail is collapsed to 56px; the document overlay opens, picks a document without leaving the
+      canvas, and closes
+- [ ] The breadcrumb returns to the project, and Esc does the same
+- [ ] The regions inspector lists every region on the page, each with its own transcription input
+      and Suggest text button; a region whose text came from OCR is tagged
+- [ ] Every M3 behaviour still passes: draw, drag off the edge, zoom-normalised coordinates, page
+      isolation, delete by key and by button, resize alignment, and hotkeys 1–9 plus 0
+- [ ] Empty page shows the source's own sentence rather than blank space
+
+## R5 — First run
+
+- [ ] With IndexedDB empty, the accent hero, the "What this is not" strip, the three points and the
+      create form all render
+- [ ] The strip states that IndexedDB is plaintext at rest; no instance of "encrypted", "secure",
+      "safe" or "protected" anywhere in the shell or first-run copy
+- [ ] Creating a schema from the hero leaves first run and lands on that schema
+
+## R6 — Deferred aggregates
+
+- [ ] Region counts per schema and per label, used-by, last used, annotated ratio with progress bar,
+      and per-document region counts all show real numbers that match IndexedDB
+- [ ] Disk usage comes from `navigator.storage.estimate()` and degrades gracefully where the browser
+      does not support it
+- [ ] The rail's Find box filters both groups
+- [ ] Opening a project with hundreds of documents stays responsive — the aggregates must not be
+      recomputed per row on every render
+
+## R7 — Responsive
+
+- [ ] No horizontal overflow at 375, 768, 1024, 1440 and 1920 — measured via `scrollWidth`, since an
+      off-canvas overflow is invisible in a screenshot (this exact bug shipped once already)
+- [ ] Rail collapses to 56px then off-canvas; the middle column folds into the surface
+- [ ] The annotation canvas remains usable at 375px, or degrades with an explicit message rather
+      than silently breaking

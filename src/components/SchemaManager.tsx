@@ -10,9 +10,15 @@ import { LocalOnlyPanel } from './LocalOnlyPanel'
 import { LabelEditor } from './LabelEditor'
 import type { LabelSchema } from '../db/types'
 
-export function SchemaManager() {
+interface SchemaManagerProps {
+  // Selection lives in the rail now, not in this aside, so the two can never
+  // disagree about which schema is open.
+  selectedId: string | null
+  onSelectSchema: (schemaId: string | null) => void
+}
+
+export function SchemaManager({ selectedId, onSelectSchema: setSelectedId }: SchemaManagerProps) {
   const schemas = useLiveQuery(() => db.labelSchemas.orderBy('updatedAt').reverse().toArray(), [])
-  const [selectedId, setSelectedId] = useState<string | null>(null)
   const [newName, setNewName] = useState('')
   const [createError, setCreateError] = useState<string | null>(null)
   const [renamingId, setRenamingId] = useState<string | null>(null)
