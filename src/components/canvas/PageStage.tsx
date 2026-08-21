@@ -95,22 +95,31 @@ export function PageStage({
   const liveRect = drag ? rectFromPoints(drag.start, drag.current) : null
 
   return (
-    <div className="overflow-auto p-6">
+    <div className="ts-scroll" style={{ padding: 'var(--space-6)' }}>
       <div
         ref={containerRef}
         onMouseDown={handleMouseDown}
-        className="relative select-none bg-white shadow-sm"
-        style={{ width, height, cursor: selectedLabelId ? 'crosshair' : 'default' }}
+        className="select-none"
+        style={{
+          position: 'relative',
+          width,
+          height,
+          background: 'var(--color-neutral-100)',
+          boxShadow: 'var(--shadow-md)',
+          cursor: selectedLabelId ? 'crosshair' : 'default',
+        }}
       >
         <img
           src={imageUrl}
           alt={`Page ${page.pageIndex + 1}`}
           draggable={false}
-          className="pointer-events-none absolute inset-0 h-full w-full"
+          className="pointer-events-none"
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
         />
 
         {annotations.map((annotation) => {
           const label = labelsById.get(annotation.labelId)
+          const color = label?.color ?? '#999'
           const isSelected = annotation.id === selectedAnnotationId
           return (
             <button
@@ -120,38 +129,52 @@ export function PageStage({
                 e.stopPropagation()
                 onSelectAnnotation(annotation.id)
               }}
-              className="absolute border-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
               style={{
+                position: 'absolute',
                 left: `${annotation.x * 100}%`,
                 top: `${annotation.y * 100}%`,
                 width: `${annotation.width * 100}%`,
                 height: `${annotation.height * 100}%`,
-                borderColor: label?.color ?? '#999',
-                backgroundColor: isSelected ? `${label?.color ?? '#999'}33` : 'transparent',
-                boxShadow: isSelected ? '0 0 0 2px white, 0 0 0 4px rgb(99 102 241)' : undefined,
+                padding: 0,
+                border: `2px solid ${color}`,
+                background: isSelected ? `${color}33` : `${color}26`,
+                // Selection is never colour alone: a heavy ink ring, four
+                // handles, and the word "selected" in the tag all say so.
+                boxShadow: isSelected
+                  ? '0 0 0 3px color-mix(in srgb, var(--color-text) 34%, transparent)'
+                  : undefined,
+                cursor: 'pointer',
               }}
             >
-              <span
-                className="absolute -top-5 left-0 whitespace-nowrap rounded-t px-1 text-[10px] font-medium text-white"
-                style={{ backgroundColor: label?.color ?? '#999' }}
-              >
+              <span className="ts-box-tag" style={{ background: color }}>
                 {label?.name ?? 'Unknown'}
+                {isSelected ? ' · selected' : ''}
               </span>
+              {isSelected && (
+                <>
+                  <span className="ts-handle" style={{ left: -5, top: -5 }} />
+                  <span className="ts-handle" style={{ right: -5, top: -5 }} />
+                  <span className="ts-handle" style={{ left: -5, bottom: -5 }} />
+                  <span className="ts-handle" style={{ right: -5, bottom: -5 }} />
+                </>
+              )}
             </button>
           )
         })}
 
         {liveRect && (
           <div
-            className="absolute border-2 border-dashed border-indigo-500 bg-indigo-500/10"
             style={{
+              position: 'absolute',
               left: `${liveRect.x * 100}%`,
               top: `${liveRect.y * 100}%`,
               width: `${liveRect.width * 100}%`,
               height: `${liveRect.height * 100}%`,
+              border: '2px dashed var(--color-accent)',
+              background: 'color-mix(in srgb, var(--color-accent) 10%, transparent)',
             }}
           >
-            <span className="absolute -top-5 left-0 whitespace-nowrap rounded bg-indigo-600 px-1 text-[10px] font-medium text-white">
+            <span className="ts-box-tag" style={{ background: 'var(--color-accent)' }}>
               {Math.round(liveRect.width * page.width)} ×{' '}
               {Math.round(liveRect.height * page.height)}
             </span>

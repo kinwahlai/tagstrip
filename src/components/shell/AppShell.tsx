@@ -3,8 +3,6 @@ import type { ReactNode } from 'react'
 import { applyTheme, initialTheme } from '../../lib/theme'
 import type { Theme } from '../../lib/theme'
 import { LocalOnlyBadge } from '../LocalOnlyBadge'
-import { Rail } from './Rail'
-import type { LabelSchema, Project } from '../../db/types'
 
 interface AppShellProps {
   crumbTop: string
@@ -12,17 +10,9 @@ interface AppShellProps {
   // Set only on the annotation canvas, where the breadcrumb's upper line is the
   // way back to the project rather than dead text.
   onCrumbBack?: () => void
-  schemas: LabelSchema[]
-  projects: Project[]
-  schemaNameById: Map<string, string>
-  atSchemas: boolean
-  atProjects: boolean
-  currentSchemaId: string | null
-  currentProjectId: string | null
-  onOpenSchemas: () => void
-  onOpenProjects: () => void
-  onOpenSchema: (schemaId: string) => void
-  onOpenProject: (projectId: string) => void
+  // The rail is the caller's to supply: full on every screen except annotate,
+  // which collapses it to 56px so the canvas gains the width back.
+  rail: ReactNode
   children: ReactNode
 }
 
@@ -63,7 +53,7 @@ function ThemeToggle() {
 // edge to edge. The header used to span full width over content capped at
 // 1024px and centred; that mismatch is gone, and column widths now come from
 // one set of tokens on .ts-shell rather than being restated per screen.
-export function AppShell({ crumbTop, crumbMain, onCrumbBack, children, ...rail }: AppShellProps) {
+export function AppShell({ crumbTop, crumbMain, onCrumbBack, rail, children }: AppShellProps) {
   return (
     <div
       className="ts-shell"
@@ -181,7 +171,7 @@ export function AppShell({ crumbTop, crumbMain, onCrumbBack, children, ...rail }
       </header>
 
       <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
-        <Rail {...rail} />
+        {rail}
         <main
           style={{
             flex: 1,

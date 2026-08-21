@@ -7,6 +7,8 @@ import { ProjectsOverview } from './components/ProjectsOverview'
 import { ProjectDetail } from './components/ProjectDetail'
 import { AnnotationCanvas } from './components/canvas/AnnotationCanvas'
 import { AppShell } from './components/shell/AppShell'
+import { Rail } from './components/shell/Rail'
+import { MiniRail } from './components/shell/MiniRail'
 
 type View =
   | { tab: 'schemas' }
@@ -17,13 +19,28 @@ type View =
 
 function App() {
   const [view, setView] = useState<View>({ tab: 'schemas' })
+  const [docsOverlayOpen, setDocsOverlayOpen] = useState(false)
 
   const schemas = useLiveQuery(() => db.labelSchemas.orderBy('updatedAt').reverse().toArray(), [])
   const projects = useLiveQuery(() => db.projects.orderBy('updatedAt').reverse().toArray(), [])
-  const annotatedDoc = useLiveQuery(
-    () => (view.tab === 'annotate' ? db.docs.get(view.docId) : undefined),
+  // Only queried while annotating: the mini rail steps through the batch and the
+  // overlay lists it, both without leaving the canvas.
+  const annotateDocs = useLiveQuery(
+    () =>
+      view.tab === 'annotate'
+        ? db.docs.where('projectId').equals(view.projectId).sortBy('createdAt')
+        : [],
     [view],
   )
+
+  // Navigating always closes the document overlay. Leaving it open behind you
+  // means it reappears over whatever you open next; doing this on the navigation
+  // itself, rather than in an effect reacting to the view, avoids a second render
+  // pass just to tidy up.
+  function goTo(next: View) {
+    setDocsOverlayOpen(false)
+    setView(next)
+  }
 
   if (schemas === undefined || projects === undefined) return null
 
@@ -32,6 +49,17 @@ function App() {
   const currentProjectId = view.tab === 'project' || view.tab === 'annotate' ? view.projectId : null
   const currentProject = projects.find((p) => p.id === currentProjectId) ?? null
 
+  const docs = annotateDocs ?? []
+  const docIndex = view.tab === 'annotate' ? docs.findIndex((d) => d.id === view.docId) : -1
+  const currentDoc = docIndex >= 0 ? docs[docIndex] : null
+
+  function openDocAt(index: number) {
+    const doc = docs[index]
+    if (doc && view.tab === 'annotate') {
+      goTo({ tab: 'annotate', projectId: view.projectId, docId: doc.id })
+    }
+  }
+
   // The name appears once, in the breadcrumb; the work surface's own headers name
   // the section instead. It used to be repeated as an h1 or h2 on three screens.
   const crumb: [string, string] = {
@@ -39,7 +67,7 @@ function App() {
     schema: ['Label schema', schemaNameById.get(currentSchemaId ?? '') ?? ''] as [string, string],
     projects: ['All work', 'Projects'] as [string, string],
     project: ['Project', currentProject?.name ?? ''] as [string, string],
-    annotate: [currentProject?.name ?? 'Project', annotatedDoc?.filename ?? ''] as [string, string],
+    annotate: [currentProject?.name ?? 'Project', currentDoc?.filename ?? ''] as [string, string],
   }[view.tab]
 
   return (
@@ -48,40 +76,62 @@ function App() {
       crumbMain={crumb[1]}
       onCrumbBack={
         view.tab === 'annotate'
-          ? () => setView({ tab: 'project', projectId: view.projectId })
+          ? () => goTo({ tab: 'project', projectId: view.projectId })
           : undefined
       }
-      schemas={schemas}
-      projects={projects}
-      schemaNameById={schemaNameById}
-      atSchemas={view.tab === 'schemas'}
-      atProjects={view.tab === 'projects'}
-      currentSchemaId={currentSchemaId}
-      currentProjectId={currentProjectId}
-      onOpenSchemas={() => setView({ tab: 'schemas' })}
-      onOpenProjects={() => setView({ tab: 'projects' })}
-      onOpenSchema={(schemaId) => setView({ tab: 'schema', schemaId })}
-      onOpenProject={(projectId) => setView({ tab: 'project', projectId })}
+      rail={
+        view.tab === 'annotate' ? (
+          <MiniRail
+            docIndex={docIndex + 1}
+            docTotal={docs.length}
+            overlayOpen={docsOverlayOpen}
+            onToggleOverlay={() => setDocsOverlayOpen((open) => !open)}
+            onPrevDoc={() => openDocAt(docIndex - 1)}
+            onNextDoc={() => openDocAt(docIndex + 1)}
+            hasPrev={docIndex > 0}
+            hasNext={docIndex >= 0 && docIndex < docs.length - 1}
+          />
+        ) : (
+          <Rail
+            schemas={schemas}
+            projects={projects}
+            schemaNameById={schemaNameById}
+            atSchemas={view.tab === 'schemas'}
+            atProjects={view.tab === 'projects'}
+            currentSchemaId={currentSchemaId}
+            currentProjectId={currentProjectId}
+            onOpenSchemas={() => goTo({ tab: 'schemas' })}
+            onOpenProjects={() => goTo({ tab: 'projects' })}
+            onOpenSchema={(schemaId) => goTo({ tab: 'schema', schemaId })}
+            onOpenProject={(projectId) => goTo({ tab: 'project', projectId })}
+          />
+        )
+      }
     >
       {view.tab === 'schemas' && (
-        <SchemasOverview onOpenSchema={(schemaId) => setView({ tab: 'schema', schemaId })} />
+        <SchemasOverview onOpenSchema={(schemaId) => goTo({ tab: 'schema', schemaId })} />
       )}
       {view.tab === 'schema' && (
-        <SchemaDetail schemaId={view.schemaId} onDeleted={() => setView({ tab: 'schemas' })} />
-      )}
-      {view.tab === 'annotate' && (
-        <AnnotationCanvas
-          docId={view.docId}
-          onBack={() => setView({ tab: 'project', projectId: view.projectId })}
-        />
+        <SchemaDetail schemaId={view.schemaId} onDeleted={() => goTo({ tab: 'schemas' })} />
       )}
       {view.tab === 'projects' && (
-        <ProjectsOverview onOpenProject={(projectId) => setView({ tab: 'project', projectId })} />
+        <ProjectsOverview onOpenProject={(projectId) => goTo({ tab: 'project', projectId })} />
       )}
       {view.tab === 'project' && (
         <ProjectDetail
           projectId={view.projectId}
-          onOpenAnnotate={(docId) => setView({ tab: 'annotate', projectId: view.projectId, docId })}
+          onOpenAnnotate={(docId) => goTo({ tab: 'annotate', projectId: view.projectId, docId })}
+        />
+      )}
+      {view.tab === 'annotate' && (
+        <AnnotationCanvas
+          docId={view.docId}
+          onBack={() => goTo({ tab: 'project', projectId: view.projectId })}
+          projectName={currentProject?.name ?? 'Project'}
+          docs={docs}
+          overlayOpen={docsOverlayOpen}
+          onCloseOverlay={() => setDocsOverlayOpen(false)}
+          onSelectDoc={(docId) => goTo({ tab: 'annotate', projectId: view.projectId, docId })}
         />
       )}
     </AppShell>

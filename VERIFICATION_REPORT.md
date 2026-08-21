@@ -1663,3 +1663,111 @@ Screenshots: `verification-screenshots/R3-overview-form-pinned-above-table.png`,
 Final tool-call count for this run: approximately 70 (Bash ~14 including file generation and the
 build check, Playwright navigate/click/type/select/find/snapshot/evaluate/screenshot/run_code_unsafe
 combined ~56, Read ~6 for screenshot inspection).
+
+## R4 — Annotate (verified 2026-08-21)
+
+*Checkpoint milestone. Regression surface weighted at least as heavily as new chrome, per the
+coordinator's brief. Test data set up fresh via UI: schema "First Schema From Empty" with two
+labels (`name_field` hotkey 1, `zero_field` hotkey 0), project "R4 Test Project" with three
+documents — `test-multipage.pdf` (3 pages, no text layer, detected `scanned`),
+`text-two-page.pdf` (2 pages, real embedded PDF text via a generated fixture, detected `text`),
+and `test-image.png` (1 page, `scanned`).*
+
+### M3 regression items (re-run against the rewritten screen)
+
+1. **Draw a region, drag off the page edge: ✓.** Dragged from (700,650) inside the page to
+   (950,900), well outside the image's bottom-right corner. The box finalized clamped exactly to
+   the image edge (screen rect right=880=image right, bottom=764.87=image bottom). Read the
+   annotation back from IndexedDB: `x:0.775, y:0.8086, width:0.225, height:0.1914` — matches the
+   clamped rect exactly, confirming normalized 0–1 storage.
+2. **Zoom-independent coordinates: ✓.** Zoomed to 150%, drew a box at screen (200,250)-(350,400).
+   Computed and confirmed stored coords `x:0.1, y:0.0946, width:0.125, height:0.1667`. Zoomed back
+   to 100% and re-measured the box's screen rect: (160, 221.6, 100, 100) — recomputing
+   `0.1*800+80=160` etc. matches exactly. Coordinates are genuinely zoom-independent, not stored in
+   zoomed pixel space.
+3. **Page isolation: ✓.** With 2 regions on page 1, navigated to page 2 (showed "Regions on this
+   page · 0" — correctly empty), drew 1 region there, navigated back to page 1 — page 1 still
+   showed exactly its original 2 regions, page 2's box did not leak across.
+4. **Delete by Delete key and by row button: ✓.** Selected a region on the canvas, pressed
+   `Delete` — removed from canvas and confirmed gone from IndexedDB immediately (no reload
+   needed, live persistence). Selected the remaining region and clicked the inspector row's
+   Delete button — same result, confirmed via IndexedDB read.
+5. **Undo/redo across create and delete, delete-undo restores same id+geometry: ✓.** Ran a full
+   sequence: undo of the button-delete restored annotation id `1aaa1dc1-...` with byte-identical
+   `x/y/width/height/createdAt` to the pre-delete record; a second undo restored the key-deleted
+   annotation `99dff884-...`, again identical id and geometry; redo re-deleted it, confirmed via
+   IndexedDB. Separately tested create→undo→redo: drew a new region (id `921d871e-...`), undo
+   removed it from IndexedDB, redo restored the exact same id. Undo/redo is solid across both
+   directions and both operation types.
+6. **Hotkeys 1–9 and 0, suppressed in text fields: ✓.** Pressed `0` with canvas focused —
+   `zero_field` became the pressed/selected label (not just assignable-but-dead, the specific
+   regression this item calls out). Pressed `1` — `name_field` became selected. Then clicked into
+   a region's transcription input and pressed `9` then `1` — both characters typed into the field
+   normally (`value` became `"91"`) and the selected label stayed `zero_field` throughout,
+   confirming the hotkey handler is suppressed while focus is in a text field.
+7. **Suggest text on text-layer and scanned pages: ✓ both.** On `text-two-page.pdf` (contentType
+   `text`), drew a box around the page's text and clicked Suggest text — transcription field
+   became exactly `"TextLayerPageOne Sample"`, matching the stored text-layer string verbatim, no
+   OCR tag shown (correctly sourced from the text layer, not Tesseract). On `test-image.png`
+   (contentType `scanned`), drew a box and clicked Suggest text — after Tesseract loaded and ran,
+   transcription became `"Test Image Page"` (a plausible, imperfect-is-fine OCR read of the
+   fixture image) and the region row grew an `OCR` tag next to the label name. Screenshot:
+   `R4-ocr-suggest-text-tagged.png`.
+
+Also re-checked (not separately itemized in M3 but implied): resizing the browser window
+(1280×800 → 1000×800) while boxes existed — re-measured both boxes' screen rects against the
+newly-sized image rect and both matched the recomputed expected position exactly (no drift).
+
+### R4 rubric items
+
+8. **Toolbar consolidation — labels, undo/redo, zoom, page nav, layer tag: ✓.** All five live in
+   one row in `AnnotationCanvas`/`Toolbar`: label swatches with hotkey chips, Undo/Redo, zoom
+   controls with a live percentage, page prev/next with "Page N / M", and the page's content-type
+   tag ("scanned"/"text") at the row's right edge. All exercised above and functioned correctly.
+9. **Rail collapsed to 56px; overlay opens/picks/closes without leaving canvas: ✓.** Measured
+   `nav[aria-label="Navigation"]` at exactly `56px` wide via `getBoundingClientRect()`. Clicked
+   "Show documents in this project" — a `DocsOverlay` dialog opened over the canvas (URL/breadcrumb
+   unchanged, canvas still visible/rendered underneath). Clicking a different document
+   (`text-two-page.pdf`) closed the overlay automatically and switched the canvas to that document
+   — confirmed by the toolbar's content-type tag flipping to `text` and the breadcrumb filename
+   updating, all without a route change away from the canvas. Screenshot:
+   `R4-docs-overlay-open.png`.
+10. **Breadcrumb and Esc both return to project; Esc with overlay open closes overlay first: ✓.**
+    With the overlay open, first `Esc` closed only the overlay (breadcrumb/canvas unchanged,
+    confirmed via snapshot). A second `Esc` (overlay now closed) navigated to the project detail
+    page (rail reappeared, breadcrumb read "Project / R4 Test Project"). This is the specific
+    two-step behavior called out — Esc did not skip straight past the overlay to the project.
+    Separately, clicking the breadcrumb project-name button from inside the canvas also navigated
+    to the project detail page.
+11. **Regions inspector — per-region transcription + Suggest text, OCR tag: ✓.** Confirmed above
+    under M3 item 7/regression: each region gets its own row with a transcription textbox and its
+    own "Suggest text" button, and the OCR-sourced region grew an explicit `OCR` tag while the
+    text-layer-sourced region did not.
+12. **Empty page shows a real sentence, not blank space: ✓.** Every page/document with zero
+    regions (page 2 of `test-multipage.pdf` before drawing on it, `text-two-page.pdf` page 1
+    before drawing, `test-image.png` before drawing) rendered the inspector's actual copy — "No
+    regions on this page yet. Pick a label above, then drag on the page to draw one." — never a
+    blank panel.
+13. **Both themes, focus rings, no overflow: ✓.** Dark theme on the canvas: `scrollWidth === 
+    clientWidth === 1280`, screenshot `R4-canvas-dark-1280x800.png` — all text legible against
+    its background (no wrong-theme artifacts spotted). With the DocsOverlay open in dark theme:
+    still `scrollWidth === clientWidth === 1280`, screenshot
+    `R4-overlay-open-dark-1280x800.png` — overlay panel, rail, and canvas all correctly themed,
+    no overflow. Tabbed to a label button via real keyboard `Tab` (not programmatic `.focus()`)
+    and read computed style: `outline: rgb(255, 86, 60) solid 2px`, `outline-offset: 2px` — the
+    design system's 2px accent ring, confirmed via `:focus-visible`. Light theme screenshot
+    `R4-canvas-light-1280x800.png` also checked — light background, dark text, all legible, no
+    dark-on-dark or light-on-light.
+
+### Result
+
+All M3 regression checks and all R4 rubric items observed passing. No regressions found in the
+rewritten Toolbar/RegionList/PageStage/DocsOverlay/MiniRail/AnnotationCanvas/AppShell chain.
+`pnpm run build` re-run as a sanity check: exit clean, `tsc -b && vite build` succeeded.
+
+Screenshots: `R4-toolbar-row.png`, `R4-hotkey-suppressed-in-textfield.png`,
+`R4-docs-overlay-open.png`, `R4-ocr-suggest-text-tagged.png`, `R4-canvas-dark-1280x800.png`,
+`R4-overlay-open-dark-1280x800.png`, `R4-canvas-light-1280x800.png`.
+
+Final tool-call count for this run: approximately 95 (Bash ~8, Read ~4, Playwright
+navigate/click/type/press/find/snapshot/evaluate/screenshot/run_code_unsafe/resize combined ~83).

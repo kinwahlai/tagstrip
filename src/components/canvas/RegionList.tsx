@@ -11,6 +11,8 @@ interface RegionListProps {
   onSuggestText: (id: string) => Promise<void>
 }
 
+const HINT = 'color-mix(in srgb, var(--color-text) 68%, transparent)'
+
 export function RegionList({
   annotations,
   labelsById,
@@ -43,78 +45,124 @@ export function RegionList({
 
   if (annotations.length === 0) {
     return (
-      <p className="p-3 text-sm text-slate-500 dark:text-slate-400">
+      <p style={{ margin: 0, padding: 'var(--space-4)', fontSize: '12.5px', lineHeight: 1.6, color: HINT }}>
         No regions on this page yet. Pick a label above, then drag on the page to draw one.
       </p>
     )
   }
 
   return (
-    <ul className="divide-y divide-slate-200 dark:divide-slate-700">
+    <>
       {annotations.map((annotation) => {
         const label = labelsById.get(annotation.labelId)
+        const labelName = label?.name ?? 'Unknown label'
+        const selected = selectedId === annotation.id
         return (
-          <li
+          <div
             key={annotation.id}
-            className={`px-3 py-2 ${
-              selectedId === annotation.id ? 'bg-indigo-50 dark:bg-indigo-950' : ''
-            }`}
+            style={{
+              padding: 'var(--space-3) var(--space-4)',
+              borderBottom: '1px solid var(--color-divider)',
+              background: selected
+                ? 'color-mix(in srgb, var(--color-text) 8%, transparent)'
+                : 'transparent',
+            }}
           >
-            <div className="flex items-center gap-2">
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--space-2)',
+                marginBottom: 7,
+              }}
+            >
               <button
                 type="button"
                 onClick={() => onSelect(annotation.id)}
-                className="flex flex-1 items-center gap-2 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--space-2)',
+                  flex: 1,
+                  minWidth: 0,
+                  border: 0,
+                  padding: 0,
+                  background: 'transparent',
+                  color: 'inherit',
+                  font: 'inherit',
+                  textAlign: 'left',
+                  cursor: 'pointer',
+                }}
               >
                 <span
-                  className="h-3 w-3 shrink-0 rounded-full border border-black/10"
-                  style={{ backgroundColor: label?.color ?? '#999' }}
+                  className="ts-swatch"
+                  style={{ background: label?.color ?? '#999' }}
                   aria-hidden="true"
                 />
-                <span className="truncate text-sm text-slate-800 dark:text-slate-100">
-                  {label?.name ?? 'Unknown label'}
+                <span
+                  className="mono"
+                  style={{
+                    flex: 1,
+                    minWidth: 0,
+                    fontSize: '12.5px',
+                    fontWeight: 600,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {labelName}
                 </span>
-                {annotation.ocrSuggested && (
-                  <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-950 dark:text-amber-300">
-                    OCR
-                  </span>
-                )}
               </button>
+              {annotation.ocrSuggested && (
+                <span className="tag tag-accent" style={{ fontSize: '9.5px', fontWeight: 600 }}>
+                  OCR
+                </span>
+              )}
               <button
                 type="button"
+                className="btn btn-ghost btn-sm"
                 onClick={() => onDelete(annotation.id)}
-                aria-label={`Delete region for ${label?.name ?? 'unknown label'}`}
-                className="rounded px-1.5 py-0.5 text-xs font-medium text-red-600 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 dark:text-red-400 dark:hover:bg-red-950"
+                aria-label={`Delete region for ${labelName}`}
               >
                 Delete
               </button>
             </div>
-            <div className="mt-1.5 flex items-start gap-1.5">
+            <div style={{ display: 'flex', alignItems: 'stretch', gap: 6 }}>
               <input
+                className="input mono"
                 type="text"
                 value={annotation.text ?? ''}
                 onChange={(e) => updateAnnotationText(annotation.id, e.target.value)}
                 placeholder="Transcription…"
-                aria-label={`Transcription for ${label?.name ?? 'unknown label'} region`}
-                className="w-full rounded border border-slate-300 px-2 py-1 text-xs focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
+                aria-label={`Transcription for ${labelName} region`}
+                style={{ minHeight: 30, fontSize: '12.5px' }}
               />
               <button
                 type="button"
+                className="btn btn-secondary btn-sm"
+                style={{ whiteSpace: 'nowrap' }}
                 onClick={() => handleSuggest(annotation.id)}
                 disabled={suggestingId === annotation.id}
-                className="shrink-0 rounded border border-slate-300 px-1.5 py-1 text-[10px] font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-800"
               >
                 {suggestingId === annotation.id ? 'Suggesting…' : 'Suggest text'}
               </button>
             </div>
             {errorById[annotation.id] && (
-              <p role="alert" className="mt-1 text-xs text-red-600 dark:text-red-400">
+              <p
+                role="alert"
+                style={{
+                  margin: '5px 0 0',
+                  fontSize: 11,
+                  color: 'var(--color-accent-700)',
+                }}
+              >
                 {errorById[annotation.id]}
               </p>
             )}
-          </li>
+          </div>
         )
       })}
-    </ul>
+    </>
   )
 }

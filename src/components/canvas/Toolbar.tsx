@@ -1,4 +1,5 @@
-import type { Label } from '../../db/types'
+import { ContentTypeBadge } from '../ContentTypeBadge'
+import type { Label, Page } from '../../db/types'
 
 interface ToolbarProps {
   labels: Label[]
@@ -10,6 +11,11 @@ interface ToolbarProps {
   pageIndex: number
   pageCount: number
   onPageChange: (pageIndex: number) => void
+  contentType: Page['contentType'] | null
+  canUndo: boolean
+  canRedo: boolean
+  onUndo: () => void
+  onRedo: () => void
 }
 
 // Default zoom bounds. minZoom is only the floor for a "normal"-sized page —
@@ -20,6 +26,10 @@ export const ZOOM_MIN = 0.5
 export const ZOOM_MAX = 3
 export const ZOOM_STEP = 0.25
 
+// Everything that acts on the page lives in one row: labels, undo/redo, zoom,
+// page navigation, and the page's text-layer state. Undo and redo used to sit in
+// a separate strip above, whose only other content was a "← filename" back link;
+// the breadcrumb is the back link now, so that strip had nothing left in it.
 export function Toolbar({
   labels,
   selectedLabelId,
@@ -30,84 +40,129 @@ export function Toolbar({
   pageIndex,
   pageCount,
   onPageChange,
+  contentType,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
 }: ToolbarProps) {
   return (
-    <div className="flex flex-wrap items-center gap-4 border-b border-slate-200 bg-white px-4 py-2 dark:border-slate-800 dark:bg-slate-900">
-      <div className="flex flex-wrap items-center gap-1.5">
-        {labels.map((label) => (
-          <button
-            key={label.id}
-            type="button"
-            onClick={() => onSelectLabel(label.id)}
-            aria-pressed={selectedLabelId === label.id}
-            className={`flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs font-medium focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 ${
-              selectedLabelId === label.id
-                ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950'
-                : 'border-slate-300 hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800'
-            }`}
-          >
-            <span
-              className="h-3 w-3 rounded-full border border-black/10"
-              style={{ backgroundColor: label.color }}
-              aria-hidden="true"
-            />
-            <span className="text-slate-800 dark:text-slate-100">{label.name}</span>
-            {label.hotkey && (
-              <kbd className="rounded border border-slate-300 bg-slate-100 px-1 text-[10px] text-slate-500 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                {label.hotkey}
-              </kbd>
-            )}
-          </button>
-        ))}
+    <div
+      style={{
+        flex: 'none',
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: 'var(--space-4)',
+        padding: 'var(--space-2) var(--space-3)',
+        borderBottom: '2px solid var(--color-divider)',
+      }}
+    >
+      <div
+        role="group"
+        aria-label="Labels"
+        style={{ display: 'flex', flexWrap: 'wrap', gap: 6, minWidth: 0 }}
+      >
+        {labels.map((label) => {
+          const on = selectedLabelId === label.id
+          return (
+            <button
+              key={label.id}
+              type="button"
+              className="ts-chip"
+              aria-pressed={on}
+              onClick={() => onSelectLabel(label.id)}
+            >
+              <span
+                className="ts-swatch"
+                style={{ width: 11, height: 11, background: label.color }}
+                aria-hidden="true"
+              />
+              <span className="mono" style={{ fontSize: 12, fontWeight: on ? 700 : 400 }}>
+                {label.name}
+              </span>
+              {label.hotkey && (
+                <span className="ts-kbd" style={{ minWidth: 17, height: 17, fontSize: 10 }}>
+                  {label.hotkey}
+                </span>
+              )}
+            </button>
+          )
+        })}
       </div>
 
-      <div className="ml-auto flex items-center gap-3">
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => onZoomChange(Math.max(minZoom, zoom - ZOOM_STEP))}
-            aria-label="Zoom out"
-            className="rounded border border-slate-300 px-2 py-1 text-sm hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-600 dark:hover:bg-slate-800"
-          >
-            −
-          </button>
-          <span className="w-12 text-center text-xs text-slate-600 dark:text-slate-300">
-            {Math.round(zoom * 100)}%
-          </span>
-          <button
-            type="button"
-            onClick={() => onZoomChange(Math.min(ZOOM_MAX, zoom + ZOOM_STEP))}
-            aria-label="Zoom in"
-            className="rounded border border-slate-300 px-2 py-1 text-sm hover:bg-slate-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-600 dark:hover:bg-slate-800"
-          >
-            +
-          </button>
-        </div>
+      <div style={{ flex: 1 }} />
 
-        <div className="flex items-center gap-1">
-          <button
-            type="button"
-            onClick={() => onPageChange(pageIndex - 1)}
-            disabled={pageIndex <= 0}
-            aria-label="Previous page"
-            className="rounded border border-slate-300 px-2 py-1 text-sm hover:bg-slate-50 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-600 dark:hover:bg-slate-800"
-          >
-            ←
-          </button>
-          <span className="w-20 text-center text-xs text-slate-600 dark:text-slate-300">
-            Page {pageIndex + 1} / {pageCount}
-          </span>
-          <button
-            type="button"
-            onClick={() => onPageChange(pageIndex + 1)}
-            disabled={pageIndex >= pageCount - 1}
-            aria-label="Next page"
-            className="rounded border border-slate-300 px-2 py-1 text-sm hover:bg-slate-50 disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-600 dark:hover:bg-slate-800"
-          >
-            →
-          </button>
-        </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={onUndo}
+          disabled={!canUndo}
+          aria-label="Undo"
+          title="Undo (Ctrl+Z)"
+        >
+          ↶ Undo
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={onRedo}
+          disabled={!canRedo}
+          aria-label="Redo"
+          title="Redo (Ctrl+Shift+Z)"
+        >
+          ↷ Redo
+        </button>
       </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={() => onZoomChange(Math.max(minZoom, zoom - ZOOM_STEP))}
+          aria-label="Zoom out"
+        >
+          −
+        </button>
+        <span className="mono" style={{ minWidth: 48, textAlign: 'center', fontSize: 12 }}>
+          {Math.round(zoom * 100)}%
+        </span>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={() => onZoomChange(Math.min(ZOOM_MAX, zoom + ZOOM_STEP))}
+          aria-label="Zoom in"
+        >
+          +
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={() => onPageChange(pageIndex - 1)}
+          disabled={pageIndex <= 0}
+          aria-label="Previous page"
+        >
+          ←
+        </button>
+        <span className="mono" style={{ minWidth: 84, textAlign: 'center', fontSize: 12 }}>
+          Page {pageIndex + 1} / {pageCount}
+        </span>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={() => onPageChange(pageIndex + 1)}
+          disabled={pageIndex >= pageCount - 1}
+          aria-label="Next page"
+        >
+          →
+        </button>
+      </div>
+
+      {contentType && <ContentTypeBadge contentType={contentType} />}
     </div>
   )
 }
