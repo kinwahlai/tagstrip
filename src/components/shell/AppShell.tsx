@@ -12,8 +12,6 @@ interface AppShellProps {
   // Set only on the annotation canvas, where the breadcrumb's upper line is the
   // way back to the project rather than dead text.
   onCrumbBack?: () => void
-  // The canvas manages its own scrolling; every other screen scrolls the surface.
-  surfaceScrolls: boolean
   schemas: LabelSchema[]
   projects: Project[]
   schemaNameById: Map<string, string>
@@ -65,14 +63,7 @@ function ThemeToggle() {
 // edge to edge. The header used to span full width over content capped at
 // 1024px and centred; that mismatch is gone, and column widths now come from
 // one set of tokens on .ts-shell rather than being restated per screen.
-export function AppShell({
-  crumbTop,
-  crumbMain,
-  onCrumbBack,
-  surfaceScrolls,
-  children,
-  ...rail
-}: AppShellProps) {
+export function AppShell({ crumbTop, crumbMain, onCrumbBack, children, ...rail }: AppShellProps) {
   return (
     <div
       className="ts-shell"
@@ -192,13 +183,12 @@ export function AppShell({
       <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
         <Rail {...rail} />
         <main
-          className={surfaceScrolls ? 'ts-scroll' : undefined}
           style={{
             flex: 1,
             minWidth: 0,
             display: 'flex',
             flexDirection: 'column',
-            overflow: surfaceScrolls ? undefined : 'hidden',
+            overflow: 'hidden',
           }}
         >
           {children}

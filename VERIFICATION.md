@@ -244,6 +244,12 @@ not by reading the code and reasoning that it should work. Reading code tells yo
 
 - [ ] Region counts per schema and per label, used-by, last used, annotated ratio with progress bar,
       and per-document region counts all show real numbers that match IndexedDB
+- [ ] The document rows carry a content-type tag, as the mockups show. *(Added at R3: the mockup
+      puts one tag per document row, but contentType is stored per PAGE, so a multi-page document
+      has no stored answer and a mixed one has no obvious answer. Deriving it needs a product
+      decision — all-text vs any-scanned vs most-common — which is why R3 ships the row without
+      it rather than inventing the rule silently. Whatever rule is chosen, state it in SPEC.md
+      and make the tag match it.)*
 - [ ] Disk usage comes from `navigator.storage.estimate()` and degrades gracefully where the browser
       does not support it
 - [ ] The rail's Find box filters both groups

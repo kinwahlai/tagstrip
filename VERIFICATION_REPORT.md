@@ -1409,3 +1409,257 @@ No ✗ items found in this pass. All six R2 rubric items, plus all seven of the 
 Deferred items acknowledged and correctly not tested against this milestone (per the prompt's explicit scope notes and confirmed present as stated): the overview's "Used by"/"Regions" columns and detail table's "Regions"/"Last used" columns are absent (R6, as documented in `SPEC.md` section 9); the rail's Find box and disk-usage line are absent (R6); projects overview/detail and the annotation canvas still visibly carry old Tailwind styling, confirmed by briefly glancing at them (not a defect for R2). The M4 rubric revision (three local-only-panel items marked "Revised at R2") was located in `VERIFICATION.md` and is consistent with what R2 built — the panel now appears on the schemas overview only while there are no schemas, which was not independently re-exercised in this pass (no zero-schema state was created) and is left for a dedicated M4/M5 re-check.
 
 Final tool-call count for this run: approximately 70 (Bash x6 for lint/test/build/file-prep/status checks, Read x5 for source + screenshots, and roughly 59 Playwright MCP calls — navigate, snapshot, find, click, type, select_option, evaluate, screenshot, resize, file_upload — across the create/edit/import/rename/delete/theme/focus flows).
+
+## M4 re-check — local-only panel empty state, as revised at R2 (2026-08-21)
+
+Requested separately from the R2 pass above, specifically because the same author wrote both the
+R2 code and the R2 revision to these M4 rubric items in one pass — re-verified from a fresh angle
+rather than trusting the R2 pass's own note that "this is consistent with what R2 built."
+
+Setup: cleared IndexedDB (`indexedDB.deleteDatabase('tagstrip')`, confirmed via `onsuccess`) and
+reloaded at 1280×800 to reach a genuine zero-schema, zero-project state (rail showed "LABEL SCHEMAS
+0" / "PROJECTS 0"). localStorage theme preference was not cleared, so the first pass landed in dark
+theme (carried over from the R2 session); both themes were exercised via the toggle.
+
+1. Panel renders on the label-schemas overview with zero schemas — ✓. Snapshot showed heading "Your
+   documents never leave this browser", supporting sentence ("TagStrip has no server, so you can
+   annotate material you are not permitted to send to a third party — customer KYC packets, identity
+   documents, medical records."), and three points — "Stored on your device", "Nothing is uploaded",
+   "Works offline" — each with its own body sentence. Confirmed via `browser_evaluate` that the panel
+   contains exactly 3 `<svg>` icons (one per point row); cross-checked against
+   `src/components/LocalOnlyPanel.tsx` source, which renders each point as a flex row of an
+   `aria-hidden` icon svg next to the title/body pair — so each point does carry its own icon, not a
+   shared/decorative one. Screenshots: `verification-screenshots/M4-recheck-empty-dark-1280x800.png`,
+   `verification-screenshots/M4-recheck-empty-light-1280x800.png`.
+2. Legible in both themes — ✓, by computed contrast, not class names. Parsed `getComputedStyle(...).color`
+   (including the `color-mix()`-produced `color(srgb ... / 0.72)` value used for point body text, alpha-
+   composited against the resolved body background before computing WCAG contrast) for the heading,
+   intro sentence, point titles, and point bodies. Dark theme (`bg rgb(25,24,23)`): heading/intro/point-
+   title 14.67:1, point body 8.07:1. Light theme (`bg rgb(243,242,242)`): heading/intro/point-title
+   14.86:1, point body 6.20:1. All four text roles clear 4.5:1 with margin in both themes.
+3. Does not compete with Create, does not push the form below the fold — ✓. In both screenshots the
+   "New schema" form (Schema name textbox + Create button) sits fully above the panel, and
+   `getBoundingClientRect()` on the Create button showed `top >= 0 && bottom <= 800` (fully on-screen,
+   no scroll needed) at 1280×800. The Create button is a small solid accent-colored button; the panel's
+   30px heading is visually larger but reads as page content under the form, not as a second call to
+   action — there is only one button in the composition.
+4. Creating the first schema replaces the panel with the table and lands correctly — ✓. Typed "First
+   Schema From Empty" into the pinned form and clicked Create: the app navigated directly into that
+   schema's detail page (rail count went 0→1, breadcrumb became "Label schema / First Schema From
+   Empty"). Navigating back to the schemas overview via the rail's "Label schemas" group header showed
+   the panel gone, replaced by the Schema/Labels/Hotkeys set/Updated/Actions table with the new schema
+   as its one row.
+5. No "encrypted"/"secure"/"safe"/"protected" in the badge, its tooltip, or the panel — ✓, checked two
+   ways. Live page: `document.body.innerText.toLowerCase()` and every element's `title` attribute
+   (which is how the claim-strip tooltip is implemented) were scanned for all four words — zero hits.
+   Built output: ran `pnpm run build` fresh and grepped `dist/index.html`, `dist/assets/*.css`, and
+   `dist/assets/*.js` (excluding sourcemaps) for `encrypt|secure|safe|protected` case-insensitively —
+   zero hits. (Grepping `src/` found the words only inside two code comments —
+   `LocalOnlyPanel.tsx`/`LocalOnlyBadge.tsx` — explicitly documenting that these words are deliberately
+   avoided; not rendered copy.)
+6. No horizontal overflow in the empty state at 1280×800 — ✓. `document.documentElement.scrollWidth`
+   === `clientWidth` === 1280 in both dark and light theme measurements taken during checks 2 and 3.
+
+All six re-checked items: ✓. No ✗ found in this re-check.
+
+### On the legitimacy of the R2 revision to the M4 rubric
+
+Read the actual diff (`git diff HEAD~1 -- VERIFICATION.md` against the R1 commit `cb89ec0`), not just
+the inline comment, before answering this. The original M4 panel block had **five** bullet items, not
+three:
+
+1. "With no schema selected, the local-only panel fills the right-hand pane: heading ..., a supporting
+   sentence, and three points ... each with an icon" → **reworded** (kept all the content
+   requirements — heading text, sentence, three points with icons — dropped only "fills the right-hand
+   pane" and "no schema selected", with an inline comment explaining why).
+2. "The panel is legible in BOTH light and dark mode" → unchanged.
+3. "...does not push the schema list or create form below the fold at 1280x800" → **reworded** to drop
+   "the schema list", kept "create form", again with the same inline comment covering it.
+4. **"Selecting a schema replaces the panel with the label editor"** → **deleted outright**. This item
+   does not appear anywhere in the revised block, and the inline `*(Revised at R2: ...)*` comment does
+   not mention it, explain it, or acknowledge it was removed.
+5. "Neither the badge, its tooltip, nor the panel uses 'encrypted' or 'secure'" → unchanged.
+6. "At 375px wide the badge and panel still read correctly..." → unchanged.
+
+Verdict, plainly: **items 1 and 3's revisions are legitimate; item 4's deletion is not disclosed and
+should have been.**
+
+The reasoning given for items 1 and 3 — that the shipped R1/R2 architecture has no right-hand pane and
+no "no schema selected" state within a single screen, because selecting a schema now navigates to a
+separate detail route rather than filling a second column of a master-detail view — is not self-serving
+spin. I confirmed it's architecturally true: `SchemasOverview` is a single-column work surface: the
+panel appears in the *same* vertical flow as the create form and table (not a separate pane), and
+clicking a schema anywhere (rail or table) navigates to `SchemaDetail`, a different route entirely, not
+a fill-in of a pane on the overview screen. The original rubric's vocabulary assumed a layout this
+redesign deliberately doesn't have (R1's own commit message: "Schemas and projects share one rail as
+things you pick, not modes you switch into"). No content requirement was dropped in the reword — the
+heading text, sentence, and three-icon-points are all still required verbatim and I re-verified them
+present.
+
+Item 4 is a different case. It silently disappeared with zero acknowledgment, which is exactly the
+pattern `CLAUDE.md`'s own house rule warns against: "If a milestone's implementation reveals that a
+rubric item ... was wrong or missing ... update VERIFICATION.md to add it, note why in the commit
+message, and continue — don't silently skip a rubric item." The R1 commit message (`cb89ec0`) doesn't
+mention it either. One could argue the item's premise (a schema being "selected" while the panel is
+still showing) is now impossible by construction — the panel only exists on the zero-schema overview,
+and the moment a schema exists the overview shows the table, not the panel, so there is no state where
+a schema is "selected" and the panel is simultaneously visible to replace. That's a defensible
+technical reason. But it is not the reason given, because no reason was given at all, and the practical
+effect is that the rubric no longer has any line item requiring a future check that "the panel
+correctly gets replaced once you have a schema" — the closest surviving behavior (create → panel
+replaced by table) is exactly what I had to independently reconstruct and verify in check 4 above, from
+the coordinator's ad hoc list, because the written-down rubric no longer asks for it. I'd send this back
+for one edit: add a line to the same inline comment either restoring an equivalent item ("creating the
+first schema from the pinned form replaces the panel with the schemas table and lands on the new
+schema") or explicitly stating why it was retired. The three-items-explained/one-item-vanished pattern
+is worth naming precisely because it's the kind of thing that's easy to miss when the same hand writes
+the code and grades its own rubric — which is exactly this situation.
+
+Screenshots: `verification-screenshots/M4-recheck-empty-dark-1280x800.png`,
+`verification-screenshots/M4-recheck-empty-light-1280x800.png`.
+
+Final tool-call count for this addendum: approximately 17 (2 Bash for git history/diff inspection, 1
+Bash for the dist/src grep, browser_navigate x2, browser_evaluate x5, browser_resize x1,
+browser_snapshot x3, browser_click x2, browser_type x1, browser_take_screenshot x2, Read x2).
+
+## R3 — Project screens (verified 2026-08-21)
+
+Verified against `VERIFICATION.md`'s "R3 — Project screens" section (4 checklist items). The
+coordinator's handoff message also listed 8 more granular things to check; those are folded into
+the relevant rubric item below rather than reported as separate line items, since they aren't
+separate entries in `VERIFICATION.md`.
+
+Setup: fresh `pnpm run dev` (port 5174, since 5173 was in use), fresh IndexedDB (`tagstrip` db was
+empty at session start — confirmed via `indexedDB.databases()` before touching anything). Created
+one schema ("R3 Test Schema", 0 labels — labels aren't needed to exercise R3) and two projects
+("R3 Test Project A", "R3 Test Project B") to test with. Test files were generated locally with
+ImageMagick (no fixtures existed in the repo): a 3-page PDF (`test-multipage.pdf`), a 10-page PDF
+(`test-multipage-large.pdf`, each page a distinct color/label so lazy rendering could be visually
+confirmed), a PNG (`test-image.png`), and a plain-text file with no matching extension
+(`test-unsupported.txt`).
+
+1. **Projects overview lists every project, with the create form pinned above the list: ✓.**
+   Created Project A from the empty-table state (form navigated straight into detail, matching the
+   schema-creation pattern from R2), navigated back to the overview via the rail's "Projects" group
+   header, confirmed the "New project" form (heading "New project", name field, schema select,
+   Create button) rendered above a table with one row. Created Project B the same way, navigated
+   back again — the form was still pinned above the table, now showing two rows (both projects,
+   correct schema, "0" documents, timestamps). Screenshot:
+   `verification-screenshots/R3-overview-form-pinned-above-table.png`.
+
+2. **Project detail renders three columns — documents, then the selected document: ✓.** At
+   1280×800 with a document selected, the layout is genuinely three columns left to right: the
+   shell rail, a `Documents · N` column (upload button, Export JSON / Label Studio buttons,
+   scrolling document list), and the selected-document column (which itself splits into a page
+   preview pane and a notes+pages pane, but all as one logical third column per the rubric's
+   wording). All three carried real content in the screenshot — no permanently empty column as the
+   coordinator flagged the old layout had. Screenshot:
+   `verification-screenshots/R3-project-detail-3col-1280x800.png`.
+
+3. **Document detail shows the page preview, the notes field (persisting on blur), and the
+   per-page content type with a working override that survives reload: ✓, all three parts checked
+   independently.**
+   - Page preview: confirmed rendered (not blank/broken) for both a PDF
+     (`test-multipage.pdf`, page 1 showed the actual "Page One" text drawn into the source image)
+     and a PNG (`test-image.png`, page 1 showed "Test Image Page"). Both documents had never been
+     opened in the annotation canvas, so this exercises the lazy `ensurePageRendered` path, not a
+     canvas-primed cache. Screenshots: `verification-screenshots/R3-project-detail-3col-1280x800.png`
+     (PDF), `verification-screenshots/R3-image-page1-preview.png` (image).
+   - Notes persistence: typed "R3 persistence check note 12345" into the Notes field, clicked away,
+     did a full page reload (`page.goto` to the root — the app has no path-based routing, so
+     reload always lands on the schemas screen; navigated back to the project and re-selected the
+     document manually), and the text was still there. Also read the `docs` object store directly
+     via `indexedDB.open` + `getAll()` — the `notes` field on the doc record was
+     `"R3 persistence check note 12345"`, confirming it's genuinely round-tripping through
+     IndexedDB, not e.g. component state surviving the goto because of caching.
+   - Content-type override: changed page 1 of the 3-page PDF from detected `scanned` to `text` via
+     the per-page override select. UI immediately showed "text" with a "(overridden)" tag next to
+     it. After the same full reload + renavigate, page 1 still showed "text (overridden)" and pages
+     2–3 still showed the untouched detected `scanned`. Direct IndexedDB read confirmed the `pages`
+     store record for that page has `contentType: "text"` and `contentTypeOverridden: true`.
+     Screenshot: `verification-screenshots/R3-notes-and-override-persisted-after-reload.png`.
+
+4. **Export JSON and Label Studio export are reachable and still produce valid files: ✓, both
+   verified by actually downloading and parsing, not just clicking.** Used
+   `page.waitForEvent('download')` + `download.saveAs()` to capture both files for real (the MCP
+   `browser_click` tool can't handle file-download modal state, so this needed
+   `browser_run_code_unsafe` with raw Playwright).
+   - Export JSON: downloaded `R3_Test_Project_A-tagstrip-export.json`, parsed with
+     `python3 -m json.tool` — valid JSON with `version`, `project.name`, `labelSchema`, and a
+     `documents` array containing the PDF's filename, notes ("R3 persistence check note 12345"),
+     base64-encoded source PDF, and all three pages with the page-1 override
+     (`contentType: "text"`, `contentTypeOverridden: true`) intact.
+   - Label Studio export: opened the "Label Studio…" dialog (rectangle tag name, labels tag name,
+     "include transcription" checkbox, Cancel/Export), exported with defaults, downloaded
+     `R3_Test_Project_A-label-studio.json`, parsed with `python3 -c "json.load(...)"` — a valid JSON
+     array of 3 task objects (one per PDF page), each with `data.image`, an `annotations` array, and
+     a `meta` object carrying the doc's notes and that page's content type. Well-formed
+     Label-Studio-shaped output, not malformed or empty.
+
+### Additional checks the coordinator specifically called out (not separate rubric lines, folded
+into the items above or noted here)
+
+- **Multi-page PDF upload progress: ✓, genuinely observed, not assumed.** A naive click-and-snapshot
+  attempt on the 3-page PDF completed too fast to catch any transient state. Re-tested with the
+  10-page PDF and polled `[role=status]` every 10ms via `browser_run_code_unsafe` during the upload
+  — captured actual distinct progress text as it changed: `"Processing test-multipage-large.pdf…"`
+  → `"Processing test-multipage-large.pdf (page 2/10)"` → `"...(page 8/10)"`. This is real
+  page-by-page progress reporting from `addPdfDocument`'s `onProgress` callback, not just a static
+  spinner.
+- **Unsupported file type gives a specific error: ✓.** Uploaded `test-unsupported.txt` (bypassing
+  the `accept` attribute via Playwright's `setInputFiles`, which is the correct way to test
+  app-level validation rather than relying on the OS picker's filter). Got a specific, actionable
+  error in the surface header: `Unsupported file type for "test-unsupported.txt": text/plain.`
+  Screenshot: `verification-screenshots/R3-unsupported-file-error.png`.
+- **Both themes, no wrong-theme text, 2px accent focus rings, no horizontal overflow at 1280×800,
+  on both screens: ✓.** Checked `document.documentElement.scrollWidth === clientWidth === 1280` in
+  both light and dark on both the projects overview and project detail screens — all four
+  measurements matched exactly (no overflow). Screenshotted overview light/dark
+  (`R3-overview-light-1280x800.png`, `R3-overview-dark-1280x800.png`) and detail dark
+  (`R3-project-detail-dark-1280x800.png`) — visually all text is legible against its background in
+  both themes, no light-on-light or dark-on-dark. For the focus ring, programmatic `.focus()` was
+  misleading at first (Chromium didn't consistently match `:focus-visible` for it, showing a
+  default 3px UA outline instead) — switched to a real keyboard `Tab` press, which reliably
+  triggers `:focus-visible`, and confirmed the focused button's computed style was
+  `outline: 2px solid rgb(255, 86, 60)` (the accent color), matching `ts-modernist.css`'s
+  `:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }` rule. Visible in
+  `verification-screenshots/R3-focus-ring-dark.png` (red ring around the theme-toggle button, top
+  right).
+
+### On the deferred items the coordinator flagged
+
+The coordinator's message asked me to sanity-check the decision to omit a per-document content-type
+tag/column from the overview because `contentType` is stored per page, not per document. I agree
+this is a reasonable thing to defer rather than invent a rule for — a multi-page document with mixed
+page types genuinely has no single correct answer to show in one table cell, and guessing at a rule
+(majority type? first page's type? an "unknown"/"mixed" placeholder?) would be inventing product
+behavior that wasn't asked for. Recording it as an explicit R6 rubric item rather than silently
+dropping it is the right call and matches the project's own house rule in `CLAUDE.md` about not
+silently skipping rubric items. I did not independently re-verify that the R6 rubric item was
+actually added to `VERIFICATION.md` in this pass — that's a documentation change, not a runtime
+behavior, and is outside what I can check by running the app. The coordinator should confirm that
+edit landed as described.
+
+I did not check the R6-deferred items themselves (annotated ratio/progress bar, regions column,
+per-document region counts) since the coordinator's message explicitly said not to fail R3 for
+their absence, and R4/R5/R7 (canvas styling, first-run, responsive) were also explicitly out of
+scope for this pass.
+
+All four R3 rubric items: ✓. No ✗ found in this run.
+
+Screenshots: `verification-screenshots/R3-overview-form-pinned-above-table.png`,
+`verification-screenshots/R3-project-detail-3col-1280x800.png`,
+`verification-screenshots/R3-image-page1-preview.png`,
+`verification-screenshots/R3-notes-and-override-persisted-after-reload.png`,
+`verification-screenshots/R3-unsupported-file-error.png`,
+`verification-screenshots/R3-project-detail-dark-1280x800.png`,
+`verification-screenshots/R3-focus-ring-dark.png`,
+`verification-screenshots/R3-overview-light-1280x800.png`,
+`verification-screenshots/R3-overview-dark-1280x800.png`.
+
+`pnpm run build` also re-run as a sanity check (not an R3 rubric item, but cheap): exit clean, `tsc
+-b && vite build` succeeded, no type errors.
+
+Final tool-call count for this run: approximately 70 (Bash ~14 including file generation and the
+build check, Playwright navigate/click/type/select/find/snapshot/evaluate/screenshot/run_code_unsafe
+combined ~56, Read ~6 for screenshot inspection).

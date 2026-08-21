@@ -3,8 +3,8 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db/db'
 import { SchemasOverview } from './components/SchemasOverview'
 import { SchemaDetail } from './components/SchemaDetail'
-import { ProjectManager } from './components/ProjectManager'
-import { ProjectView } from './components/ProjectView'
+import { ProjectsOverview } from './components/ProjectsOverview'
+import { ProjectDetail } from './components/ProjectDetail'
 import { AnnotationCanvas } from './components/canvas/AnnotationCanvas'
 import { AppShell } from './components/shell/AppShell'
 
@@ -31,11 +31,6 @@ function App() {
   const currentSchemaId = view.tab === 'schema' ? view.schemaId : null
   const currentProjectId = view.tab === 'project' || view.tab === 'annotate' ? view.projectId : null
   const currentProject = projects.find((p) => p.id === currentProjectId) ?? null
-  // Screens that still carry their pre-redesign styling scroll as a page inside
-  // the surface. Redesigned screens are full-height columns that pin their own
-  // header and scroll only their table, so the surface itself must not scroll.
-  // R3 retires the last of these.
-  const legacyStyling = view.tab === 'projects' || view.tab === 'project'
 
   // The name appears once, in the breadcrumb; the work surface's own headers name
   // the section instead. It used to be repeated as an h1 or h2 on three screens.
@@ -56,7 +51,6 @@ function App() {
           ? () => setView({ tab: 'project', projectId: view.projectId })
           : undefined
       }
-      surfaceScrolls={legacyStyling}
       schemas={schemas}
       projects={projects}
       schemaNameById={schemaNameById}
@@ -81,21 +75,14 @@ function App() {
           onBack={() => setView({ tab: 'project', projectId: view.projectId })}
         />
       )}
-      {legacyStyling && (
-        <div style={{ padding: 'var(--space-6)' }}>
-          {view.tab === 'projects' && (
-            <ProjectManager onOpenProject={(projectId) => setView({ tab: 'project', projectId })} />
-          )}
-          {view.tab === 'project' && (
-            <ProjectView
-              projectId={view.projectId}
-              onBack={() => setView({ tab: 'projects' })}
-              onOpenAnnotate={(docId) =>
-                setView({ tab: 'annotate', projectId: view.projectId, docId })
-              }
-            />
-          )}
-        </div>
+      {view.tab === 'projects' && (
+        <ProjectsOverview onOpenProject={(projectId) => setView({ tab: 'project', projectId })} />
+      )}
+      {view.tab === 'project' && (
+        <ProjectDetail
+          projectId={view.projectId}
+          onOpenAnnotate={(docId) => setView({ tab: 'annotate', projectId: view.projectId, docId })}
+        />
       )}
     </AppShell>
   )

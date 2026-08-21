@@ -1,0 +1,239 @@
+import { useState } from 'react'
+import type { ChangeEvent, FormEvent } from 'react'
+import { useLiveQuery } from 'dexie-react-hooks'
+import { db } from '../db/db'
+import { createProject, deleteProject } from '../db/projects'
+import { importNativeExport, parseNativeExport } from '../lib/nativeImport'
+import { formatWhen } from '../lib/formatDate'
+import { ConfirmDialog } from './ConfirmDialog'
+import { SurfaceHeader } from './shell/SurfaceHeader'
+import type { Project } from '../db/types'
+
+const HINT = 'color-mix(in srgb, var(--color-text) 68%, transparent)'
+
+interface ProjectsOverviewProps {
+  onOpenProject: (projectId: string) => void
+}
+
+export function ProjectsOverview({ onOpenProject }: ProjectsOverviewProps) {
+  const projects = useLiveQuery(() => db.projects.orderBy('updatedAt').reverse().toArray(), [])
+  const schemas = useLiveQuery(() => db.labelSchemas.orderBy('name').toArray(), [])
+  // One index read rather than a count per row: keys() walks the projectId index
+  // without loading the doc records, which matter here because a Doc carries the
+  // original PDF bytes.
+  const docProjectIds = useLiveQuery(() => db.docs.orderBy('projectId').keys(), [])
+
+  const [name, setName] = useState('')
+  const [schemaId, setSchemaId] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<Project | null>(null)
+
+  if (projects === undefined || schemas === undefined || docProjectIds === undefined) return null
+
+  const schemaNameById = new Map(schemas.map((s) => [s.id, s.name]))
+  const docCounts = new Map<string, number>()
+  for (const id of docProjectIds) {
+    const key = String(id)
+    docCounts.set(key, (docCounts.get(key) ?? 0) + 1)
+  }
+  const selectedSchemaId = schemaId || schemas[0]?.id || ''
+
+  async function handleImport(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ''
+    if (!file) return
+    setError(null)
+    try {
+      const text = await file.text()
+      let json: unknown
+      try {
+        json = JSON.parse(text)
+      } catch {
+        setError(`"${file.name}" is not valid JSON — it couldn’t be parsed at all.`)
+        return
+      }
+      onOpenProject(await importNativeExport(parseNativeExport(json)))
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }
+
+  async function handleCreate(e: FormEvent) {
+    e.preventDefault()
+    setError(null)
+    if (!selectedSchemaId) {
+      setError('Create a label schema first — a project needs one to define what you annotate.')
+      return
+    }
+    try {
+      const id = await createProject(name, selectedSchemaId)
+      setName('')
+      onOpenProject(id)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    }
+  }
+
+  async function handleDeleteConfirmed() {
+    if (!pendingDelete) return
+    await deleteProject(pendingDelete.id)
+    setPendingDelete(null)
+  }
+
+  const docTotal = docProjectIds.length
+
+  return (
+    <>
+      <SurfaceHeader
+        title={`Projects · ${projects.length}`}
+        subtitle={
+          projects.length === 0
+            ? undefined
+            : `${docTotal} document${docTotal === 1 ? '' : 's'} across ${projects.length} project${
+                projects.length === 1 ? '' : 's'
+              }`
+        }
+        error={error}
+        actions={
+          <label className="btn btn-secondary">
+            Import project…
+            <input
+              type="file"
+              accept="application/json,.json"
+              onChange={handleImport}
+              className="sr-only"
+            />
+          </label>
+        }
+      />
+
+      <form
+        onSubmit={handleCreate}
+        style={{
+          flex: 'none',
+          padding: 'var(--space-4)',
+          background: 'var(--color-surface)',
+          borderBottom: '2px solid var(--color-divider)',
+        }}
+      >
+        <h3 className="ts-eyebrow" style={{ margin: '0 0 var(--space-3)' }}>
+          New project
+        </h3>
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'flex-end',
+            gap: 'var(--space-3)',
+          }}
+        >
+          <div className="field" style={{ flex: 1, minWidth: 200, maxWidth: 420 }}>
+            <label htmlFor="project-name">Project name</label>
+            <input
+              id="project-name"
+              className="input"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="e.g. KYC batch 1"
+            />
+          </div>
+          <div className="field" style={{ width: 260 }}>
+            <label htmlFor="project-schema">Label schema</label>
+            <select
+              id="project-schema"
+              className="input"
+              value={selectedSchemaId}
+              onChange={(e) => setSchemaId(e.target.value)}
+            >
+              {schemas.length === 0 && <option value="">No schemas yet</option>}
+              {schemas.map((schema) => (
+                <option key={schema.id} value={schema.id}>
+                  {schema.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <button type="submit" className="btn btn-primary" style={{ minHeight: 36 }}>
+            Create project
+          </button>
+        </div>
+        <p
+          className="mono"
+          style={{ margin: 'var(--space-2) 0 0', fontSize: '11.5px', color: HINT }}
+        >
+          A project takes one schema and many documents.
+        </p>
+      </form>
+
+      <div
+        className="ts-scroll"
+        style={{ flex: 1, minHeight: 0, padding: '0 var(--space-4) var(--space-4)' }}
+      >
+        {projects.length === 0 ? (
+          <p style={{ padding: 'var(--space-4) 0', fontSize: '12.5px', color: HINT }}>
+            No projects yet. Create one above to start uploading documents.
+          </p>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Project</th>
+                <th style={{ width: 220 }}>Schema</th>
+                <th style={{ width: 110 }}>Documents</th>
+                <th style={{ width: 170 }}>Updated</th>
+                <th style={{ width: 86 }}>
+                  <span className="sr-only">Actions</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {projects.map((project) => (
+                <tr key={project.id}>
+                  <td>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      style={{ fontSize: 14, padding: 0, color: 'var(--color-text)' }}
+                      onClick={() => onOpenProject(project.id)}
+                    >
+                      {project.name}
+                    </button>
+                  </td>
+                  <td style={{ fontSize: '12.5px', color: HINT }}>
+                    {schemaNameById.get(project.schemaId) ?? 'unknown schema'}
+                  </td>
+                  <td className="mono" style={{ fontSize: 13 }}>
+                    {docCounts.get(project.id) ?? 0}
+                  </td>
+                  <td style={{ fontSize: '12.5px', color: HINT }}>
+                    {formatWhen(project.updatedAt)}
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm"
+                      aria-label={`Delete ${project.name}`}
+                      onClick={() => setPendingDelete(project)}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title="Delete project"
+          message={`Delete "${pendingDelete.name}" and all its documents and annotations? This cannot be undone.`}
+          onConfirm={handleDeleteConfirmed}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
+    </>
+  )
+}

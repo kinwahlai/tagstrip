@@ -1,14 +1,18 @@
 import type { Page } from '../db/types'
 
-const STYLES: Record<Page['contentType'], string> = {
-  text: 'bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300',
-  scanned: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300',
-  unknown: 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300',
+// ContentTypeBadge prints the raw union value in lower case, so the tag does too
+// — the word carries the meaning. The old blue/amber/slate has no equivalent in a
+// single-accent system, so the design system's tag ramps stand in: a scanned page
+// is the one that changes how Suggest text behaves, so it takes the accent.
+const TAG_CLASS: Record<Page['contentType'], string> = {
+  text: 'tag-neutral',
+  scanned: 'tag-accent',
+  unknown: 'tag-outline',
 }
 
 export function ContentTypeBadge({ contentType }: { contentType: Page['contentType'] }) {
   return (
-    <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${STYLES[contentType]}`}>
+    <span className={`tag mono ${TAG_CLASS[contentType]}`} style={{ fontSize: '10.5px' }}>
       {contentType}
     </span>
   )
