@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db/db'
+import { FirstRun } from './components/FirstRun'
 import { SchemasOverview } from './components/SchemasOverview'
 import { SchemaDetail } from './components/SchemaDetail'
 import { ProjectsOverview } from './components/ProjectsOverview'
@@ -44,6 +45,12 @@ function App() {
 
   if (schemas === undefined || projects === undefined) return null
 
+  // First run is a property of the data, not a route: with nothing stored there
+  // is no schema or project for any other screen to show. A project cannot
+  // outlive its schema — deleting one is refused while a project uses it — so no
+  // schemas means no projects either.
+  const isFirstRun = schemas.length === 0 && projects.length === 0
+
   const schemaNameById = new Map(schemas.map((s) => [s.id, s.name]))
   const currentSchemaId = view.tab === 'schema' ? view.schemaId : null
   const currentProjectId = view.tab === 'project' || view.tab === 'annotate' ? view.projectId : null
@@ -69,11 +76,12 @@ function App() {
     project: ['Project', currentProject?.name ?? ''] as [string, string],
     annotate: [currentProject?.name ?? 'Project', currentDoc?.filename ?? ''] as [string, string],
   }[view.tab]
+  const [crumbTop, crumbMain] = isFirstRun ? ['TagStrip', 'Nothing stored yet'] : crumb
 
   return (
     <AppShell
-      crumbTop={crumb[0]}
-      crumbMain={crumb[1]}
+      crumbTop={crumbTop}
+      crumbMain={crumbMain}
       onCrumbBack={
         view.tab === 'annotate'
           ? () => goTo({ tab: 'project', projectId: view.projectId })
@@ -108,13 +116,19 @@ function App() {
         )
       }
     >
-      {view.tab === 'schemas' && (
+      {isFirstRun && (
+        <FirstRun
+          onOpenSchema={(schemaId) => goTo({ tab: 'schema', schemaId })}
+          onOpenProject={(projectId) => goTo({ tab: 'project', projectId })}
+        />
+      )}
+      {!isFirstRun && view.tab === 'schemas' && (
         <SchemasOverview onOpenSchema={(schemaId) => goTo({ tab: 'schema', schemaId })} />
       )}
       {view.tab === 'schema' && (
         <SchemaDetail schemaId={view.schemaId} onDeleted={() => goTo({ tab: 'schemas' })} />
       )}
-      {view.tab === 'projects' && (
+      {!isFirstRun && view.tab === 'projects' && (
         <ProjectsOverview onOpenProject={(projectId) => goTo({ tab: 'project', projectId })} />
       )}
       {view.tab === 'project' && (

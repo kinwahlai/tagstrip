@@ -9,7 +9,6 @@ import { formatHotkeyRanges } from '../lib/hotkeys'
 import { formatWhen } from '../lib/formatDate'
 import { ConfirmDialog } from './ConfirmDialog'
 import { RenameDialog } from './RenameDialog'
-import { LocalOnlyPanel } from './LocalOnlyPanel'
 import { SurfaceHeader } from './shell/SurfaceHeader'
 import type { LabelSchema } from '../db/types'
 
@@ -158,9 +157,9 @@ export function SchemasOverview({ onOpenSchema }: SchemasOverviewProps) {
         style={{ flex: 1, minHeight: 0, padding: '0 var(--space-4) var(--space-4)' }}
       >
         {schemas.length === 0 ? (
-          <div style={{ paddingTop: 'var(--space-4)' }}>
-            <LocalOnlyPanel />
-          </div>
+          <p style={{ padding: 'var(--space-4) 0', fontSize: '12.5px', color: HINT }}>
+            No label schemas yet. Create one above to define the fields you'll annotate.
+          </p>
         ) : (
           <>
             <table className="table">

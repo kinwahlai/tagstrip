@@ -1771,3 +1771,153 @@ Screenshots: `R4-toolbar-row.png`, `R4-hotkey-suppressed-in-textfield.png`,
 
 Final tool-call count for this run: approximately 95 (Bash ~8, Read ~4, Playwright
 navigate/click/type/press/find/snapshot/evaluate/screenshot/run_code_unsafe/resize combined ~83).
+
+## R5 — First run (verified 2026-08-22)
+
+Verified against `VERIFICATION.md`'s "## R5 — First run" section (3 items) plus the four
+numbered checks given in the invoking prompt, which extend that section (render, copy-language,
+create-and-land, plus import-schema/import-project, both-theme contrast beyond just the h1, and
+overflow/focus-ring checks). Dev server on `http://localhost:5175/` (5173/5174 were already in
+use). `pnpm run build` re-run first: exit clean, `tsc -b && vite build` succeeded, produced
+`dist/`.
+
+1. **Rubric item 1 — hero, "What this is not" strip, three points, create form all render with
+   IndexedDB genuinely empty: ✓.** Deleted the `tagstrip` IndexedDB database via
+   `indexedDB.databases()` + `deleteDatabase`, reloaded, and took an accessibility snapshot: the
+   accent hero ("Your documents never leave this browser"), the "No server · no account · no
+   upload" eyebrow, the "What this is not:" strip with the plaintext-at-rest sentence, all three
+   "How that works" points (Stored on your device / Nothing is uploaded / Works offline), the
+   "Create your first label schema" form, and both "Import schema…" / "Import project…" controls
+   were all present in the DOM. Screenshots: `R5-first-run-light.png`, `R5-first-run-dark.png`.
+
+2. **Rubric item 2 (copy language) — ruling: COMPLIANT, but only on a literal reading; see below
+   for the caveat.** Grepped the built `dist/` bundle (`dist/assets/index-DtwMjdXF.js`,
+   `dist/index.html`, `dist/assets/index-l9jXMVXF.css`, plus the pdf/tesseract chunks) for
+   `encrypt|secur|safe|protect` (broad substring) and separately for the exact word-bounded forms
+   `\b(encrypted|secure|safe|protected)\b`. Broad-substring hits, filtered for user-visible text:
+   only two things —
+   (a) React's own internal DOM media-event-name list (`"...emptied encrypted ended error..."`, a
+   hardcoded array React ships for synthetic event mapping, never rendered to the user, and
+   React's own `"blocked a javascript: URL as a security precaution"` console-warning string,
+   also never rendered as page content) — neither is shell or first-run copy, both are React
+   library internals;
+   (b) our own copy: `"...TagStrip claims no encryption and adds no protection to the file on
+   your disk..."`.
+   Exact-word-boundary hits: only the two React "encrypted" instances above (React's own event
+   name list). Zero exact-boundary hits for "secure", "safe", or "protected" anywhere.
+   **My ruling on the specific question asked:** taken literally, the rubric bans four specific
+   inflected word forms — "encrypted", "secure", "safe", "protected" — and the copy uses
+   different forms ("encryption", "protection") that do not contain those exact strings as
+   substrings (verified: "encrypted" is not a substring of "encryption", "protected" is not a
+   substring of "protection", "secure" is not a substring of anything in the copy). So on a
+   strict string-match reading, **this passes**. Semantically it also doesn't overclaim: both
+   uses are explicit negations ("claims no encryption", "adds no protection") stating what
+   TagStrip does *not* do, which is the opposite direction of the failure the rubric is plausibly
+   guarding against (marketing copy claiming a security property TagStrip doesn't have). I did
+   not find a construction in the current copy that reads as a claim of safety.
+   **The caveat, stated plainly so it isn't buried:** this is a judgment call about the rubric's
+   intent, not a mechanical pass. If the rubric's real intent was "ban the whole
+   encrypt-/secur-/safe-/protect- word family regardless of inflection or polarity" — which is a
+   defensible reading of "no instance of X anywhere," since a literal human reader skimming the
+   page would still see the words "encryption" and "protection" printed on it — then this copy
+   fails that stricter reading, and grep on the bare stems (`encrypt`, `secur`, `safe`, `protect`)
+   does find it in the shipped bundle. I am flagging this as the implementer asked rather than
+   silently picking the lenient reading: **the copy is technically inside the four listed word
+   forms, but a reader doing a naive "does this page use the word encryption/protection anywhere"
+   check would say yes.** Recommend either the rubric wording be tightened to state whether stems
+   or exact forms are banned, or the copy be reworded to avoid the shared root entirely (e.g.
+   "TagStrip does not scramble the file, and does not stop anyone with access to the disk from
+   reading it") if the stricter reading is what's wanted.
+
+3. **Rubric item 3 — creating a schema from the hero leaves first run and lands on that schema:
+   ✓.** Typed "R5 Test Schema" into the hero's Schema name field and clicked Create. The
+   breadcrumb changed from "TagStrip / Nothing stored yet" to "Label schema / R5 Test Schema",
+   the rail now shows "Label schemas 1" with that schema listed, and the main panel switched to
+   the schema editor (Labels · 0, Add a label form) — first-run screen is gone. Screenshot:
+   `R5-create-schema-landed.png`.
+
+4. **Prompt check 2 (import schema / import project also leave first run correctly): ✓ for
+   both.** Reset IndexedDB to empty, reloaded. Built a minimal valid TagStrip schema-export JSON
+   (version 1, one label) matching `SchemaExportFile` from `src/lib/schemaFormat.ts`, uploaded it
+   via the "Import schema…" control (had to click the wrapping `<label>`, not the `sr-only`
+   `<input type=file>` itself — clicking the input directly times out since it's
+   clip-path-hidden). Result: breadcrumb → "Label schema / R5 Imported Schema", rail shows the
+   new schema, main panel shows its one imported label ("field_one", #C0392B) in the labels
+   table — first-run screen gone. Reset IndexedDB again, reloaded, built a minimal valid
+   TagStrip native project-export JSON (version 1, empty `documents: []`) matching
+   `NativeExportFile` from `src/lib/nativeFormat.ts`, uploaded it via "Import project…". Result:
+   breadcrumb → "Project / R5 Imported Project", rail shows both the project and its schema
+   ("R5 Project Schema"), main panel shows the project detail view (Documents · 0, upload
+   control) — first-run screen gone in this case too.
+
+5. **Prompt check 3 (both themes legible on the accent ground, including 11px eyebrow and 17px
+   body, not just the 52px heading): ✓.** Computed WCAG contrast ratios in-browser via
+   `getComputedStyle` (accounting for `color-mix`/`color(srgb ...)` computed-color output and for
+   the eyebrow's `opacity: 0.92`, which the implementer's own numbers did not appear to account
+   for — I blended the eyebrow's rendered color against the hero background at its actual opacity
+   before computing contrast, which is the correct way to measure what a viewer actually sees).
+   - Light theme, hero bg `rgb(174,24,0)` (`#AE1800`): h1 and body-17px both `rgb(243,242,242)`
+     on that bg → **6.413:1** — I independently reproduce the implementer's claimed 6.41:1
+     exactly. Eyebrow (`opacity: 0.92`) blended color → **5.597:1**, still clears 4.5:1.
+   - Dark theme, hero bg `rgb(255,86,60)` (`#FF563C`): h1 and body-17px both `rgb(25,24,23)` on
+     that bg → **5.613:1** — I independently reproduce the implementer's claimed 5.61:1 exactly.
+     Eyebrow blended → **5.135:1**, clears 4.5:1.
+   - Also checked the "What this is not" strip body text (12.5px, `color-mix` alpha 0.78) against
+     its own surface background in dark theme: **8.577:1** — clears easily; not close enough to
+     the threshold to be worth also computing in light theme.
+   - Also checked a "How that works" point heading (15px) against the dark surface background:
+     **14.671:1**.
+   All measured values clear WCAG AA's 4.5:1 (small text) / 3:1 (large text) thresholds in both
+   themes, at every size checked, not just the 52px heading. Screenshots: `R5-first-run-light.png`,
+   `R5-first-run-dark.png`.
+
+6. **Prompt check 4a (no horizontal overflow at 1280×800, both themes): ✓.**
+   `document.documentElement.scrollWidth === document.documentElement.clientWidth === 1280` in
+   both light and dark theme, checked separately in each.
+
+7. **Prompt check 4b (2px accent focus rings on the create form and both import buttons): ✓, with
+   one implementation detail worth flagging for awareness, not as a bug.** Tabbing by real
+   keyboard (`browser_press_key Tab`, not a programmatic `.focus()` call, since Chromium only
+   applies `:focus-visible` styling reliably for the latter on text inputs, not buttons) landed on
+   the Create button and produced computed style `outline: rgb(255, 86, 60) solid 2px;
+   outline-offset: 2px` in dark theme — the correct 2px accent ring. Tabbing again landed on the
+   (visually hidden, `sr-only`, `clip-path: inset(50%)`) `<input type="file">` behind "Import
+   schema…"; a screenshot at that point (`R5-focus-import-schema.png`) confirms a real 2px accent
+   ring is visible around the *outer label* (the button users actually see), not just the hidden
+   input. This works because of an explicit rule in `src/index.css`:
+   `.btn:has(> input[type='file']:focus-visible) { outline: 2px solid var(--color-accent);
+   outline-offset: 2px; }` — the ring is deliberately forwarded from the hidden input to its
+   visible wrapping label. I did not separately screenshot the second import button
+   ("Import project…") mid-focus, but it uses the identical markup pattern and the same CSS
+   selector, so I'm confident it behaves the same; flagging that I inferred rather than directly
+   observed that one. Also confirmed the Schema-name `<input>` itself gets a real focus ring
+   (`outline: rgb(255, 86, 60) solid 2px`) via keyboard focus. Screenshots:
+   `R5-focus-import-schema.png`, `R5-focus-import-schema-full.png`.
+
+### Not independently re-checked this run
+
+- `VERIFICATION.md`'s edit was reviewed directly via `git diff HEAD -- VERIFICATION.md`, not
+  taken on the implementer's description: the diff is exactly one hunk, 5 insertions/4 deletions,
+  in the M4 panel bullet's parenthetical note, and it only adds words explaining *when* the panel
+  moved (R2 → placeholder on SchemasOverview → R5 → first-run screen) and asserts no check was
+  dropped. I confirm no rubric bullet (the `- [ ]` lines) was added, removed, or reworded in this
+  diff — only the explanatory prose in one parenthetical changed. This matches what actually
+  happened in the code: `LocalOnlyPanel.tsx` was deleted and its `data-testid="local-only-panel"`
+  / `aria-labelledby="local-only-heading"` hooks moved verbatim onto the "How that works" section
+  in `FirstRun.tsx` (confirmed by reading the file directly, lines 194–205).
+- Did not re-run `pnpm run lint` or `pnpm test` this pass — not asked for in this task's checklist
+  and the build (`tsc -b && vite build`) already passed cleanly, which covers typechecking.
+
+### Result
+
+All three `VERIFICATION.md` R5 rubric items and all four prompt-specified checks pass, with one
+explicit judgment call recorded above (item 2: the "What this is not" copy passes a literal
+exact-word-form reading of the rubric but would fail a word-stem reading; I recommend the
+implementer or user pick which reading is intended and either tighten the rubric wording or
+reword the copy accordingly, rather than leave it ambiguous).
+
+Screenshots: `R5-first-run-light.png`, `R5-first-run-dark.png`, `R5-create-schema-landed.png`,
+`R5-focus-import-schema.png`, `R5-focus-import-schema-full.png`.
+
+Final tool-call count for this run: approximately 73 (Bash ~20, Read ~6, Playwright
+navigate/click/type/press/find/snapshot/evaluate/screenshot/resize/file_upload combined ~47).

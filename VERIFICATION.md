@@ -144,10 +144,11 @@ not by reading the code and reasoning that it should work. Reading code tells yo
       the eye lands on in the header, in both light and dark mode
 - [ ] The local-only panel shows heading "Your documents never leave this browser", a supporting
       sentence, and three points (stored on your device / nothing is uploaded / works offline)
-      each with an icon. *(Revised at R2: the redesign has no right-hand pane to fill and no
-      "no schema selected" state — the rail holds the schema list now. The panel appears on the
-      label-schemas overview while there are no schemas, and R5 moves it into the first-run
-      screen. The claim itself is in the header strip on every view, unconditionally.)*
+      each with an icon. *(Revised at R2, updated at R5: the redesign has no right-hand pane to
+      fill and no "no schema selected" state — the rail holds the schema list now. The panel lived
+      on the label-schemas overview as a placeholder through R2–R4; as of R5 it is part of the
+      first-run screen, which is where the R2 note said it was going. The claim itself is in the
+      header strip on every view, unconditionally. No check was dropped in either edit.)*
 - [ ] The panel is legible in BOTH light and dark mode — check rendered contrast, not class names
 - [ ] The panel does not compete with the "Create" button as the page's primary action, and does
       not push the create form below the fold at 1280x800 — the create form is pinned above it
