@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db/db'
-import { SchemaManager } from './components/SchemaManager'
+import { SchemasOverview } from './components/SchemasOverview'
+import { SchemaDetail } from './components/SchemaDetail'
 import { ProjectManager } from './components/ProjectManager'
 import { ProjectView } from './components/ProjectView'
 import { AnnotationCanvas } from './components/canvas/AnnotationCanvas'
@@ -30,6 +31,11 @@ function App() {
   const currentSchemaId = view.tab === 'schema' ? view.schemaId : null
   const currentProjectId = view.tab === 'project' || view.tab === 'annotate' ? view.projectId : null
   const currentProject = projects.find((p) => p.id === currentProjectId) ?? null
+  // Screens that still carry their pre-redesign styling scroll as a page inside
+  // the surface. Redesigned screens are full-height columns that pin their own
+  // header and scroll only their table, so the surface itself must not scroll.
+  // R3 retires the last of these.
+  const legacyStyling = view.tab === 'projects' || view.tab === 'project'
 
   // The name appears once, in the breadcrumb; the work surface's own headers name
   // the section instead. It used to be repeated as an h1 or h2 on three screens.
@@ -50,7 +56,7 @@ function App() {
           ? () => setView({ tab: 'project', projectId: view.projectId })
           : undefined
       }
-      surfaceScrolls={view.tab !== 'annotate'}
+      surfaceScrolls={legacyStyling}
       schemas={schemas}
       projects={projects}
       schemaNameById={schemaNameById}
@@ -63,21 +69,20 @@ function App() {
       onOpenSchema={(schemaId) => setView({ tab: 'schema', schemaId })}
       onOpenProject={(projectId) => setView({ tab: 'project', projectId })}
     >
-      {view.tab === 'annotate' ? (
+      {view.tab === 'schemas' && (
+        <SchemasOverview onOpenSchema={(schemaId) => setView({ tab: 'schema', schemaId })} />
+      )}
+      {view.tab === 'schema' && (
+        <SchemaDetail schemaId={view.schemaId} onDeleted={() => setView({ tab: 'schemas' })} />
+      )}
+      {view.tab === 'annotate' && (
         <AnnotationCanvas
           docId={view.docId}
           onBack={() => setView({ tab: 'project', projectId: view.projectId })}
         />
-      ) : (
+      )}
+      {legacyStyling && (
         <div style={{ padding: 'var(--space-6)' }}>
-          {(view.tab === 'schemas' || view.tab === 'schema') && (
-            <SchemaManager
-              selectedId={currentSchemaId}
-              onSelectSchema={(schemaId) =>
-                setView(schemaId ? { tab: 'schema', schemaId } : { tab: 'schemas' })
-              }
-            />
-          )}
           {view.tab === 'projects' && (
             <ProjectManager onOpenProject={(projectId) => setView({ tab: 'project', projectId })} />
           )}

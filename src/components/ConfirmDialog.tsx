@@ -15,37 +15,31 @@ export function ConfirmDialog({
 }: ConfirmDialogProps) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="dialog-backdrop"
       role="presentation"
       onClick={onCancel}
+      // The design system's .dialog-backdrop is absolute, since it was drawn
+      // inside a fixed mockup frame. In the app it has to cover the viewport.
+      style={{ position: 'fixed', zIndex: 50 }}
     >
       <div
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="confirm-dialog-title"
-        className="w-full max-w-sm rounded-lg border border-slate-200 bg-white p-5 shadow-xl dark:border-slate-700 dark:bg-slate-800"
+        className="dialog"
         onClick={(e) => e.stopPropagation()}
       >
-        <h2
-          id="confirm-dialog-title"
-          className="text-base font-semibold text-slate-900 dark:text-slate-100"
-        >
+        <h2 id="confirm-dialog-title" className="dialog-title">
           {title}
         </h2>
-        <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{message}</p>
-        <div className="mt-5 flex justify-end gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            className="rounded-md px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:text-slate-200 dark:hover:bg-slate-700"
-          >
+        <p className="dialog-body" style={{ margin: 0 }}>
+          {message}
+        </p>
+        <div className="dialog-actions">
+          <button type="button" className="btn btn-secondary" onClick={onCancel}>
             Cancel
           </button>
-          <button
-            type="button"
-            onClick={onConfirm}
-            className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500"
-          >
+          <button type="button" className="btn btn-primary" onClick={onConfirm}>
             {confirmLabel}
           </button>
         </div>

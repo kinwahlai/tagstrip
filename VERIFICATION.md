@@ -142,13 +142,15 @@ not by reading the code and reasoning that it should work. Reading code tells yo
       projects, project detail, annotation canvas) and does not crowd the nav
 - [ ] The badge reads as a claim, not a muted status chip — it should be one of the first things
       the eye lands on in the header, in both light and dark mode
-- [ ] With no schema selected, the local-only panel fills the right-hand pane: heading
-      "Your documents never leave this browser", a supporting sentence, and three points
-      (stored on your device / nothing is uploaded / works offline) each with an icon
+- [ ] The local-only panel shows heading "Your documents never leave this browser", a supporting
+      sentence, and three points (stored on your device / nothing is uploaded / works offline)
+      each with an icon. *(Revised at R2: the redesign has no right-hand pane to fill and no
+      "no schema selected" state — the rail holds the schema list now. The panel appears on the
+      label-schemas overview while there are no schemas, and R5 moves it into the first-run
+      screen. The claim itself is in the header strip on every view, unconditionally.)*
 - [ ] The panel is legible in BOTH light and dark mode — check rendered contrast, not class names
 - [ ] The panel does not compete with the "Create" button as the page's primary action, and does
-      not push the schema list or create form below the fold at 1280x800
-- [ ] Selecting a schema replaces the panel with the label editor
+      not push the create form below the fold at 1280x800 — the create form is pinned above it
 - [ ] Neither the badge, its tooltip, nor the panel uses "encrypted" or "secure" (IndexedDB is
       plaintext at rest; overclaiming here is a bug)
 - [ ] At 375px wide the badge and panel still read correctly and nothing overflows horizontally

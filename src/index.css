@@ -18,6 +18,21 @@
   color-scheme: dark;
 }
 
+/* The palette swatch is a real radio, so it keeps radio semantics and arrow-key
+   navigation; the input itself is visually hidden, so the focus ring has to move
+   to the swatch it drives. */
+.ts-swatch-radio:focus-visible + .ts-swatch-box {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* File pickers are a visually hidden <input> inside a .btn label, so the focus
+   ring has to come from the input's own focus state. */
+.btn:has(> input[type='file']:focus-visible) {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
 html,
 body,
 #root {

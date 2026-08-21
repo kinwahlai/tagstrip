@@ -6,7 +6,7 @@ import { addLabel, removeLabel, SchemaValidationError, updateLabel } from '../db
 import { ConfirmDialog } from './ConfirmDialog'
 import { DEFAULT_LABEL_COLOR, LABEL_COLORS, suggestColor } from '../lib/labelColors'
 import { spacesToUnderscores } from '../lib/labelName'
-import { HOTKEY_OPTIONS } from '../lib/hotkeys'
+import { formatHotkeyRanges, HOTKEY_OPTIONS } from '../lib/hotkeys'
 import type { Label } from '../db/types'
 
 interface LabelFormState {
@@ -16,7 +16,15 @@ interface LabelFormState {
 }
 
 const EMPTY_FORM: LabelFormState = { name: '', color: DEFAULT_LABEL_COLOR, hotkey: '' }
+const HINT = 'color-mix(in srgb, var(--color-text) 68%, transparent)'
 
+function hintStyle() {
+  return { margin: '5px 0 0', fontSize: '11px', color: HINT } as const
+}
+
+// The add-label form is pinned above the table it feeds. It used to sit below,
+// so it drifted further down the page with every label added — the point at
+// which you most want to keep adding them (survey finding 5).
 export function LabelEditor({ schemaId }: { schemaId: string }) {
   const schema = useLiveQuery(() => db.labelSchemas.get(schemaId), [schemaId])
   const [form, setForm] = useState<LabelFormState>(EMPTY_FORM)
@@ -25,7 +33,7 @@ export function LabelEditor({ schemaId }: { schemaId: string }) {
   const [pendingDelete, setPendingDelete] = useState<Label | null>(null)
 
   if (schema === undefined) return null
-  if (schema === null) return <p className="text-sm text-slate-500">Schema not found.</p>
+  if (schema === null) return <p style={{ padding: 'var(--space-4)' }}>Schema not found.</p>
 
   const labelColors = schema.labels.map((l) => l.color)
   const inPalette = LABEL_COLORS.some((c) => c.hex.toUpperCase() === form.color.toUpperCase())
@@ -36,8 +44,9 @@ export function LabelEditor({ schemaId }: { schemaId: string }) {
     schema.labels
       .filter((l) => l.id !== editingId)
       .map((l) => l.hotkey)
-      .filter(Boolean),
+      .filter((k): k is string => Boolean(k)),
   )
+  const takenSummary = formatHotkeyRanges([...usedHotkeys])
 
   // useLiveQuery has not re-rendered with the label we just wrote, so `labelColors`
   // is one render stale — the color just consumed still looks free. Callers that
@@ -83,157 +92,236 @@ export function LabelEditor({ schemaId }: { schemaId: string }) {
   }
 
   return (
-    <div>
-      <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{schema.name}</h2>
-
-      {schema.labels.length === 0 ? (
-        <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
-          No labels yet. Add one below.
-        </p>
-      ) : (
-        <ul className="mt-3 divide-y divide-slate-200 rounded-md border border-slate-200 dark:divide-slate-700 dark:border-slate-700">
-          {schema.labels.map((label) => (
-            <li key={label.id} className="flex items-center gap-3 px-3 py-2">
-              <span
-                data-testid="color-swatch"
-                className="h-4 w-4 shrink-0 rounded-full border border-black/10"
-                style={{ backgroundColor: label.color }}
-                aria-hidden="true"
-              />
-              <span className="flex-1 truncate text-sm text-slate-800 dark:text-slate-100">
-                {label.name}
-              </span>
-              {label.hotkey && (
-                <kbd className="rounded border border-slate-300 bg-slate-100 px-1.5 py-0.5 text-xs text-slate-600 dark:border-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                  {label.hotkey}
-                </kbd>
-              )}
-              <button
-                type="button"
-                onClick={() => startEdit(label)}
-                className="rounded px-2 py-1 text-xs font-medium text-indigo-600 hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:text-indigo-400 dark:hover:bg-indigo-950"
-              >
-                Edit
-              </button>
-              <button
-                type="button"
-                onClick={() => setPendingDelete(label)}
-                className="rounded px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-500 dark:text-red-400 dark:hover:bg-red-950"
-              >
-                Delete
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      <form onSubmit={handleSubmit} className="mt-4 flex flex-wrap items-end gap-3">
-        <div>
-          <label
-            htmlFor="label-name"
-            className="block text-xs font-medium text-slate-600 dark:text-slate-300"
-          >
-            Name
-          </label>
-          <input
-            id="label-name"
-            type="text"
-            value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: spacesToUnderscores(e.target.value) }))}
-            placeholder="e.g. date_of_birth"
-            aria-describedby="label-name-hint"
-            className="mt-1 w-48 rounded-md border border-slate-300 px-2 py-1.5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-          />
-          <p id="label-name-hint" className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            Spaces become underscores
-          </p>
-        </div>
-        <fieldset>
-          <legend className="text-xs font-medium text-slate-600 dark:text-slate-300">Color</legend>
-          <div className="mt-1 grid grid-cols-6 gap-1.5">
-            {swatches.map((c) => {
-              const selected = c.hex.toUpperCase() === form.color.toUpperCase()
-              return (
-                <label
-                  key={c.hex}
-                  title={c.name}
-                  className="cursor-pointer"
-                  data-testid="color-option"
-                  data-selected={selected}
-                >
-                  <input
-                    type="radio"
-                    name="label-color"
-                    value={c.hex}
-                    checked={selected}
-                    onChange={() => setForm((f) => ({ ...f, color: c.hex }))}
-                    className="peer sr-only"
-                  />
-                  <span
-                    aria-hidden="true"
-                    style={{ backgroundColor: c.hex }}
-                    className="flex h-7 w-7 items-center justify-center rounded-md border border-black/20 ring-offset-1 peer-checked:ring-2 peer-checked:ring-slate-900 peer-focus-visible:ring-2 peer-focus-visible:ring-indigo-500 dark:ring-offset-slate-900 dark:peer-checked:ring-slate-100"
-                  >
-                    {selected && (
-                      <svg viewBox="0 0 20 20" fill="none" className="h-4 w-4">
-                        <path
-                          d="M5 10.5l3.5 3.5L15 7"
-                          stroke="white"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-                      </svg>
-                    )}
-                  </span>
-                  <span className="sr-only">{c.name}</span>
-                </label>
-              )
-            })}
-          </div>
-        </fieldset>
-        <div>
-          <label
-            htmlFor="label-hotkey"
-            className="block text-xs font-medium text-slate-600 dark:text-slate-300"
-          >
-            Hotkey
-          </label>
-          <select
-            id="label-hotkey"
-            value={form.hotkey}
-            onChange={(e) => setForm((f) => ({ ...f, hotkey: e.target.value }))}
-            className="mt-1 rounded-md border border-slate-300 px-2 py-1.5 text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:border-slate-600 dark:bg-slate-900 dark:text-slate-100"
-          >
-            <option value="">None</option>
-            {HOTKEY_OPTIONS.map((key) => (
-              <option key={key} value={key} disabled={usedHotkeys.has(key) && form.hotkey !== key}>
-                {key}
-              </option>
-            ))}
-          </select>
-        </div>
-        <button
-          type="submit"
-          className="whitespace-nowrap rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+    <>
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          flex: 'none',
+          padding: 'var(--space-4)',
+          background: 'var(--color-surface)',
+          borderBottom: '2px solid var(--color-divider)',
+        }}
+      >
+        <h3 className="ts-eyebrow" style={{ margin: '0 0 var(--space-3)' }}>
+          {editingId ? 'Edit label' : 'Add a label'}
+        </h3>
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'flex-start',
+            gap: 'var(--space-4)',
+          }}
         >
-          {editingId ? 'Save label' : 'Add label'}
-        </button>
-        {editingId && (
-          <button
-            type="button"
-            onClick={() => resetForm()}
-            className="rounded-md px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500 dark:text-slate-300 dark:hover:bg-slate-700"
+          <div className="field" style={{ width: 210 }}>
+            <label htmlFor="label-name">Name</label>
+            <input
+              id="label-name"
+              className="input mono"
+              type="text"
+              value={form.name}
+              onChange={(e) =>
+                setForm((f) => ({ ...f, name: spacesToUnderscores(e.target.value) }))
+              }
+              placeholder="e.g. date_of_birth"
+              aria-describedby="label-name-hint"
+            />
+            <p className="mono" id="label-name-hint" style={hintStyle()}>
+              Spaces become underscores
+            </p>
+          </div>
+
+          <fieldset className="field" style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
+            <legend
+              style={{
+                display: 'block',
+                padding: 0,
+                fontSize: '12px',
+                marginBottom: 5,
+                color: 'color-mix(in srgb, var(--color-text) 70%, transparent)',
+              }}
+            >
+              Colour
+            </legend>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 28px)', gap: 6 }}>
+              {swatches.map((c) => {
+                const selected = c.hex.toUpperCase() === form.color.toUpperCase()
+                return (
+                  <label
+                    key={c.hex}
+                    title={c.name}
+                    data-testid="color-option"
+                    data-selected={selected}
+                    style={{ position: 'relative', cursor: 'pointer' }}
+                  >
+                    <input
+                      className="ts-swatch-radio"
+                      type="radio"
+                      name="label-color"
+                      value={c.hex}
+                      checked={selected}
+                      onChange={() => setForm((f) => ({ ...f, color: c.hex }))}
+                      style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
+                    />
+                    <span
+                      aria-hidden="true"
+                      className="ts-swatch-box"
+                      style={{
+                        display: 'grid',
+                        placeItems: 'center',
+                        width: 28,
+                        height: 28,
+                        boxSizing: 'border-box',
+                        background: c.hex,
+                        border: `2px solid ${
+                          selected
+                            ? 'var(--color-text)'
+                            : 'color-mix(in srgb, #000 20%, transparent)'
+                        }`,
+                      }}
+                    >
+                      {selected && (
+                        <svg viewBox="0 0 20 20" fill="none" style={{ width: 15, height: 15 }}>
+                          <path
+                            d="M5 10.5l3.5 3.5L15 7"
+                            stroke="#fff"
+                            strokeWidth="2.5"
+                            strokeLinecap="square"
+                          />
+                        </svg>
+                      )}
+                    </span>
+                    <span className="sr-only">{c.name}</span>
+                  </label>
+                )
+              })}
+            </div>
+            <p className="mono" style={hintStyle()}>
+              Fixed palette. An imported off-palette hex is added as a 13th swatch.
+            </p>
+          </fieldset>
+
+          <div className="field" style={{ width: 96 }}>
+            <label htmlFor="label-hotkey">Hotkey</label>
+            <select
+              id="label-hotkey"
+              className="input mono"
+              value={form.hotkey}
+              onChange={(e) => setForm((f) => ({ ...f, hotkey: e.target.value }))}
+            >
+              <option value="">None</option>
+              {HOTKEY_OPTIONS.map((key) => (
+                <option
+                  key={key}
+                  value={key}
+                  disabled={usedHotkeys.has(key) && form.hotkey !== key}
+                >
+                  {key}
+                </option>
+              ))}
+            </select>
+            <p className="mono" style={hintStyle()}>
+              {takenSummary ? `${takenSummary} taken` : 'None taken'}
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 21 }}>
+            <button type="submit" className="btn btn-primary" style={{ minHeight: 36 }}>
+              {editingId ? 'Save label' : 'Add label'}
+            </button>
+            {editingId && (
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ minHeight: 36 }}
+                onClick={() => resetForm()}
+              >
+                Cancel
+              </button>
+            )}
+          </div>
+        </div>
+        {error && (
+          <p
+            role="alert"
+            style={{
+              margin: 'var(--space-2) 0 0',
+              fontSize: '12.5px',
+              color: 'var(--color-accent-700)',
+            }}
           >
-            Cancel
-          </button>
+            {error}
+          </p>
         )}
       </form>
-      {error && (
-        <p role="alert" className="mt-2 text-sm text-red-600 dark:text-red-400">
-          {error}
-        </p>
-      )}
+
+      <div className="ts-scroll" style={{ flex: 1, minHeight: 0, padding: '0 var(--space-4)' }}>
+        {schema.labels.length === 0 ? (
+          <p style={{ padding: 'var(--space-4) 0', fontSize: '12.5px', color: HINT }}>
+            No labels yet. Add one above to define a field you'll annotate.
+          </p>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th style={{ width: 52 }}>Key</th>
+                <th>Name</th>
+                <th style={{ width: 190 }}>Colour</th>
+                <th style={{ width: 130 }}>
+                  <span className="sr-only">Actions</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {schema.labels.map((label) => {
+                const paletteName = LABEL_COLORS.find(
+                  (c) => c.hex.toUpperCase() === label.color.toUpperCase(),
+                )?.name
+                return (
+                  <tr key={label.id}>
+                    <td>{label.hotkey && <span className="ts-kbd">{label.hotkey}</span>}</td>
+                    <td>
+                      <span className="mono" style={{ fontSize: '13.5px', fontWeight: 600 }}>
+                        {label.name}
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                        <span
+                          data-testid="color-swatch"
+                          className="ts-swatch"
+                          style={{ background: label.color }}
+                        />
+                        <span className="mono" style={{ fontSize: '11.5px', color: HINT }}>
+                          {paletteName ?? label.color.toUpperCase()}
+                        </span>
+                      </span>
+                    </td>
+                    <td>
+                      <span style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => startEdit(label)}
+                        >
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          onClick={() => setPendingDelete(label)}
+                        >
+                          Delete
+                        </button>
+                      </span>
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
 
       {pendingDelete && (
         <ConfirmDialog
@@ -243,6 +331,6 @@ export function LabelEditor({ schemaId }: { schemaId: string }) {
           onCancel={() => setPendingDelete(null)}
         />
       )}
-    </div>
+    </>
   )
 }

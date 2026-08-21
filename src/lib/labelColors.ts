@@ -4,6 +4,15 @@
 // when drawn as annotation boxes over white paper. Imported schemas may still
 // carry any hex — see LabelEditor, which surfaces an off-palette color as an
 // extra swatch rather than silently reassigning it.
+//
+// Five hues are darkened from the original set because a region's name is drawn
+// as white text on a chip filled with the label's own color, and on those five
+// white fell short of 4.5:1 — Orange #F58231 2.59, Green #3CB44B 2.71, Magenta
+// #F032E6 3.33, Teal #469990 3.38, Olive #808000 4.20. Ink text fails on eight
+// of the twelve, so no single chip text color saves the set; the hues had to
+// move. Darkening preserves the separation they were picked for. Labels already
+// in IndexedDB keep whatever hex they were saved with and surface through the
+// off-palette swatch. See src/lib/labelColors.test.ts for the contrast check.
 export interface LabelColor {
   name: string
   hex: string
@@ -11,14 +20,14 @@ export interface LabelColor {
 
 export const LABEL_COLORS: LabelColor[] = [
   { name: 'Red', hex: '#E6194B' },
-  { name: 'Orange', hex: '#F58231' },
-  { name: 'Olive', hex: '#808000' },
-  { name: 'Green', hex: '#3CB44B' },
-  { name: 'Teal', hex: '#469990' },
+  { name: 'Orange', hex: '#B35C13' },
+  { name: 'Olive', hex: '#757500' },
+  { name: 'Green', hex: '#2A8034' },
+  { name: 'Teal', hex: '#3A7D75' },
   { name: 'Blue', hex: '#4363D8' },
   { name: 'Navy', hex: '#000075' },
   { name: 'Purple', hex: '#911EB4' },
-  { name: 'Magenta', hex: '#F032E6' },
+  { name: 'Magenta', hex: '#C024B6' },
   { name: 'Brown', hex: '#9A6324' },
   { name: 'Maroon', hex: '#800000' },
   { name: 'Charcoal', hex: '#1F2937' },
