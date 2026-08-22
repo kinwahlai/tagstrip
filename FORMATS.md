@@ -4,7 +4,7 @@ TagStrip has no server and no shared backend, so every hand-off between people o
 through a downloaded file. This documents the two native JSON formats it produces and reads —
 useful if you want to write your own tooling against them, or just understand what you're sharing
 before you send a file to a teammate. (The third export option, Label Studio-compatible export, is
-a lossy, one-way translation into _their_ schema for import into Label Studio itself — see
+a lossy, one-way translation into Label Studio's own schema for import there — see
 `SPEC.md` section on Label Studio export for its shape and caveats; it's not meant to be
 re-imported back into TagStrip.)
 

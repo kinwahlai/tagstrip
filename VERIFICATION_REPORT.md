@@ -2769,3 +2769,164 @@ file_upload combined ~79 — most of the cost went into manufacturing test data 
 database, the 30-point overflow sweep across three screens/five widths/two themes, and two
 separate network-throttling experiments to get real numbers for items 3 and 6 rather than
 eyeballing screenshots).
+
+## Sample document + README hero screenshot (verified 2026-08-22)
+
+Scope: two ad-hoc jobs, not a numbered SPEC.md milestone. VERIFICATION.md has no dedicated section
+for the bundled sample document feature (`public/sample/northgate-energy-statement.pdf`,
+`src/lib/sampleProject.ts`, the "Load the sample document" button in `FirstRun.tsx`) — I checked
+`git diff`/`git diff --cached` on VERIFICATION.md and it is untouched, so I verified directly
+against the six checks listed in the invoking prompt (Job 1) and the screenshot brief (Job 2).
+Tested against the **built + previewed** output (`pnpm run build` then `pnpm run preview` on
+port 4173), not the dev server, per the prompt's explicit requirement for check 2.
+
+### Job 1 — sample document
+
+1. **Empty-DB → full sample build, verified in IndexedDB: ✓** — From a genuinely empty
+   `indexedDB` (deleted all databases, reloaded), clicked "Load the sample document" and landed on
+   the annotation canvas with the PDF rendered. Read all five object stores directly via
+   `indexedDB.open('tagstrip')` + `getAll()`: `labelSchemas` has one schema "Proof of address"
+   with exactly the 5 labels (`account_holder`…`statement_date`, hotkeys `1`–`5`, distinct
+   palette colors); `projects` has one project pointing at that schema; `docs` has one PDF doc,
+   `pageCount: 1`; `pages` has one page, `contentType: "text"`, with a populated `textLayer` array
+   of real extracted strings (not empty/placeholder). Screenshot:
+   `verification-screenshots/sample-canvas-loaded.png`.
+
+2. **Same-origin fetch on built output: ✓** — On the `vite preview` build, `browser_network_requests`
+   after loading the sample showed only `http://localhost:4173/...` and `blob:http://localhost:4173/...`
+   URLs (index.html, JS/CSS bundles, four Archivo woff2s, `sample/northgate-energy-statement.pdf`,
+   pdf.js worker). No third-party host appears anywhere in the request list.
+
+3. **Suggest text uses the text layer, not OCR: ✓** — Drew a region over "M14 6QT" (postcode) and
+   one over "A. MORGAN" (account_holder), clicked Suggest text on each. Transcriptions came back
+   exactly `"M14 6QT"` and `"A. MORGAN"` — verified both on-screen and by reading the `annotations`
+   object store directly: both records have `ocrSuggested: false` and `text` matching exactly.
+   Screenshot: `verification-screenshots/sample-suggest-text.png`.
+
+4. **Hotkeys 1–5 select the five labels: ✓** — With the canvas focused, dispatched keydown events
+   for `1`–`5` in sequence and read `aria-pressed` on the label buttons after each: `1`→account_holder,
+   `2`→address_line_1, `3`→address_line_2, `4`→postcode, `5`→statement_date. All five map correctly,
+   confirmed programmatically, not just by pressing the last one.
+
+5. **Loading-disabled state and error reporting: ✓ (with a caveat)** — With the PDF request routed
+   to `route.fulfill({status:500})`, the button switched to `disabled` + text "Loading sample…" as
+   soon as it was clicked (captured live in a snapshot mid-request), then on failure re-enabled to
+   "Load the sample document" and rendered `role="alert"` text
+   `"Could not read the bundled sample document (HTTP 500)."` — this is the app's own crafted,
+   specific message from `sampleProject.ts`. Separately, with the request `route.abort()`'d (a
+   real network failure rather than an HTTP error status), the alert instead shows the browser's
+   raw `"Failed to fetch"` — the try/catch in `FirstRun.tsx` only wraps HTTP-status failures with a
+   specific message; a `TypeError` from a genuinely broken/offline fetch surfaces verbatim. It is
+   not a silent failure and not misleading, but it also doesn't say "sample document" or suggest
+   anything actionable — worth a one-line improvement (`err instanceof TypeError` case) if this
+   path matters. Screenshot of the HTTP-500 case: `verification-screenshots/sample-fetch-error.png`.
+
+6. **No overflow at 375/1440 on first-run: ✓** — `document.documentElement.scrollWidth ===
+   clientWidth` at both widths (375×800 and 1440×900), measured, not eyeballed. Screenshots:
+   `verification-screenshots/sample-firstrun-375.png`, `verification-screenshots/sample-firstrun-1440.png`.
+
+### Job 2 — README hero screenshot
+
+Built a light-theme, 1440×900 annotation-canvas screenshot of the sample document at 84% zoom
+(the level the canvas opens at by default at this viewport), with 5 regions drawn — one per label
+(`account_holder`/`address_line_1`/`address_line_2`/`postcode`/`statement_date`) — each populated
+with a real transcription via Suggest text (`A. MORGAN`, `48 Rusholme Grove`, `Fallowfield`,
+`M14 6QT`, `14 August 2026`), the `postcode` region left selected so its selection ring/corner
+handles are visible, and the SPECIMEN banner clearly visible near the top of the document.
+
+Saved as `verification-screenshots/readme-hero-candidate.png` (this is the pick — see below).
+Two more variants were captured for comparison, not as the final artifact:
+- `readme-hero-candidate-v2.png` — same shot but with `account_holder` selected instead of
+  `postcode`. Rejected: the longer "account_holder · selected" tag text covers more of the "A.
+  MORGAN" value underneath it than the postcode tag does, and the smaller postcode box shows the
+  corner-handle squares more clearly against the plain white background below it.
+- `readme-hero-zoomcheck.png` / `readme-hero-zoomcheck2.png` (159% and 134% zoom) — tried zooming
+  in on the theory that it would open more vertical gap between the document's caption/value lines
+  so label tags wouldn't overlap adjacent text. It didn't help: the tag chips scale with zoom at
+  the same rate as the document text, so the overlap-into-the-line-above problem is proportional
+  and doesn't go away, while at these zoom levels the SPECIMEN banner and several field values run
+  off the right edge of the 1440px viewport. Discarded.
+
+**Known cosmetic issue in the chosen screenshot**: because this document's address block is five
+single-spaced lines with very little vertical gap between them, each region's floating label tag
+(rendered above its box) slightly overlaps the bottom of the text line above it — e.g. the
+`address_line_1` tag partly covers the tail of "A. MORGAN", and `postcode`'s tag partly covers
+"MANCHESTER". This is not a functional bug (it's the app's normal region-tag rendering behaviour
+applied to a tightly-spaced document) but it is visible in the screenshot. I could not find a
+zoom level or region placement that fully avoids it given the sample document's line spacing — flagging
+it rather than silently shipping a screenshot with overlapping text, per instructions.
+
+**Recommendation**: use `readme-hero-candidate.png` (the postcode-selected, 84%-zoom version). It
+is the cleanest of the three variants and satisfies every requirement in the brief (light theme,
+1440×900, five differently-labeled regions with real transcriptions, one selected with visible
+handles, SPECIMEN banner visible, no devtools/cursor artifacts) — the tag/text overlap noted above
+is present in all variants tried and is the one item worth a human look before this ships, in case
+a different sample-document field selection avoids it entirely.
+
+Final tool-call count for this run: approximately 70 (Bash ~8, Read ~7, Playwright
+navigate/click/evaluate/snapshot/screenshot/find/run_code_unsafe/network_requests combined ~55).
+
+## Sample document re-shoot after line-spacing fix (re-verified 2026-08-22)
+
+Re-verification requested by the coordinator after two source changes made in response to the
+previous run's findings: `docs/sample-document.ps` (regenerated `public/sample/
+northgate-energy-statement.pdf` with the address block moved from 18pt to 30pt leading) and
+`src/lib/sampleProject.ts` (network-layer fetch failures now caught separately from HTTP-status
+failures, both messages naming the file path). Re-tested against a fresh `pnpm run build` +
+`pnpm run preview` on port 4173, confirmed clean (`✓ built in 136ms`, no tsc/vite errors).
+
+- **End-to-end load from empty IndexedDB still works: ✓** — Cleared all IndexedDB databases,
+  reloaded, clicked "Load the sample document", landed on the canvas. Read `labelSchemas`,
+  `projects`, `docs`, `pages` directly: schema has the same 5 labels/hotkeys, 1 project, 1 doc,
+  page `contentType: "text"` with a populated `textLayer` (33 entries, non-empty strings) — the
+  regenerated PDF's text layer survived.
+- **Suggest text still exact, still not OCR: implicitly re-confirmed** — drew boxes and ran Suggest
+  text on all 5 fields for the hero shot (below); transcriptions came back exact
+  (`A. MORGAN`, `48 Rusholme Grove`, `Fallowfield`, `M14 6QT`, `14 August 2026`) matching the
+  document text precisely.
+- **New fetch-failure message on `route.abort()`: ✓** — Previously this path showed the browser's
+  bare `"Failed to fetch"`. Re-ran with the PDF request aborted (a real network-layer rejection,
+  not an HTTP error): the alert now reads `"Could not read the bundled sample document at
+  \"sample/northgate-energy-statement.pdf\". It ships with the app, so this usually means the file
+  is missing from the build rather than a network problem."` — names the path and gives the
+  likelier cause, exactly the fix the coordinator described. Screenshot:
+  `verification-screenshots/sample-fetch-error-abort.png`.
+
+### README hero re-shoot
+
+Re-shot `verification-screenshots/readme-hero-candidate.png` (overwritten) against the regenerated
+sample: light theme, 1440×900, **89% zoom** (89% rather than the 84% used in the first candidate —
+the default zoom at this viewport for the regenerated PDF landed on 89%; not deliberately chosen
+for spacing, since the fix was in the document itself, not the zoom level). Five regions, one per
+label (`account_holder`/`address_line_1`/`address_line_2`/`postcode`/`statement_date`), each with
+a real Suggest-text transcription, `postcode` left selected (ink ring + 4 corner handles visible).
+SPECIMEN banner clearly visible near the top.
+
+**No-overlap check, done explicitly rather than by eye, per the coordinator's request**: pulled
+the DOM rects of each region's `.ts-box-tag` chip (the floating label above each box) and compared
+them against the screen-space y-range of the text line immediately above each field, computed from
+the page's stored `textLayer` normalized coordinates converted through the actual `<img>` render
+rect (not assumed). Result for all five:
+
+| Region | Tag chip y-range | Line above | Line's y-range | Gap |
+|---|---|---|---|---|
+| account_holder | 535–554.5 | "ACCOUNT HOLDER" caption | 515.8–530.1 | ~5px clear |
+| address_line_1 | 589–608.5 | "A. MORGAN" | 556.7–579.8 | ~9px clear |
+| address_line_2 | 642–661.5 | "48 Rusholme Grove" | 610.1–633.2 | ~9px clear |
+| postcode | 749–768.5 | "MANCHESTER" | 716.7–739.9 | ~9px clear |
+| statement_date | 535–554.5 | "STATEMENT DATE" caption | 515.8–530.1 | ~5px clear |
+
+Every tag chip's top edge is below the bottom edge of the line above it — **no overlap remains at
+89% zoom.** This matches what the screenshot shows on inspection: "ACCOUNT HOLDER", "A. MORGAN",
+"48 Rusholme Grove", "Fallowfield" and "MANCHESTER" are all fully legible, uncovered by any tag.
+
+One thing caught and fixed mid-shoot, worth flagging in case it recurs: the first pass at clicking
+all 5 "Suggest text" buttons via `page.getByRole('button', { name: 'Suggest text' }).all()` +
+loop left the `postcode` region's transcription empty even though its button was in the queried
+list — likely a stale-locator issue after the DOM re-rendered mid-loop, not an app bug (a second,
+individual click on that specific button filled it correctly, and the same batch approach worked
+without issue for the other 4 regions and in the prior run). Flagging as a verification-tooling
+note, not a product defect — re-ran the check individually and it passed.
+
+Final tool-call count for this follow-up: approximately 30 (Bash ~4, Read ~3, Playwright
+navigate/evaluate/click/snapshot/screenshot/resize/run_code_unsafe combined ~23).

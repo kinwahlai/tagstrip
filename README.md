@@ -7,7 +7,7 @@ document-understanding pipelines (KYC field extraction, ID parsing, invoice pars
 Renders PDFs directly via [pdf.js](https://mozilla.github.io/pdf.js/); no server-side
 pre-processing step, and no server at all.
 
-![TagStrip annotation canvas showing labeled bounding boxes on a document, a label toolbar, and a region list with a transcription field](docs/screenshot.png)
+![The TagStrip annotation canvas: the bundled sample document with five labeled regions, the label toolbar along the top, and the region list on the right showing each region's transcription](docs/screenshot.png)
 
 ## Everything stays on your machine
 
@@ -24,12 +24,20 @@ and the English model weights are all served from this app's own origin; tessera
 pulls those from a CDN and TagStrip deliberately overrides it (see `src/lib/ocr/tesseract.ts`).
 Watch the network tab if you'd rather see it directly.
 
+To be exact about the limit: that holds for as long as the tab stays open. There is no service
+worker yet, so _reloading_ while disconnected fails — the app's own files have to come off the
+network like any other page. Your documents never need it; the app shell still does.
+
 ## Why
 
-Most bounding-box annotation tools assume a text layer already exists to copy from, or need a
-backend to store projects and images. TagStrip is built for the opposite case: scanned or
-image-only documents where the transcription itself is part of what you're labeling — with no
-account to create and no server to stand up.
+TagStrip is built for one case: scanned or image-only documents where the transcription itself is
+part of what you're labeling, and where the documents are ones you are not allowed to upload
+anywhere. That combination rules out a backend, so there isn't one — no account to create, no
+server to stand up, nothing to get approved.
+
+It is a small tool, not a platform. If your documents can live on a server, the established
+annotation suites will serve you better than this will; they have the team features, the review
+workflows and the integrations. TagStrip exists for the case where that option is closed to you.
 
 ## Features
 
@@ -62,6 +70,17 @@ multi-user/backend features, model-assisted pre-labeling).
 
 **No data leaves your browser.** Everything — documents, annotations, schemas — lives in
 IndexedDB on your machine. Worth knowing if you're annotating sensitive documents.
+
+## Try it without supplying a document
+
+The awkward part of evaluating a tool like this is that the documents worth testing it on are the
+ones you are not allowed to hand around. So one ships with it: **Load the sample document** on the
+first-run screen builds a label schema, a project and one document, then opens the canvas.
+
+It is a fictional utility bill — imaginary company, imaginary customer, marked SPECIMEN across the
+top — with a real text layer, so **Suggest text** demonstrates exact extraction rather than falling
+straight to OCR. It is served from the app's own origin like everything else. Its PostScript source
+is in [`docs/sample-document.ps`](docs/sample-document.ps) if you want to change it.
 
 ## Quickstart
 

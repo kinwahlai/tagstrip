@@ -194,6 +194,7 @@ function App() {
           firstRun={isFirstRun}
           onOpenSchema={(schemaId) => goTo({ tab: 'schema', schemaId })}
           onOpenProject={(projectId) => goTo({ tab: 'project', projectId })}
+          onOpenAnnotate={(projectId, docId) => goTo({ tab: 'annotate', projectId, docId })}
         />
       )}
       {!isFirstRun && view.tab === 'schemas' && (

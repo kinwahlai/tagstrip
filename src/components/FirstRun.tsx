@@ -3,6 +3,7 @@ import type { ChangeEvent, FormEvent } from 'react'
 import { createSchema, SchemaValidationError } from '../db/labelSchemas'
 import { importSchemaExport, parseSchemaExport } from '../lib/schemaImport'
 import { importNativeExport, parseNativeExport } from '../lib/nativeImport'
+import { createSampleProject } from '../lib/sampleProject'
 import { formatBytes } from '../lib/formatBytes'
 import { useDiskUsage } from '../lib/useWorkspaceStats'
 
@@ -41,8 +42,10 @@ const POINTS = [
     ),
   },
   {
-    title: 'Works offline',
-    body: 'Load the page once, disconnect, and keep working — text extraction and OCR included.',
+    title: 'Disconnect and keep working',
+    body:
+      'Pull the network cable and carry on annotating — text extraction and OCR included. ' +
+      'Reloading the tab needs the network again: the app itself is not cached offline yet.',
     icon: (
       <>
         <path
@@ -62,16 +65,30 @@ interface FirstRunProps {
   // to do is create a schema, and any time afterwards via the header claim,
   // where the useful other half is what is on disk right now.
   firstRun: boolean
+  onOpenAnnotate: (projectId: string, docId: string) => void
 }
 
 // Nothing in IndexedDB yet. This is the one place the accent runs as a full
 // ground rather than as chrome — the claim is the product, so on day one it gets
 // the whole width and 52px type. Both themes clear 4.5:1 on that fill because
 // --ts-accent-solid steps down the ramp in light and up in dark.
-export function FirstRun({ onOpenSchema, onOpenProject, firstRun }: FirstRunProps) {
+export function FirstRun({ onOpenSchema, onOpenProject, onOpenAnnotate, firstRun }: FirstRunProps) {
   const [name, setName] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [loadingSample, setLoadingSample] = useState(false)
   const diskBytes = useDiskUsage()
+
+  async function handleLoadSample() {
+    setError(null)
+    setLoadingSample(true)
+    try {
+      const { projectId, docId } = await createSampleProject()
+      onOpenAnnotate(projectId, docId)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+      setLoadingSample(false)
+    }
+  }
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault()
@@ -326,6 +343,26 @@ export function FirstRun({ onOpenSchema, onOpenProject, firstRun }: FirstRunProp
               </p>
             </form>
           )}
+
+          <h2 className="ts-eyebrow" style={{ margin: 'var(--space-6) 0 var(--space-2)' }}>
+            Or see it working first
+          </h2>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={handleLoadSample}
+            disabled={loadingSample}
+            style={{ justifyContent: 'flex-start' }}
+          >
+            {loadingSample ? 'Loading sample…' : 'Load the sample document'}
+          </button>
+          <p
+            className="mono"
+            style={{ margin: 'var(--space-2) 0 0', fontSize: '11.5px', color: HINT }}
+          >
+            A fictional utility bill, bundled with the app. Builds a schema, a project and one
+            document, then opens the canvas.
+          </p>
 
           <h2 className="ts-eyebrow" style={{ margin: 'var(--space-6) 0 var(--space-2)' }}>
             Or import what you have
