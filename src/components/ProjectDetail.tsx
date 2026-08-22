@@ -168,7 +168,7 @@ export function ProjectDetail({ projectId, onOpenAnnotate }: ProjectDetailProps)
                 style={{ flex: 1, justifyContent: 'flex-start' }}
                 onClick={() => setShowLabelStudioDialog(true)}
               >
-                Label Studio…
+                Label Studio JSON…
               </button>
             </div>
           </div>

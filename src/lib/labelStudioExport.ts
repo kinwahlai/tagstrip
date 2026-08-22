@@ -1,10 +1,20 @@
 import { db } from '../db/db'
 import { downloadJson } from './serialize'
 
-// Reverse-engineered from a real Label Studio export sample, not their
-// official schema docs (no access to those) — best-effort compatibility.
-// See README for the "verify a re-import works on your Label Studio version"
-// caveat this format ships under.
+// This emits the shape Label Studio's own "Export -> JSON" produces — their full
+// JSON format, not JSON_MIN and not one of the nine other formats they offer.
+// The point is not to feed Label Studio: it is that Label-Studio-JSON is already
+// what a lot of document-ML tooling reads, so a pipeline expecting it can take
+// TagStrip's output without a converter in between. Importing it into Label
+// Studio itself also works, but that is a side effect rather than the purpose.
+//
+// Reverse-engineered from a real export sample, not their published schema, so
+// treat it as best-effort and check it against whatever will consume it.
+//
+// Two things it does NOT carry, both by design: the page images (data.image
+// names a file this export does not contain — use the native export if you need
+// the pixels), and anything TagStrip-specific beyond a `meta` object their
+// readers will ignore.
 
 export interface LabelStudioExportOptions {
   bboxTagName: string

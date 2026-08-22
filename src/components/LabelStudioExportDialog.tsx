@@ -43,12 +43,17 @@ export function LabelStudioExportDialog({
       >
         <div>
           <h2 id="ls-export-title" className="dialog-title">
-            Export to Label Studio
+            Export as Label Studio JSON
           </h2>
           <p style={{ margin: '4px 0 0', fontSize: 12, lineHeight: 1.5, color: HINT }}>
-            Best-effort format, reverse-engineered from a Label Studio export sample. Match these
-            tag names to your labeling config, then verify the re-import on your Label Studio
-            version.
+            The same shape Label Studio's own JSON export produces, so tooling that already reads
+            that format reads this without a converter. Reverse-engineered from a real export
+            sample, so it is best-effort — check it against whatever will consume it. The tag names
+            below have to match what that consumer expects.
+          </p>
+          <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, color: HINT }}>
+            Page images are referenced by filename, not included. Use <strong>Export JSON</strong>{' '}
+            if you need the pixels too.
           </p>
         </div>
 

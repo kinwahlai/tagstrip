@@ -3,10 +3,13 @@
 TagStrip has no server and no shared backend, so every hand-off between people or machines happens
 through a downloaded file. This documents the two native JSON formats it produces and reads —
 useful if you want to write your own tooling against them, or just understand what you're sharing
-before you send a file to a teammate. (The third export option, Label Studio-compatible export, is
-a lossy, one-way translation into Label Studio's own schema for import there — see
-`SPEC.md` section on Label Studio export for its shape and caveats; it's not meant to be
-re-imported back into TagStrip.)
+before you send a file to a teammate.
+
+The third export option is different in kind, so it is documented separately: **Label Studio
+JSON** emits the shape Label Studio's own JSON export produces, so that a pipeline already reading
+that format can read TagStrip's output without a converter in between. It is a one-way, lossy
+translation — TagStrip cannot read it back — and it references page images without containing them.
+See `SPEC.md`'s Label Studio section for the observed shape and its caveats.
 
 ## Schema export (`*-tagstrip-schema.json`)
 

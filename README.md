@@ -55,8 +55,9 @@ workflows and the integrations. TagStrip exists for the case where that option i
 - Local persistence via IndexedDB — reload the page, everything's still there
 - **Import/export**: a self-describing native JSON format (round-trips a whole project, including
   the source documents), a lightweight standalone schema export/import for sharing just a label
-  set, and a best-effort **Label Studio-compatible export** — see [`FORMATS.md`](FORMATS.md) for
-  the exact shape of each
+  set, and a best-effort **Label Studio JSON export** — the same shape Label Studio's own JSON
+  export produces, so tooling that already reads that format takes TagStrip's output as-is. See
+  [`FORMATS.md`](FORMATS.md) for the exact shape of each
 - **"Suggest text"** per box: exact text-layer extraction when the page has one (instant, no
   model), falling back to on-device OCR ([Tesseract.js](https://tesseract.projectnaptha.com/),
   English only for now) only when there's no text layer to read from — the OCR engine and its

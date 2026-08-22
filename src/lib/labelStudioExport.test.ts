@@ -111,6 +111,37 @@ describe('buildLabelStudioExport', () => {
     expect(transcription?.value.text).toEqual(['John Doe'])
   })
 
+  // The docs claim this IS Label Studio's own JSON export shape — their full
+  // JSON format, the one a lot of document-ML tooling already reads — rather
+  // than a TagStrip format that happens to mention them. That claim is only
+  // worth making if the task envelope is pinned, not just the result entries.
+  // Keys per labelstud.io's export guide: id, data, project, annotations,
+  // predictions.
+  it("matches the task envelope of Label Studio's JSON export", async () => {
+    const tasks = (await buildLabelStudioExport(
+      'project-1',
+      DEFAULT_LABEL_STUDIO_OPTIONS,
+    )) as Record<string, unknown>[]
+
+    for (const key of ['id', 'data', 'project', 'annotations', 'predictions']) {
+      expect(Object.keys(tasks[0])).toContain(key)
+    }
+    expect(Array.isArray(tasks[0].annotations)).toBe(true)
+    expect(Array.isArray(tasks[0].predictions)).toBe(true)
+
+    const annotation = (tasks[0].annotations as Record<string, unknown>[])[0]
+    for (const key of ['id', 'result', 'was_cancelled', 'ground_truth', 'lead_time']) {
+      expect(Object.keys(annotation)).toContain(key)
+    }
+
+    // Images are referenced by name and deliberately not embedded — the native
+    // export is the one that carries pixels. A consumer needs to know that the
+    // filename is a reference it has to resolve itself.
+    const data = tasks[0].data as Record<string, unknown>
+    expect(typeof data.image).toBe('string')
+    expect(JSON.stringify(tasks[0])).not.toContain('base64')
+  })
+
   it('uses configured tag names for the rectangle and labels result entries', async () => {
     const tasks = (await buildLabelStudioExport('project-1', {
       ...DEFAULT_LABEL_STUDIO_OPTIONS,

@@ -201,13 +201,22 @@ selected box in the Region list panel.
 **M4 — Import / export**
 Export a project's annotations to JSON (same shape as the prototype's export, plus
 `labelSchema` and each box's `text` embedded so an export is self-describing). Import to
-restore/continue. Also offer a **Label Studio-compatible export** as a second format — see the
+restore/continue. Also offer a **Label Studio JSON export** as a second format — see the
 dedicated subsection below.
 
-### Label Studio export (part of M4)
+### Label Studio JSON export (part of M4)
+
+**What this is for.** Label Studio offers eleven export formats; its plain `JSON` one has become a
+de facto interchange shape that document-ML tooling reads. TagStrip emits that shape so such a
+pipeline can consume TagStrip's output without a converter. Feeding it back into Label Studio
+itself also works, but that is incidental — the target is the format's readers, not the app.
 
 Reverse-engineered from a real Label Studio export sample, not their official schema docs (we
 don't have access to that) — treat as best-effort compatibility, and say so in the README.
+
+**Not carried:** page images (`data.image` names a file this export does not contain — the native
+export is the one that round-trips pixels), and anything TagStrip-specific beyond a `meta` object
+their readers ignore. One-way: TagStrip cannot read this format back.
 Structure observed:
 
 - Each box produces **two paired result entries** sharing one region `id`: one
