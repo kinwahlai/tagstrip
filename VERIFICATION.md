@@ -263,4 +263,7 @@ not by reading the code and reasoning that it should work. Reading code tells yo
       off-canvas overflow is invisible in a screenshot (this exact bug shipped once already)
 - [ ] Rail collapses to 56px then off-canvas; the middle column folds into the surface
 - [ ] The annotation canvas remains usable at 375px, or degrades with an explicit message rather
-      than silently breaking
+      than silently breaking. *(Downgraded to informational: TagStrip is desktop-only — see SPEC.md
+      section 9. Report what happens at 375px, but a phone-width shortcoming is not a ✗. The
+      no-overflow checks above stay binding at every width, since an overflow at 375 usually means
+      something is also wrong at 1440.)*

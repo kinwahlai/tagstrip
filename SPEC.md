@@ -350,6 +350,14 @@ app code, and not ported.
 - **Archivo is not bundled.** `ts-modernist.css` keeps Archivo first in the stack with a commented
   `@font-face` block; until a self-hosted woff2 is dropped in, a system grotesque resolves. No font
   CDN — that would falsify the product's own claim. Open item, not a blocker.
+- **Desktop only.** TagStrip is a desktop tool: long focused sessions on batches of documents,
+  keyboard-driven, on a real screen. Phone-sized layouts are explicitly **not** a supported target.
+  The 375px figure in the original brief was carried forward by mistake and drove R7 further than
+  it needed to go; the resulting layouts are kept because they are built, tested and cost nothing,
+  but a usability gap that only appears at phone width is **not a defect** and should be closed as
+  won't-do. The no-horizontal-overflow rule still applies at every width, as hygiene rather than
+  because phones are supported — an overflow at any size usually means something is wrong at 1440
+  too.
 - **Responsive is not designed.** The mockups are fixed 1440×900. R7 covers 375–1920 and is the
   only milestone with no reference frames to work from.
 - **A region's tag never leaves its own box unless that is safe** *(R7 follow-up)*. Tags sit above
@@ -406,7 +414,8 @@ app code, and not ported.
   used-by, last used, annotated ratio and progress bar, per-document region counts,
   `navigator.storage.estimate()` for disk use, and the rail's Find box.
 - **R7 — Responsive.** 375–1920 with no horizontal overflow at any width; rail to 56px then
-  off-canvas; middle column folds into the surface.
+  off-canvas; middle column folds into the surface. *(In hindsight, scoped wider than the product:
+  see the desktop-only decision above. The work stands, but phone width is not a supported target.)*
 
 Checkpoints after R1 and R4 mirror section 8's reasoning: R1 because every later screen sits inside
 that shell, R4 because it is the most interactive surface in the app.
