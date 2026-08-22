@@ -124,6 +124,7 @@ export function FirstRun({ onOpenSchema, onOpenProject }: FirstRunProps) {
           color: 'var(--color-bg)',
           padding: 'var(--space-8) var(--space-8) var(--space-6)',
         }}
+        className="ts-pad-8"
       >
         <span
           style={{
@@ -140,6 +141,7 @@ export function FirstRun({ onOpenSchema, onOpenProject }: FirstRunProps) {
           No server · no account · no upload
         </span>
         <h1
+          className="ts-hero-title"
           style={{
             margin: '0 0 var(--space-3)',
             fontSize: 52,
@@ -165,7 +167,7 @@ export function FirstRun({ onOpenSchema, onOpenProject }: FirstRunProps) {
         <p
           style={{
             margin: 0,
-            padding: 'var(--space-3) var(--space-8)',
+            padding: 'var(--space-3) var(--space-4)',
             fontSize: '12.5px',
             lineHeight: 1.5,
             maxWidth: '104ch',
@@ -175,25 +177,17 @@ export function FirstRun({ onOpenSchema, onOpenProject }: FirstRunProps) {
           <strong style={{ fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
             What this is not:
           </strong>{' '}
-          IndexedDB is plaintext at rest: anything that can read this browser profile can read
-          your documents. TagStrip adds nothing on top of that. The claim is location, and it is
-          one you can falsify in ten seconds by pulling your network cable.
+          IndexedDB is plaintext at rest: anything that can read this browser profile can read your
+          documents. TagStrip adds nothing on top of that. The claim is location, and it is one you
+          can falsify in ten seconds by pulling your network cable.
         </p>
       </div>
 
-      <div
-        className="ts-scroll"
-        style={{
-          flex: 1,
-          minHeight: 0,
-          display: 'grid',
-          gridTemplateColumns: '1fr 1fr',
-          alignItems: 'start',
-        }}
-      >
+      <div className="ts-scroll ts-split-2" style={{ flex: 1, minHeight: 0 }}>
         <section
           data-testid="local-only-panel"
           aria-labelledby="local-only-heading"
+          className="ts-pad-8"
           style={{ padding: 'var(--space-8)', borderRight: '2px solid var(--color-divider)' }}
         >
           <h2
@@ -242,7 +236,7 @@ export function FirstRun({ onOpenSchema, onOpenProject }: FirstRunProps) {
           </div>
         </section>
 
-        <div style={{ padding: 'var(--space-8)' }}>
+        <div className="ts-pad-8" style={{ padding: 'var(--space-8)' }}>
           <h2 className="ts-eyebrow" style={{ margin: '0 0 var(--space-3)' }}>
             Start here
           </h2>

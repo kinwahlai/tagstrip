@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { ChangeEvent, FormEvent } from 'react'
+import type { CSSProperties, ChangeEvent, FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createSchema, deleteSchema, renameSchema, SchemaValidationError } from '../db/labelSchemas'
@@ -167,88 +167,93 @@ export function SchemasOverview({ onOpenSchema }: SchemasOverviewProps) {
           </p>
         ) : (
           <>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Schema</th>
-                  <th style={{ width: 100 }}>Labels</th>
-                  <th style={{ width: 150 }}>Hotkeys set</th>
-                  <th style={{ width: 210 }}>Used by</th>
-                  <th style={{ width: 110 }}>Regions</th>
-                  <th style={{ width: 170 }}>Updated</th>
-                  <th style={{ width: 210 }}>
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {schemas.map((schema) => {
-                  const hotkeys = formatHotkeyRanges(
-                    schema.labels.map((l) => l.hotkey).filter((k): k is string => Boolean(k)),
-                  )
-                  const summary = summarizeSchema(schema, projects, stats)
-                  return (
-                    <tr key={schema.id}>
-                      <td>
-                        <button
-                          type="button"
-                          className="btn btn-ghost"
-                          style={{ fontSize: 14, padding: 0, color: 'var(--color-text)' }}
-                          onClick={() => onOpenSchema(schema.id)}
-                        >
-                          {schema.name}
-                        </button>
-                      </td>
-                      <td className="mono" style={{ fontSize: 13 }}>
-                        {schema.labels.length}
-                      </td>
-                      <td className="mono" style={{ fontSize: '12.5px', color: HINT }}>
-                        {hotkeys || 'none'}
-                      </td>
-                      <td style={{ fontSize: '12.5px', color: HINT }}>
-                        {summary.usedBy.length === 0
-                          ? 'No projects yet'
-                          : summary.usedBy.join(', ')}
-                      </td>
-                      <td className="mono" style={{ fontSize: 13 }}>
-                        {summary.regions}
-                      </td>
-                      <td style={{ fontSize: '12.5px', color: HINT }}>
-                        {formatWhen(schema.updatedAt)}
-                      </td>
-                      <td>
-                        <span style={{ display: 'flex', gap: 'var(--space-2)' }}>
+            <div
+              className="ts-table-scroll"
+              style={{ ['--ts-table-min']: '940px' } as CSSProperties}
+            >
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Schema</th>
+                    <th style={{ width: 100 }}>Labels</th>
+                    <th style={{ width: 150 }}>Hotkeys set</th>
+                    <th style={{ width: 210 }}>Used by</th>
+                    <th style={{ width: 110 }}>Regions</th>
+                    <th style={{ width: 170 }}>Updated</th>
+                    <th style={{ width: 210 }}>
+                      <span className="sr-only">Actions</span>
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {schemas.map((schema) => {
+                    const hotkeys = formatHotkeyRanges(
+                      schema.labels.map((l) => l.hotkey).filter((k): k is string => Boolean(k)),
+                    )
+                    const summary = summarizeSchema(schema, projects, stats)
+                    return (
+                      <tr key={schema.id}>
+                        <td>
                           <button
                             type="button"
-                            className="btn btn-ghost btn-sm"
-                            aria-label={`Export ${schema.name}`}
-                            onClick={() => exportSchemaToFile(schema.id)}
+                            className="btn btn-ghost"
+                            style={{ fontSize: 14, padding: 0, color: 'var(--color-text)' }}
+                            onClick={() => onOpenSchema(schema.id)}
                           >
-                            Export
+                            {schema.name}
                           </button>
-                          <button
-                            type="button"
-                            className="btn btn-ghost btn-sm"
-                            aria-label={`Rename ${schema.name}`}
-                            onClick={() => setRenaming(schema)}
-                          >
-                            Rename
-                          </button>
-                          <button
-                            type="button"
-                            className="btn btn-ghost btn-sm"
-                            aria-label={`Delete ${schema.name}`}
-                            onClick={() => setPendingDelete(schema)}
-                          >
-                            Delete
-                          </button>
-                        </span>
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
+                        </td>
+                        <td className="mono" style={{ fontSize: 13 }}>
+                          {schema.labels.length}
+                        </td>
+                        <td className="mono" style={{ fontSize: '12.5px', color: HINT }}>
+                          {hotkeys || 'none'}
+                        </td>
+                        <td style={{ fontSize: '12.5px', color: HINT }}>
+                          {summary.usedBy.length === 0
+                            ? 'No projects yet'
+                            : summary.usedBy.join(', ')}
+                        </td>
+                        <td className="mono" style={{ fontSize: 13 }}>
+                          {summary.regions}
+                        </td>
+                        <td style={{ fontSize: '12.5px', color: HINT }}>
+                          {formatWhen(schema.updatedAt)}
+                        </td>
+                        <td>
+                          <span style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              aria-label={`Export ${schema.name}`}
+                              onClick={() => exportSchemaToFile(schema.id)}
+                            >
+                              Export
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              aria-label={`Rename ${schema.name}`}
+                              onClick={() => setRenaming(schema)}
+                            >
+                              Rename
+                            </button>
+                            <button
+                              type="button"
+                              className="btn btn-ghost btn-sm"
+                              aria-label={`Delete ${schema.name}`}
+                              onClick={() => setPendingDelete(schema)}
+                            >
+                              Delete
+                            </button>
+                          </span>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
             <p style={{ margin: 'var(--space-3) 0 0', fontSize: '12.5px', color: HINT }}>
               Deleting a schema is refused while a project still uses it.
             </p>

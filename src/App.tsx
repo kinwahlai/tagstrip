@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db/db'
 import { FirstRun } from './components/FirstRun'
@@ -10,6 +11,8 @@ import { AnnotationCanvas } from './components/canvas/AnnotationCanvas'
 import { AppShell } from './components/shell/AppShell'
 import { Rail } from './components/shell/Rail'
 import { MiniRail } from './components/shell/MiniRail'
+import { RailOverlay } from './components/shell/RailOverlay'
+import { useBreakpoint } from './lib/useBreakpoint'
 
 type View =
   | { tab: 'schemas' }
@@ -21,6 +24,8 @@ type View =
 function App() {
   const [view, setView] = useState<View>({ tab: 'schemas' })
   const [docsOverlayOpen, setDocsOverlayOpen] = useState(false)
+  const [navOverlayOpen, setNavOverlayOpen] = useState(false)
+  const breakpoint = useBreakpoint()
 
   const schemas = useLiveQuery(() => db.labelSchemas.orderBy('updatedAt').reverse().toArray(), [])
   const projects = useLiveQuery(() => db.projects.orderBy('updatedAt').reverse().toArray(), [])
@@ -40,6 +45,7 @@ function App() {
   // pass just to tidy up.
   function goTo(next: View) {
     setDocsOverlayOpen(false)
+    setNavOverlayOpen(false)
     setView(next)
   }
 
@@ -78,44 +84,108 @@ function App() {
   }[view.tab]
   const [crumbTop, crumbMain] = isFirstRun ? ['TagStrip', 'Nothing stored yet'] : crumb
 
+  const railInFlow = breakpoint !== 'narrow'
+  const fullRail = (
+    <Rail
+      schemas={schemas}
+      projects={projects}
+      schemaNameById={schemaNameById}
+      atSchemas={view.tab === 'schemas'}
+      atProjects={view.tab === 'projects'}
+      currentSchemaId={currentSchemaId}
+      currentProjectId={currentProjectId}
+      onOpenSchemas={() => goTo({ tab: 'schemas' })}
+      onOpenProjects={() => goTo({ tab: 'projects' })}
+      onOpenSchema={(schemaId) => goTo({ tab: 'schema', schemaId })}
+      onOpenProject={(projectId) => goTo({ tab: 'project', projectId })}
+    />
+  )
+
+  const miniRail = (
+    <MiniRail
+      docIndex={docIndex + 1}
+      docTotal={docs.length}
+      overlayOpen={docsOverlayOpen}
+      onToggleOverlay={() => setDocsOverlayOpen((open) => !open)}
+      onPrevDoc={() => openDocAt(docIndex - 1)}
+      onNextDoc={() => openDocAt(docIndex + 1)}
+      hasPrev={docIndex > 0}
+      hasNext={docIndex >= 0 && docIndex < docs.length - 1}
+    />
+  )
+
+  // Rail by width: full in the flow while there is room for it, a 56px strip
+  // once there is not, and out of the flow entirely below 640 where the strip
+  // itself costs more than it returns. Annotate is already at the strip stage
+  // at every width, because the canvas always wants the space more.
+  let rail: ReactNode = fullRail
+  if (view.tab === 'annotate') rail = railInFlow ? miniRail : null
+  else if (breakpoint === 'compact') rail = miniRailPlaceholder()
+  else if (breakpoint === 'narrow') rail = null
+
+  function miniRailPlaceholder() {
+    return (
+      <nav
+        aria-label="Navigation"
+        style={{
+          flex: 'none',
+          width: 'var(--ts-rail-collapsed)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          padding: 'var(--space-2) 0',
+          borderRight: '2px solid var(--color-divider)',
+        }}
+      >
+        <button
+          type="button"
+          className="btn btn-secondary btn-icon"
+          aria-label="Show schemas and projects"
+          aria-expanded={navOverlayOpen}
+          onClick={() => setNavOverlayOpen(true)}
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="square"
+            aria-hidden="true"
+          >
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      </nav>
+    )
+  }
+
   return (
     <AppShell
       crumbTop={crumbTop}
       crumbMain={crumbMain}
+      stackClaim={breakpoint === 'narrow'}
+      onOpenNav={
+        breakpoint === 'narrow'
+          ? view.tab === 'annotate'
+            ? () => setDocsOverlayOpen(true)
+            : () => setNavOverlayOpen(true)
+          : undefined
+      }
+      navLabel={
+        view.tab === 'annotate' ? 'Show documents in this project' : 'Show schemas and projects'
+      }
       onCrumbBack={
         view.tab === 'annotate'
           ? () => goTo({ tab: 'project', projectId: view.projectId })
           : undefined
       }
-      rail={
-        view.tab === 'annotate' ? (
-          <MiniRail
-            docIndex={docIndex + 1}
-            docTotal={docs.length}
-            overlayOpen={docsOverlayOpen}
-            onToggleOverlay={() => setDocsOverlayOpen((open) => !open)}
-            onPrevDoc={() => openDocAt(docIndex - 1)}
-            onNextDoc={() => openDocAt(docIndex + 1)}
-            hasPrev={docIndex > 0}
-            hasNext={docIndex >= 0 && docIndex < docs.length - 1}
-          />
-        ) : (
-          <Rail
-            schemas={schemas}
-            projects={projects}
-            schemaNameById={schemaNameById}
-            atSchemas={view.tab === 'schemas'}
-            atProjects={view.tab === 'projects'}
-            currentSchemaId={currentSchemaId}
-            currentProjectId={currentProjectId}
-            onOpenSchemas={() => goTo({ tab: 'schemas' })}
-            onOpenProjects={() => goTo({ tab: 'projects' })}
-            onOpenSchema={(schemaId) => goTo({ tab: 'schema', schemaId })}
-            onOpenProject={(projectId) => goTo({ tab: 'project', projectId })}
-          />
-        )
-      }
+      rail={rail}
     >
+      {navOverlayOpen && (
+        <RailOverlay onClose={() => setNavOverlayOpen(false)}>{fullRail}</RailOverlay>
+      )}
       {isFirstRun && (
         <FirstRun
           onOpenSchema={(schemaId) => goTo({ tab: 'schema', schemaId })}

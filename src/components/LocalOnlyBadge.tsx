@@ -17,6 +17,8 @@ export function LocalOnlyBadge() {
         padding: '0 var(--space-4)',
         borderLeft: '2px solid var(--color-divider)',
         borderRight: '2px solid var(--color-divider)',
+        minHeight: 34,
+        flex: 'none',
       }}
     >
       <svg

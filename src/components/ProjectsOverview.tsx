@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { ChangeEvent, FormEvent } from 'react'
+import type { CSSProperties, ChangeEvent, FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { createProject, deleteProject } from '../db/projects'
@@ -172,96 +172,98 @@ export function ProjectsOverview({ onOpenProject }: ProjectsOverviewProps) {
             No projects yet. Create one above to start uploading documents.
           </p>
         ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Project</th>
-                <th style={{ width: 220 }}>Schema</th>
-                <th style={{ width: 110 }}>Documents</th>
-                <th style={{ width: 190 }}>Annotated</th>
-                <th style={{ width: 110 }}>Regions</th>
-                <th style={{ width: 170 }}>Updated</th>
-                <th style={{ width: 86 }}>
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {projects.map((project) => {
-                const summary = summaries.get(project.id) ?? { docs: 0, annotated: 0, regions: 0 }
-                const pct = summary.docs === 0 ? 0 : (summary.annotated / summary.docs) * 100
-                return (
-                  <tr key={project.id}>
-                    <td>
-                      <button
-                        type="button"
-                        className="btn btn-ghost"
-                        style={{ fontSize: 14, padding: 0, color: 'var(--color-text)' }}
-                        onClick={() => onOpenProject(project.id)}
-                      >
-                        {project.name}
-                      </button>
-                    </td>
-                    <td style={{ fontSize: '12.5px', color: HINT }}>
-                      {schemaNameById.get(project.schemaId) ?? 'unknown schema'}
-                    </td>
-                    <td className="mono" style={{ fontSize: 13 }}>
-                      {summary.docs}
-                    </td>
-                    <td>
-                      {/* Progress is a bar AND a written ratio: the bar alone would
+          <div className="ts-table-scroll" style={{ ['--ts-table-min']: '960px' } as CSSProperties}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Project</th>
+                  <th style={{ width: 220 }}>Schema</th>
+                  <th style={{ width: 110 }}>Documents</th>
+                  <th style={{ width: 190 }}>Annotated</th>
+                  <th style={{ width: 110 }}>Regions</th>
+                  <th style={{ width: 170 }}>Updated</th>
+                  <th style={{ width: 86 }}>
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {projects.map((project) => {
+                  const summary = summaries.get(project.id) ?? { docs: 0, annotated: 0, regions: 0 }
+                  const pct = summary.docs === 0 ? 0 : (summary.annotated / summary.docs) * 100
+                  return (
+                    <tr key={project.id}>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          style={{ fontSize: 14, padding: 0, color: 'var(--color-text)' }}
+                          onClick={() => onOpenProject(project.id)}
+                        >
+                          {project.name}
+                        </button>
+                      </td>
+                      <td style={{ fontSize: '12.5px', color: HINT }}>
+                        {schemaNameById.get(project.schemaId) ?? 'unknown schema'}
+                      </td>
+                      <td className="mono" style={{ fontSize: 13 }}>
+                        {summary.docs}
+                      </td>
+                      <td>
+                        {/* Progress is a bar AND a written ratio: the bar alone would
                         put the whole meaning in length and colour. */}
-                      <span
-                        style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
-                      >
                         <span
-                          style={{
-                            flex: 1,
-                            height: 8,
-                            background: 'var(--color-neutral-200)',
-                            position: 'relative',
-                          }}
+                          style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
                         >
                           <span
                             style={{
-                              position: 'absolute',
-                              left: 0,
-                              top: 0,
-                              bottom: 0,
-                              width: `${pct}%`,
-                              background: 'var(--color-accent)',
+                              flex: 1,
+                              height: 8,
+                              background: 'var(--color-neutral-200)',
+                              position: 'relative',
                             }}
-                          />
+                          >
+                            <span
+                              style={{
+                                position: 'absolute',
+                                left: 0,
+                                top: 0,
+                                bottom: 0,
+                                width: `${pct}%`,
+                                background: 'var(--color-accent)',
+                              }}
+                            />
+                          </span>
+                          <span
+                            className="mono"
+                            style={{ fontSize: 12, width: 66, textAlign: 'right' }}
+                          >
+                            {summary.annotated} / {summary.docs}
+                          </span>
                         </span>
-                        <span
-                          className="mono"
-                          style={{ fontSize: 12, width: 66, textAlign: 'right' }}
+                      </td>
+                      <td className="mono" style={{ fontSize: 13 }}>
+                        {summary.regions}
+                      </td>
+                      <td style={{ fontSize: '12.5px', color: HINT }}>
+                        {formatWhen(project.updatedAt)}
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn btn-ghost btn-sm"
+                          aria-label={`Delete ${project.name}`}
+                          onClick={() => setPendingDelete(project)}
                         >
-                          {summary.annotated} / {summary.docs}
-                        </span>
-                      </span>
-                    </td>
-                    <td className="mono" style={{ fontSize: 13 }}>
-                      {summary.regions}
-                    </td>
-                    <td style={{ fontSize: '12.5px', color: HINT }}>
-                      {formatWhen(project.updatedAt)}
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm"
-                        aria-label={`Delete ${project.name}`}
-                        onClick={() => setPendingDelete(project)}
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                          Delete
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 

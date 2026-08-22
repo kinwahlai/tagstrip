@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { FormEvent } from 'react'
+import type { CSSProperties, FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { addLabel, removeLabel, SchemaValidationError, updateLabel } from '../db/labelSchemas'
@@ -264,75 +264,77 @@ export function LabelEditor({ schemaId }: { schemaId: string }) {
             No labels yet. Add one above to define a field you'll annotate.
           </p>
         ) : (
-          <table className="table">
-            <thead>
-              <tr>
-                <th style={{ width: 52 }}>Key</th>
-                <th>Name</th>
-                <th style={{ width: 190 }}>Colour</th>
-                <th style={{ width: 110 }}>Regions</th>
-                <th style={{ width: 160 }}>Last used</th>
-                <th style={{ width: 130 }}>
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {schema.labels.map((label) => {
-                const paletteName = LABEL_COLORS.find(
-                  (c) => c.hex.toUpperCase() === label.color.toUpperCase(),
-                )?.name
-                const regions = stats.regionsByLabel.get(label.id) ?? 0
-                const lastUsed = stats.lastUsedByLabel.get(label.id)
-                return (
-                  <tr key={label.id}>
-                    <td>{label.hotkey && <span className="ts-kbd">{label.hotkey}</span>}</td>
-                    <td>
-                      <span className="mono" style={{ fontSize: '13.5px', fontWeight: 600 }}>
-                        {label.name}
-                      </span>
-                    </td>
-                    <td>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-                        <span
-                          data-testid="color-swatch"
-                          className="ts-swatch"
-                          style={{ background: label.color }}
-                        />
-                        <span className="mono" style={{ fontSize: '11.5px', color: HINT }}>
-                          {paletteName ?? label.color.toUpperCase()}
+          <div className="ts-table-scroll" style={{ ['--ts-table-min']: '760px' } as CSSProperties}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th style={{ width: 52 }}>Key</th>
+                  <th>Name</th>
+                  <th style={{ width: 190 }}>Colour</th>
+                  <th style={{ width: 110 }}>Regions</th>
+                  <th style={{ width: 160 }}>Last used</th>
+                  <th style={{ width: 130 }}>
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {schema.labels.map((label) => {
+                  const paletteName = LABEL_COLORS.find(
+                    (c) => c.hex.toUpperCase() === label.color.toUpperCase(),
+                  )?.name
+                  const regions = stats.regionsByLabel.get(label.id) ?? 0
+                  const lastUsed = stats.lastUsedByLabel.get(label.id)
+                  return (
+                    <tr key={label.id}>
+                      <td>{label.hotkey && <span className="ts-kbd">{label.hotkey}</span>}</td>
+                      <td>
+                        <span className="mono" style={{ fontSize: '13.5px', fontWeight: 600 }}>
+                          {label.name}
                         </span>
-                      </span>
-                    </td>
-                    <td className="mono" style={{ fontSize: 13 }}>
-                      {regions}
-                    </td>
-                    <td style={{ fontSize: '12.5px', color: HINT }}>
-                      {lastUsed === undefined ? 'never' : formatWhen(lastUsed)}
-                    </td>
-                    <td>
-                      <span style={{ display: 'flex', gap: 'var(--space-2)' }}>
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => startEdit(label)}
-                        >
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          className="btn btn-ghost btn-sm"
-                          onClick={() => setPendingDelete(label)}
-                        >
-                          Delete
-                        </button>
-                      </span>
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
+                      </td>
+                      <td>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+                          <span
+                            data-testid="color-swatch"
+                            className="ts-swatch"
+                            style={{ background: label.color }}
+                          />
+                          <span className="mono" style={{ fontSize: '11.5px', color: HINT }}>
+                            {paletteName ?? label.color.toUpperCase()}
+                          </span>
+                        </span>
+                      </td>
+                      <td className="mono" style={{ fontSize: 13 }}>
+                        {regions}
+                      </td>
+                      <td style={{ fontSize: '12.5px', color: HINT }}>
+                        {lastUsed === undefined ? 'never' : formatWhen(lastUsed)}
+                      </td>
+                      <td>
+                        <span style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => startEdit(label)}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn-ghost btn-sm"
+                            onClick={() => setPendingDelete(label)}
+                          >
+                            Delete
+                          </button>
+                        </span>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 

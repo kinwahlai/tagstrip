@@ -234,7 +234,7 @@ export function AnnotationCanvas({
       : 'The text layer is tried first on every page, exactly and for free. OCR only runs when it finds nothing, and its assets are not fetched until then.'
 
   return (
-    <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>
+    <div className="ts-annotate">
       <main
         style={{
           flex: 1,
@@ -307,17 +307,7 @@ export function AnnotationCanvas({
         </div>
       </main>
 
-      <aside
-        aria-label="Regions on this page"
-        style={{
-          flex: 'none',
-          width: 'var(--ts-inspector)',
-          display: 'flex',
-          flexDirection: 'column',
-          borderLeft: '2px solid var(--color-divider)',
-          overflow: 'hidden',
-        }}
-      >
+      <aside className="ts-inspector" aria-label="Regions on this page">
         <div
           style={{
             flex: 'none',

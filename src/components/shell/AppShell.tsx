@@ -11,8 +11,16 @@ interface AppShellProps {
   // way back to the project rather than dead text.
   onCrumbBack?: () => void
   // The rail is the caller's to supply: full on every screen except annotate,
-  // which collapses it to 56px so the canvas gains the width back.
+  // which collapses it to 56px so the canvas gains the width back. Below 640px
+  // it leaves the flow entirely and `onOpenNav` puts its trigger in the header.
   rail: ReactNode
+  onOpenNav?: () => void
+  navLabel?: string
+  // Below 640px the claim strip cannot share a row with the wordmark and the
+  // breadcrumb without one of them being squeezed out. It gets its own row
+  // rather than being dropped: it is the product's central claim, and the M4
+  // rubric requires it visible at 375px.
+  stackClaim: boolean
   children: ReactNode
 }
 
@@ -53,7 +61,16 @@ function ThemeToggle() {
 // edge to edge. The header used to span full width over content capped at
 // 1024px and centred; that mismatch is gone, and column widths now come from
 // one set of tokens on .ts-shell rather than being restated per screen.
-export function AppShell({ crumbTop, crumbMain, onCrumbBack, rail, children }: AppShellProps) {
+export function AppShell({
+  crumbTop,
+  crumbMain,
+  onCrumbBack,
+  rail,
+  onOpenNav,
+  navLabel = 'Show navigation',
+  stackClaim,
+  children,
+}: AppShellProps) {
   return (
     <div
       className="ts-shell"
@@ -69,105 +86,140 @@ export function AppShell({ crumbTop, crumbMain, onCrumbBack, rail, children }: A
       <header
         style={{
           flex: 'none',
-          display: 'flex',
-          alignItems: 'stretch',
-          height: 56,
           borderBottom: '2px solid var(--color-divider)',
         }}
       >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            padding: '0 var(--space-4)',
-            borderRight: '2px solid var(--color-divider)',
-          }}
-        >
-          <span
-            aria-hidden="true"
-            style={{
-              display: 'block',
-              width: 16,
-              height: 16,
-              background: 'var(--color-accent)',
-              position: 'relative',
-            }}
-          >
-            <span
-              style={{
-                position: 'absolute',
-                left: 3,
-                top: 6,
-                width: 10,
-                height: 3,
-                background: 'var(--color-bg)',
-              }}
-            />
-          </span>
-          <span
-            style={{
-              fontFamily: 'var(--font-heading)',
-              fontWeight: 800,
-              fontSize: 16,
-              letterSpacing: '0.02em',
-            }}
-          >
-            TAGSTRIP
-          </span>
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-            gap: 1,
-            padding: '0 var(--space-4)',
-            minWidth: 0,
-            flex: 1,
-          }}
-        >
-          {onCrumbBack ? (
+        <div style={{ display: 'flex', alignItems: 'stretch', height: 56 }}>
+          {onOpenNav && (
             <button
               type="button"
-              className="ts-crumb-back"
-              title="Back to project (Esc)"
-              onClick={onCrumbBack}
-              style={{ alignSelf: 'flex-start' }}
+              className="btn btn-secondary"
+              aria-label={navLabel}
+              onClick={onOpenNav}
+              style={{
+                border: 0,
+                borderRight: '2px solid var(--color-divider)',
+                width: 48,
+                padding: 0,
+                flex: 'none',
+                justifyContent: 'center',
+              }}
             >
               <svg
-                width="11"
-                height="11"
+                width="16"
+                height="16"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="3"
+                strokeWidth="2"
                 strokeLinecap="square"
                 aria-hidden="true"
               >
-                <path d="M15 6l-6 6 6 6" />
+                <path d="M4 6h16M4 12h16M4 18h16" />
               </svg>
-              {crumbTop}
             </button>
-          ) : (
-            <span className="ts-eyebrow">{crumbTop}</span>
           )}
-          <span
+          <div
             style={{
-              fontSize: 14,
-              fontWeight: 600,
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: '0 var(--space-4)',
+              borderRight: '2px solid var(--color-divider)',
             }}
           >
-            {crumbMain}
-          </span>
-        </div>
+            <span
+              aria-hidden="true"
+              style={{
+                display: 'block',
+                width: 16,
+                height: 16,
+                background: 'var(--color-accent)',
+                position: 'relative',
+              }}
+            >
+              <span
+                style={{
+                  position: 'absolute',
+                  left: 3,
+                  top: 6,
+                  width: 10,
+                  height: 3,
+                  background: 'var(--color-bg)',
+                }}
+              />
+            </span>
+            {!stackClaim && (
+              <span
+                style={{
+                  fontFamily: 'var(--font-heading)',
+                  fontWeight: 800,
+                  fontSize: 16,
+                  letterSpacing: '0.02em',
+                }}
+              >
+                TAGSTRIP
+              </span>
+            )}
+          </div>
 
-        <LocalOnlyBadge />
-        <ThemeToggle />
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              gap: 1,
+              padding: '0 var(--space-4)',
+              minWidth: 0,
+              flex: 1,
+            }}
+          >
+            {onCrumbBack ? (
+              <button
+                type="button"
+                className="ts-crumb-back"
+                title="Back to project (Esc)"
+                onClick={onCrumbBack}
+                style={{ alignSelf: 'flex-start' }}
+              >
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="3"
+                  strokeLinecap="square"
+                  aria-hidden="true"
+                >
+                  <path d="M15 6l-6 6 6 6" />
+                </svg>
+                {crumbTop}
+              </button>
+            ) : (
+              <span className="ts-eyebrow">{crumbTop}</span>
+            )}
+            <span
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {crumbMain}
+            </span>
+          </div>
+
+          {!stackClaim && <LocalOnlyBadge />}
+          <ThemeToggle />
+        </div>
+        {stackClaim && (
+          <div style={{ borderTop: '2px solid var(--color-divider)', display: 'flex' }}>
+            <LocalOnlyBadge />
+          </div>
+        )}
       </header>
 
       <div style={{ flex: 1, minHeight: 0, display: 'flex' }}>

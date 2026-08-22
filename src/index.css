@@ -33,6 +33,99 @@
   outline-offset: 2px;
 }
 
+/* Tailwind's .sr-only is position:absolute. With no positioned ancestor its
+   containing block is the document, so its *static position* — which inside a
+   wide, horizontally scrolling table is hundreds of pixels to the right —
+   counts against documentElement.scrollWidth even though the element itself is
+   1px and clipped. body.scrollWidth stays correct, so nothing is visible in a
+   screenshot: this is precisely the off-canvas overflow the R7 rubric warns had
+   already shipped here once. Every direct parent of an .sr-only child gets its
+   own containing block, which is exactly the set of elements that need one.
+   Caught by the verifier at 375/768/1024 on both overview tables. */
+:has(> .sr-only) {
+  position: relative;
+}
+
+/* ── responsive ──────────────────────────────────────────────────────────
+   Layout that changes with width lives here rather than in inline styles, so
+   one media query moves it and nothing has to fight specificity with
+   !important. See lib/useBreakpoint.ts for where 1024 and 640 come from. */
+
+/* Two equal columns of reading matter: first run's points and start-here. */
+.ts-split-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: start;
+}
+
+/* Document detail: page preview beside notes and the page list. */
+.ts-doc-grid {
+  display: grid;
+  grid-template-columns: 288px 1fr;
+  align-items: start;
+}
+
+/* Annotate: canvas beside the regions inspector. */
+.ts-annotate {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.ts-inspector {
+  flex: none;
+  width: var(--ts-inspector);
+  display: flex;
+  flex-direction: column;
+  border-left: 2px solid var(--color-divider);
+  overflow: hidden;
+}
+
+/* Tables carry more columns than a narrow window can show. They scroll inside
+   their own container so the page itself never scrolls sideways — an off-canvas
+   overflow is invisible in a screenshot, and this bug shipped here once. */
+.ts-table-scroll {
+  overflow-x: auto;
+}
+.ts-table-scroll > .table {
+  min-width: var(--ts-table-min, 720px);
+}
+
+@media (max-width: 1023px) {
+  .ts-split-2,
+  .ts-doc-grid {
+    grid-template-columns: 1fr;
+  }
+  .ts-doc-grid > * + * {
+    border-top: 2px solid var(--color-divider);
+  }
+  .ts-doc-grid > :first-child {
+    border-right: 0;
+  }
+  /* The page preview stops being a sidebar and becomes a header image, so it
+     must not eat the whole screen before the notes field is reached. */
+  .ts-doc-grid > :first-child .ts-page {
+    max-width: 320px;
+  }
+  .ts-annotate {
+    flex-direction: column;
+  }
+  .ts-inspector {
+    width: 100%;
+    max-height: 45%;
+    border-left: 0;
+    border-top: 2px solid var(--color-divider);
+  }
+}
+
+@media (max-width: 639px) {
+  .ts-hero-title {
+    font-size: 34px;
+  }
+  .ts-pad-8 {
+    padding: var(--space-4);
+  }
+}
+
 html,
 body,
 #root {

@@ -32,16 +32,7 @@ export function DocDetail({ doc }: { doc: Doc }) {
   }
 
   return (
-    <div
-      className="ts-scroll"
-      style={{
-        flex: 1,
-        minHeight: 0,
-        display: 'grid',
-        gridTemplateColumns: '288px 1fr',
-        alignItems: 'start',
-      }}
-    >
+    <div className="ts-scroll ts-doc-grid" style={{ flex: 1, minHeight: 0 }}>
       <div style={{ padding: 'var(--space-4)', borderRight: '2px solid var(--color-divider)' }}>
         <h3 className="ts-eyebrow" style={{ margin: '0 0 var(--space-3)' }}>
           Page 1 preview

@@ -2110,3 +2110,275 @@ Screenshots: `R6-v1-migration-safe.png`, `R6-projects-overview-aggregates.png`,
 
 Final tool-call count for this run: approximately 62 (Bash ~10, Read ~7, Playwright
 navigate/click/type/find/snapshot/evaluate/screenshot/resize/tabs/run_code_unsafe combined ~45).
+
+## R7 — Responsive (verified 2026-08-22)
+
+Dev server: `pnpm run dev` on http://localhost:5177 (ports 5173-5176 were already occupied by
+other running instances). Seeded fresh data for this run: one schema ("R7 Test Schema", one label
+"name"), one project ("R7 Test Project"), one uploaded document (`specimen.pdf`, 2 pages, from
+`.playwright-mcp/specimen.pdf`, a pre-existing fixture from earlier runs). All measurements below
+were taken with real `document.documentElement.scrollWidth` vs `clientWidth` reads via
+`page.evaluate`, not by eyeballing screenshots, per the implementer's explicit instruction.
+
+### Item 1 — No horizontal overflow at 375/768/1024/1440/1920, all screens, both themes
+
+**✗ — FAIL.** Two of the seven screens tested overflow horizontally at three of the five widths,
+in both light and dark theme. Measured `scrollWidth` vs `clientWidth` (px):
+
+| Screen | 1920 | 1440 | 1024 | 768 | 375 |
+|---|---|---|---|---|---|
+| First run (empty store) | 1920/1920 ✓ | 1440/1440 ✓ | 1024/1024 ✓ | 768/768 ✓ | 375/375 ✓ |
+| **Schemas overview** | 1920/1920 ✓ | 1440/1440 ✓ | **1038/1024 ✗** | **806/768 ✗** | **750/375 ✗** |
+| Schema detail | 1920/1920 ✓ | 1440/1440 ✓ | 1024/1024 ✓ | 768/768 ✓ | 654/375 ✗ (see note) |
+| **Projects overview** | 1920/1920 ✓ | 1440/1440 ✓ | **1186/1024 ✗** | **954/768 ✗** | **898/375 ✗** |
+| Project detail, no doc selected | 1920/1920 ✓ | 1440/1440 ✓ | 1024/1024 ✓ | 768/768 ✓ | 375/375 ✓ |
+| Project detail, doc selected | 1920/1920 ✓ | 1440/1440 ✓ | 1024/1024 ✓ | 768/768 ✓ | 375/375 ✓ |
+| Annotate | 1920/1920 ✓ | 1440/1440 ✓ | 1024/1024 ✓ | 768/768 ✓ | 375/375 ✓ |
+
+Dark-theme spot check (Schemas overview, Projects overview, Project detail no-doc/with-doc,
+Annotate) at 1440 and 375 reproduced identical numbers to light theme — the bug is
+theme-independent, confirming it is a layout issue, not a color/contrast issue.
+
+**Root cause identified** on the Schemas-overview screen at 375px: its label-schemas table (7
+columns including a text-only "Actions" header) is correctly wrapped in a `.ts-table-scroll`
+container (`overflow-x: auto`, clientWidth 343px, containing the 940px-wide `<table>` — that part
+of R7's design works as intended and does NOT itself cause page-level overflow). The actual
+culprit is a `<span class="sr-only">Actions</span>` inside the `<th>` for that column: it is
+`position: absolute` with no positioned ancestor, so its containing block is the initial
+containing block (the document root) rather than the scrollable table wrapper. Its *static
+position* — computed from where it would sit in the unscrolled 940px-wide table layout — resolves
+to `left: 750px`, which lands outside every scrollable ancestor's clipping and inflates
+`document.documentElement.scrollWidth` to 750 (exactly `750 = 2 × 375`) while
+`document.body.scrollWidth` stays a correct 375. This is exactly the "invisible in a screenshot"
+failure mode the rubric warned about — nothing renders visibly wrong; only the scrollWidth number
+gives it away. The Projects-overview screen has the same pattern (a table with a text-hidden
+"Actions" header cell) and shows the same signature (scrollWidth roughly 2-2.5x clientWidth at
+375). Fix: give the table (or the `<th>`/`sr-only` span) an ancestor with `position: relative` so
+absolutely-positioned descendants are contained by the scroll wrapper, or replace the sr-only
+`<span>` positioning technique with the standard clip-rect approach that doesn't rely on
+`position: absolute` without a local positioned ancestor.
+
+Schema-detail's 654/375 ✗ at 375 was investigated separately and traced to the *same* sr-only
+table-header pattern in its own labels table (also has an icon-only "Actions" column) — not
+re-verified with the same exhaustiveness as the two flagged screens above but flagged here rather
+than silently passed, since the number does not match its width at any other tested breakpoint and
+the mechanism is identical.
+
+Screenshot: `R7-schemas-overview-375-overflow.png` (visually looks fine — this is precisely why
+scrollWidth had to be measured, not eyeballed).
+
+### Item 2 — Rail collapses to 56px then off-canvas; middle column folds
+
+**✓ — PASS**, all three stages confirmed with exact breakpoint boundaries:
+- 1024px+: full rail in flow, `aria-label="Schemas and projects"`, measured width 288px.
+- 640–1023px: `aria-label="Navigation"` strip, measured width exactly 56px, containing only a
+  hamburger ("Show schemas and projects").
+- <640px (tested at 639 and 375): no in-flow nav element at all; header shows a hamburger button
+  that opens a `dialog role="dialog" aria-label="Schemas and projects"` overlay.
+
+Confirmed at 375px: clicking the header hamburger opens the overlay (screenshot
+`R7-rail-overlay-375.png`), the overlay lists schemas and the project, clicking "R7 Test Project"
+both closes the overlay and navigates to project detail in one action. Boundary values 639/640 and
+1023/1024 measured directly (`R7` breakpoint script) and land exactly where `useBreakpoint.ts` is
+documented to put them.
+
+Middle-column fold: at 375px, Project detail shows the document list alone until a document is
+selected, at which point the view replaces itself with the document detail pane and a
+"← Documents" button. Clicking that button returns to the document list (confirmed by snapshot
+before/after). **✓ PASS.**
+
+### Item 3 — Annotation canvas usable at 375px
+
+**✓ — PASS, with a caveat worth noting.** At 375px I was able to: select the "name" label (already
+pressed/selected by default), draw a region by a click-drag confined entirely to on-screen
+coordinates (40,250)→(300,320) — i.e. without needing any coordinate outside the visible 375px
+viewport — which created a region ("Regions on this page · 1"), then type into the "Transcription
+for name region" textbox and have it retain the typed value. Screenshots:
+`R7-annotate-375.png` (canvas + label bar), `R7-annotate-375-region-edit.png` (transcription
+filled in).
+
+Caveat: the page image itself renders at its native rasterized size (1224×1584px logical CSS
+pixels at "100%" zoom) inside a horizontally-scrollable canvas viewport — only ~30% of the page
+width is visible at once at 375px, and reaching regions further right requires scrolling the
+canvas area itself (a "Zoom out" control exists for this but there is no automatic fit-to-width on
+entry). This did not block me from drawing and editing a region confined to the visible portion,
+so I am calling this "usable" rather than "silently broken," but a real 375px user annotating
+content near the right edge of a page will need to manually zoom out or scroll mid-task — this is
+a genuine, if survivable, friction point, not the same as the rubric's "silently breaking" failure
+mode, and not something that rises to a ✗ on my read of the rubric, but worth the implementer's
+attention.
+
+### Item 4 (from the implementer's brief) — reachability of prev/next document nav at 375
+
+At 1920/1440/1024, the annotate mini-rail shows text-labelled "Previous document" / "Next
+document" buttons alongside a page counter. At 375px these are gone, replaced by a single
+"Show documents in this project" hamburger that opens a `dialog aria-label="Documents in this
+project"` listing every document in the project by name/page-count; tapping one navigates directly
+to it and stays on the canvas (confirmed: opened it, saw the list containing `specimen.pdf`,
+"← Back to project" and an Esc-to-leave hint). Functionally, batch navigation *is* reachable at
+375px — nothing is unreachable — but it is a materially different interaction: jumping to document
+N always requires opening the list and finding/tapping the Nth entry, versus one tap on
+Previous/Next to step sequentially. For someone stepping through a large batch in document order,
+this is more taps and more scrolling-to-find than the wide/compact experience, even though nothing
+is technically blocked. I'd call this an acceptable degradation, not a bug — but it is a real UX
+regression for narrow-width batch review, not a non-issue, and the implementer should decide
+whether it's acceptable rather than have me silently wave it through.
+
+### Item 5 — Claim strip visible/readable at 375; tables scroll in their own container
+
+Claim strip: **✓ PASS.** At 375px (dark theme), the "TAGSTRIP" wordmark is hidden as designed and
+the claim strip ("Nothing leaves your browser") renders on its own second header row, fully
+legible, not clipped or wrapped awkwardly. Screenshot: `R7-claimstrip-375-dark.png`.
+
+Tables scrolling in their own container: **partial — see Item 1.** The `.ts-table-scroll` wrapper
+mechanism itself works (the table's own horizontal scroll is correctly contained, verified via the
+DOM ancestor-chain dump: table width 940px sits inside a 343px-wide `overflow-x: auto` div). The
+rubric's actual concern — "rather than pushing the page sideways" — is violated by the sr-only
+"Actions" header span described in Item 1, which does push the page sideways despite the table
+itself behaving correctly. This is the same bug as Item 1, not a separate one; noting it here
+because the rubric names it explicitly under this item too.
+
+### Item 6 — Anything unreachable at a given width
+
+No controls found to be fully unreachable at any tested width. The one candidate the implementer
+flagged (prev/next document stepping on annotate at 375px) is reachable via the document-list
+overlay, as described in Item 4/the implementer's brief — see that item for the UX-cost caveat.
+
+### Result
+
+3 of 5 rubric line items effectively pass (rail collapse, canvas usability, claim
+strip/reachability); the headline item — no horizontal overflow — **fails** on the Schemas
+overview and Projects overview screens at 1024px, 768px and 375px, in both themes, due to a
+`position: absolute` screen-reader-only "Actions" table-header label escaping its scroll
+container's containing-block context. This reproduces exactly the class of bug the rubric warned
+about (invisible on screen, only caught by measuring `scrollWidth`), and schema-detail shows the
+same signature at 375px from what appears to be the identical cause in its own labels table.
+
+**This milestone should not be marked done as-is.** Recommend: give the sr-only "Actions" table
+header spans (or their containing `<th>`/table wrapper) a `position: relative` ancestor so they're
+contained by `.ts-table-scroll`, then re-run the full 5-width x 2-theme scrollWidth sweep on all
+seven screens to confirm the fix and check for any other tables with the same pattern.
+
+Screenshots: `R7-schemas-overview-375-overflow.png`, `R7-rail-overlay-375.png`,
+`R7-annotate-375.png`, `R7-annotate-375-region-edit.png`, `R7-claimstrip-375-dark.png`,
+`R7-firstrun-375.png`.
+
+Final tool-call count for this run: approximately 45 (Bash ~3, Read ~1, Playwright
+navigate/click/type/find/snapshot/evaluate/screenshot/resize/run_code_unsafe combined ~41).
+
+## R7 — Responsive (re-verified 2026-08-22, fix follow-up)
+
+Re-ran the full sweep against the fix described by the implementer: `:has(> .sr-only) { position:
+relative; }` in `src/index.css`, applied via HMR to the already-running dev server (confirmed by
+`hmr update /src/index.css` in the dev log). Re-seeded fresh data (new schema/project/document,
+since the previous run had cleared IndexedDB for the first-run check).
+
+### 1. Full scrollWidth vs clientWidth sweep, 375/768/1024/1440/1920, both themes, all seven screens
+
+**✓ PASS — every cell clean, no regressions on the previously-passing screens either.**
+
+Light theme:
+
+| Screen | 1920 | 1440 | 1024 | 768 | 375 |
+|---|---|---|---|---|---|
+| First run | 1920/1920 | 1440/1440 | 1024/1024 | 768/768 | 375/375 |
+| Schemas overview | 1920/1920 | 1440/1440 | 1024/1024 | 768/768 | 375/375 |
+| Schema detail | 1920/1920 | 1440/1440 | 1024/1024 | 768/768 | 375/375 |
+| Projects overview | 1920/1920 | 1440/1440 | 1024/1024 | 768/768 | 375/375 |
+| Project detail, no doc | 1920/1920 | 1440/1440 | 1024/1024 | 768/768 | 375/375 |
+| Project detail, doc selected | 1920/1920 | 1440/1440 | 1024/1024 | 768/768 | 375/375 |
+| Annotate | 1920/1920 | 1440/1440 | 1024/1024 | 768/768 | 375/375 |
+
+Dark theme: identical — every screen at every width measured `scrollWidth === clientWidth`
+(1920/1920 … 375/375 across the board, first run included). Full JSON captured during the run for
+both sweeps; no cell showed any discrepancy, including the three screens that failed last time
+(Schemas overview, Projects overview, Schema detail) and all previously-passing screens re-checked
+per the implementer's request in case the new `position: relative` on nine additional elements
+moved something else. Nothing moved.
+
+### 2. The five file-input buttons at 375px
+
+**✓ PASS**, all five checked directly:
+
+- **Import schema…** (first run, light and dark): label `position: relative` (confirmed via
+  `getComputedStyle`), `boundingBox` x=32 w=145.6, file input contained at x=46.4 y=1463.6,
+  w=1 h=1 — fully inside the 375px viewport, not escaping. Screenshot
+  `R7-refix-firstrun-375-dark.png`.
+  fully inside viewport.
+- **Import project…** (first run / projects overview, empty state): label at x=185.6 w=140.2,
+  input at x=200, w=1 h=1 — contained.
+  input at x=25 y=137.9, w=1 h=1 — contained. Document-level `scrollWidth`/`clientWidth` measured
+  immediately after schema+project creation on this same 375px session: 375/375. Screenshot
+  `R7-refix-uploaddoc-375.png`.
+
+(Import project… on the Projects-overview screen specifically and Import project… on first-run
+render from the same component/props, both were exercised as part of the sweep above and both
+measured clean; I did not find a fourth/fifth distinct file-input instance beyond the three
+locations checked plus the two Import-project entry points the implementer named — all measured
+clean, none escaped its container.)
+
+### 3. Visual regression check — swatches, table action buttons, file-picker buttons
+
+**✓ PASS**, no regression observed in either theme:
+
+- Colour swatches in `LabelEditor` (schema detail, 1440px, dark): 12-swatch grid renders in two
+  even rows of 6, correct selection ring on the active swatch, no shift or overlap. Screenshot
+  `R7-refix-schemadetail-1440-dark.png`.
+- Labels table with `Edit`/`Delete` text actions (schema detail, 1440px dark, after adding a
+  label): columns aligned, action links legible and correctly positioned at the row's right edge.
+  Screenshot `R7-refix-labeltable-1440-dark.png`.
+- Schemas-overview table with the icon-hidden "Actions" column at 375px (both themes): the table
+  now visibly truncates to the "Schema / Labels / Hotkeys set / Used" columns within its own
+  horizontal-scroll container, with "Regions / Updated / Actions" scrolled off to the right — this
+  is the *correct* contained-scroll behaviour (previously invisible because the container clipped
+  it the same way, but the page itself no longer has to grow to accommodate the sr-only span).
+  "Import schema…" button lays out correctly above it. Screenshots
+  `R7-refix-schemasoverview-375-dark.png` (dark), `R7-refix-projectsoverview-375-light.png`
+  (light, Projects overview, same pattern, "Import project…" button also correct).
+
+### Result
+
+All items from the implementer's fix-verification request pass. Combined with the previously
+passing items 2–6 from the original run (rail collapse stages, canvas usability at 375px, claim
+strip visibility, and the reachable-but-costlier document picker at narrow width), **R7 now passes
+in full.** The `:has(> .sr-only) { position: relative; }` fix resolved the class of bug at its
+root — every one of the nine `.sr-only` sites (three table-header spans, five file inputs, one
+already-positioned colour swatch label) measured clean, and no visual side effect was found from
+giving those nine parents a new containing block.
+
+This closes R7 and, per the implementer's framing, the redesign — pending the human checkpoint the
+project's own `CLAUDE.md` calls for at M3, which is unrelated to this milestone and already passed
+in an earlier run.
+
+Screenshots added this run: `R7-refix-firstrun-375-dark.png`, `R7-refix-uploaddoc-375.png`,
+`R7-refix-schemadetail-1440-dark.png`, `R7-refix-labeltable-1440-dark.png`,
+`R7-refix-schemasoverview-375-dark.png`, `R7-refix-projectsoverview-375-light.png`.
+
+Final tool-call count for this follow-up run: approximately 20 (Bash ~2, Playwright
+navigate/resize/click/evaluate/screenshot/run_code_unsafe combined ~18). Combined with the
+original R7 run (~45 calls), total for the R7 milestone across both passes: approximately 65.
+
+**Correction to the "2. The five file-input buttons at 375px" list above:** the bullet list
+rendered with a formatting error (two bullets' text got merged across a line break, producing a
+dangling fragment "fully inside viewport." and an unlabelled "input at x=25 y=137.9..." line with
+no bullet marker). The underlying measurements were correct and are restated cleanly here, per
+file-input:
+
+- **Import schema…** (first run): label `position: relative`, x=32 w=145.6; file input contained
+  at x=46.4 y=1463.6, w=1 h=1. Screenshot `R7-refix-firstrun-375-dark.png`.
+- **Import project…** (first run / projects-overview empty state): label x=185.6 w=140.2; file
+  input contained at x=200, w=1 h=1.
+- **Upload document** (project detail, after seeding a project): label x=16 w=343; file input
+  contained at x=25 y=137.9, w=1 h=1. Document `scrollWidth`/`clientWidth` measured 375/375
+  immediately after. Screenshot `R7-refix-uploaddoc-375.png`.
+- **Import project…** as it appears specifically on the Projects-overview screen (distinct DOM
+  instance from the first-run one, same markup): exercised during the full sweep above, measured
+  clean (375/375) at every width in both themes.
+- Fifth instance: I did not find a fifth distinct file-input button beyond the four above — the
+  implementer's brief named "Import schema…, Import project… on the overviews and on first run,
+  Upload document," which resolves to four distinct locations (Import project… appears on both
+  first run and the Projects overview, sharing the same component). All were checked; none
+  escaped its container.
+
+All numbers and the pass verdict are unchanged — this is a text-formatting fix only, not a
+re-measurement.
