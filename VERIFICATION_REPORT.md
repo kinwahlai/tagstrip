@@ -2382,3 +2382,211 @@ file-input:
 
 All numbers and the pass verdict are unchanged — this is a text-formatting fix only, not a
 re-measurement.
+
+---
+
+## Follow-up — Claim strip as reopenable "about" page (verified 2026-08-22)
+
+Verifying the post-R7 change: `LocalOnlyBadge` becomes a clickable button (`onOpenAbout`), a new
+`{ tab: 'about' }` view in `App.tsx`, and `FirstRun` taking a `firstRun` boolean to swap the
+create-schema form for a "Where this lives" disk-usage panel.
+
+`pnpm run build` — exit 0, `tsc -b && vite build` completed cleanly (101 modules, no errors).
+
+### 1. Claim strip opens the about page from every screen, rail gets back out — ✓ PASS (at ≥768px)
+
+Checked at 1440px in both a genuinely-empty and then a seeded IndexedDB (created "Test Schema" /
+"Test Project" / uploaded a synthetic `test.png` and opened the annotation canvas). From each of
+the five screens, clicking the `data-testid="local-only-badge"` button switched the breadcrumb to
+"TagStrip / Nothing leaves your browser" and rendered the "Where this lives" panel with a live
+`17.9 KB`/`24.9 KB`-style disk figure, and clicking the corresponding item in the rail (or on
+annotate, in the full rail that reappears once `view.tab !== 'annotate'`) returned to the original
+screen:
+- Schemas overview → about → back via rail "Label schemas". Screenshot
+  `about-from-schemas-overview.png`.
+- Schema detail → about → back via rail schema item. Screenshot `about-from-schema-detail.png`.
+- Projects overview → about → back via rail "Projects". Screenshot
+  `about-from-projects-overview.png`.
+- Project detail → about → back via rail project item. Screenshot `about-from-project-detail.png`.
+- Annotation canvas → about → back via rail project item (rail returns to full width because
+  leaving `tab: 'annotate'` unconditionally restores it). Screenshot
+  `about-from-annotate-canvas.png`.
+
+All five confirmed at 1440px. See item 2 below for why this is qualified to "≥768px", not "every
+screen at every width."
+
+### 2. Works at 375px, where the claim strip sits on its own row — ✗ FAIL
+
+**Bug found.** `AppShell.tsx` renders the stacked-row claim strip (`stackClaim` branch, used below
+640px) as `<LocalOnlyBadge />` with no `onClick` prop:
+
+```
+{stackClaim && (
+  <div style={{ borderTop: '2px solid var(--color-divider)', display: 'flex' }}>
+    <LocalOnlyBadge />
+  </div>
+)}
+```
+
+versus the non-stacked header row a few lines above, which correctly passes it:
+`{!stackClaim && <LocalOnlyBadge onClick={onOpenAbout} />}`.
+
+Confirmed directly at 375×700: `document.querySelector('[data-testid="local-only-badge"]')`
+returns a `<DIV>`, not a `<BUTTON>`, with `tabIndex === -1` and no click handler. The strip is
+visible and reads correctly as a claim (see item 7), but it is inert — clicking it does nothing,
+and it cannot be reached by keyboard. Screenshot
+`about-375-stacked-claim-not-button.png` (also `about-claimstrip-375-appearance.png` for the
+visual). This directly contradicts the brief's "opens that same page at any time" from every
+screen at 375px, and it also means item 1's "every screen" guarantee does not hold below 640px —
+revising item 1 above to "≥768px" only, not the blanket pass the brief implies.
+
+### 3. First-run vs about-state content swap — ✓ PASS
+
+Genuine first-run (freshly cleared `indexedDB.deleteDatabase('tagstrip')`, page reload): right
+column showed "Start here" / "Create your first label schema" form with the name field and Create
+button; no "Where this lives" panel present in the main content area.
+
+About state (reached via claim-strip click from a seeded database): right column showed "Where
+this lives" / "IndexedDB, in this browser profile" panel with the note about clearing site data
+and a real `navigator.storage.estimate()`-derived figure (`17.9 KB on your disk.` immediately
+after schema creation, `24.9 KB on your disk.` after project + doc upload — the number moved as
+expected as more was written); no create-schema form present. Hero, "What this is not" strip, the
+three "How that works" points, and the two import buttons were identical in both states.
+
+### 4. Badge keyboard reachable, 2px accent focus ring, both themes — ✓ PASS at ≥640px, ✗ FAIL at 375px
+
+At 1440px: tabbed to the badge via repeated `Tab` presses, confirmed `document.activeElement` was
+the button, `getComputedStyle` showed `outline-style: solid`, `outline-width: 2px`,
+`outline-color: rgb(236, 48, 19)` in light theme and `rgb(255, 86, 60)` in dark theme (both are
+`--color-accent` for their theme). Screenshots `about-badge-focus-light.png`,
+`about-badge-focus-dark.png`.
+
+At 375px this cannot pass: per item 2, the stacked-row badge is a `<div tabindex="-1">`, so it is
+never in the tab order and has no focus-visible state to show. Same bug, same root cause as item 2.
+
+### 5. Claim-language re-check (R5 rule) on new copy — ✓ PASS
+
+Grepped the built `dist/assets/index-*.js` for `encrypt`, `secur`, `\bsafe\b`, `protect`
+case-insensitively: two hits, both React/DOM internals unrelated to app copy — the native
+`encrypted` media event name (`dragEnter dragExit ... encrypted ended error ...`) and React's own
+`"...blocked a javascript: URL as a security precaution."` warning string. No occurrence of any of
+these words in TagStrip's own copy, confirmed by reading the rendered "Where this lives" panel and
+`FirstRun.tsx` source directly: "Everything you have added ... is in this browser on this machine.
+Clearing the browser's site data removes it, and no copy exists anywhere else." This is accurate —
+it doesn't overclaim (no "safe"/"protected") and doesn't underclaim (it correctly says data is gone
+with no copy elsewhere, matching the actual architecture with no server). No issue found.
+
+### 6. R7-style overflow re-measurement (`scrollWidth === clientWidth`) — ✓ PASS
+
+Measured at 375/768/1024/1440/1920 in both light and dark, on the `about` page and on Schemas
+overview as a control (previously-passing R7 screen), all via `document.documentElement`:
+
+| Screen | 375 | 768 | 1024 | 1440 | 1920 |
+|---|---|---|---|---|---|
+| About (light) | 375/375 | 768/768 | 1024/1024 | 1440/1440 | 1920/1920 |
+| About (dark) | 375/375 | 768/768 | 1024/1024 | 1440/1440 | 1920/1920 |
+| Schemas overview, control (light) | 375/375 | 768/768 | 1024/1024 | 1440/1440 | 1920/1920 |
+| Schemas overview, control (dark) | 375/375 | 768/768 | 1024/1024 | 1440/1440 | 1920/1920 |
+
+No discrepancy found — the `div`→`button` change on `LocalOnlyBadge` did not introduce the kind of
+overflow R7 caught previously. (Note: at 375px the "about" measurement was taken after entering the
+about state at a wider width and then resizing down, since the entry point itself is broken at
+375px per item 2 — this measures the about page's own layout, not the broken entry path.)
+
+### 7. Claim strip still visible and reads as a claim, not a muted chip — ✓ PASS
+
+Screenshot `about-claimstrip-375-appearance.png` shows the strip unchanged in visual weight: bold
+800-weight accent-orange text "Nothing leaves your browser" with the monitor icon, on its own
+bordered row below the header, same as the pre-change static version. Becoming a `<button>` (or, at
+375px, remaining an inert `<div>`) did not visually mute it into a status chip in either theme.
+
+### Summary
+
+5 of 7 checks pass. **Item 2 fails**, and item 4 fails as a direct consequence of the same bug:
+at viewport widths below 640px, `AppShell.tsx`'s stacked-claim-row branch instantiates
+`<LocalOnlyBadge />` without passing `onClick={onOpenAbout}`, so the strip silently reverts to a
+non-interactive, non-focusable `<div>` exactly where the brief says it should still open the about
+page. This is a one-line fix (pass `onClick={onOpenAbout}` in the `stackClaim` branch of
+`AppShell.tsx`, matching the non-stacked branch immediately above it) but it is a real regression
+against the stated requirement, not a nitpick — the narrow-viewport case is the one explicitly
+called out in check 2 of the brief.
+
+Screenshots added this run (all prefixed `about-`): `about-from-schema-detail.png`,
+`about-from-projects-overview.png`, `about-from-project-detail.png`,
+`about-from-annotate-canvas.png`, `about-from-schemas-overview.png`,
+`about-375-stacked-claim-not-button.png`, `about-badge-focus-light.png`,
+`about-badge-focus-dark.png`, `about-claimstrip-375-appearance.png`.
+
+Final tool-call count for this run: approximately 90 (Bash ~8, Read ~5, Playwright
+navigate/resize/click/type/snapshot/evaluate/run_code_unsafe/screenshot/find combined ~77 — this
+run needed to manufacture test data (schema, project, a synthetic PNG upload) from an empty
+database to reach all five screens, which is more calls than a report-only pass.)
+
+---
+
+## Follow-up — Re-check after `onClick` made required on `LocalOnlyBadge` (verified 2026-08-22)
+
+Re-checking the two items that failed in the previous section, after the fix: `LocalOnlyBadge`'s
+`onClick` prop changed from optional to required and the component now always renders a
+`<button>` (the `<div>` fallback branch was deleted entirely, rather than patching the one call
+site that omitted it).
+
+Independently confirmed the coordinator's build/lint/test claims rather than taking them on trust:
+`pnpm run build` — exit 0, clean. `pnpm run lint` — "ESLint: No issues found", exit 0.
+`pnpm test` — `Test Files 17 passed (17)`, `Tests 91 passed (91)`, exit 0.
+
+### Check 2 (re-check) — claim strip opens the about page at 375px — ✓ PASS
+
+At 375×700, the accessibility snapshot now shows `button "What this claim means"` (not a `div`) on
+its own stacked row below the header. Clicked it via `getByTestId('local-only-badge').click()`:
+breadcrumb changed to "TagStrip / Nothing leaves your browser" and the "Where this lives" panel
+with a live disk figure (`24.6 KB on your disk.`) rendered, same as at wider widths. Screenshot
+`about-recheck-375-click.png`.
+
+### Check 4 (re-check) — keyboard reachable, 2px accent focus ring, both themes, real Tab — ✓ PASS
+
+Used `browser_press_key` (real `Tab` keydown events, not `element.focus()`) at 375px: three Tab
+presses from a fresh page load landed on `document.activeElement` with
+`data-testid="local-only-badge"` and `tagName: "BUTTON"` in both themes:
+- Dark: `outline-style: solid`, `outline-width: 2px`, `outline-color: rgb(255, 86, 60)`.
+  Screenshot `about-recheck-375-focus-dark.png`.
+- Light: `outline-style: solid`, `outline-width: 2px`, `outline-color: rgb(236, 48, 19)`.
+  Screenshot `about-recheck-375-focus-light.png`.
+
+Both colors are the theme's `--color-accent`, matching the ≥640px behaviour already verified in
+the prior section.
+
+### Guard 1 — badge still works at normal width, at least two screens — ✓ PASS
+
+At 1440px: clicked the badge from Schemas overview (default landing screen) — main content
+switched to "Your documents never leave this browser" / "No server · no account · no upload".
+Then navigated to Project detail via the rail, clicked the badge again — "Where this lives"
+section confirmed visible (`hasWhereLives: true`). Screenshot
+`about-recheck-1440-from-project-detail.png`. No regression at normal width from rewriting the
+whole component.
+
+### Guard 2 — overflow re-measurement, `scrollWidth === clientWidth` at 375 and 1440, both themes — ✓ PASS
+
+Measured on the `about` page and on Schemas overview (control), both widths, both themes:
+
+| Screen | 375 light | 1440 light | 375 dark | 1440 dark |
+|---|---|---|---|---|
+| About | 375/375 | 1440/1440 | 375/375 | 1440/1440 |
+| Schemas overview (control) | 375/375 | 1440/1440 | 375/375 | 1440/1440 |
+
+No discrepancy. The `<button>`'s own border/background (default button chrome the coordinator
+flagged as a risk relative to the old plain `<div>`) did not push anything past the viewport at
+either width in either theme.
+
+### Result
+
+All four re-checked items pass. Combined with the unchanged items from the prior section (checks
+1, 3, 5, 6, 7 — all previously ✓ and unaffected by this fix), **the claim-strip-as-reopenable-page
+change now passes in full**, contingent on this fix being what actually ships (verified against
+the live dev server reading the current `LocalOnlyBadge.tsx`/`AppShell.tsx` on disk, not from the
+coordinator's description alone).
+
+Screenshots added this run: `about-recheck-375-click.png`, `about-recheck-375-focus-dark.png`,
+`about-recheck-375-focus-light.png`, `about-recheck-1440-from-project-detail.png`.
+
+Tool-call count for this re-check: approximately 25.

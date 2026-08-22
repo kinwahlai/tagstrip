@@ -15,6 +15,7 @@ import { RailOverlay } from './components/shell/RailOverlay'
 import { useBreakpoint } from './lib/useBreakpoint'
 
 type View =
+  | { tab: 'about' }
   | { tab: 'schemas' }
   | { tab: 'schema'; schemaId: string }
   | { tab: 'projects' }
@@ -76,6 +77,7 @@ function App() {
   // The name appears once, in the breadcrumb; the work surface's own headers name
   // the section instead. It used to be repeated as an h1 or h2 on three screens.
   const crumb: [string, string] = {
+    about: ['TagStrip', 'Nothing leaves your browser'] as [string, string],
     schemas: ['All work', 'Label schemas'] as [string, string],
     schema: ['Label schema', schemaNameById.get(currentSchemaId ?? '') ?? ''] as [string, string],
     projects: ['All work', 'Projects'] as [string, string],
@@ -166,6 +168,7 @@ function App() {
       crumbTop={crumbTop}
       crumbMain={crumbMain}
       stackClaim={breakpoint === 'narrow'}
+      onOpenAbout={() => goTo({ tab: 'about' })}
       onOpenNav={
         breakpoint === 'narrow'
           ? view.tab === 'annotate'
@@ -186,8 +189,9 @@ function App() {
       {navOverlayOpen && (
         <RailOverlay onClose={() => setNavOverlayOpen(false)}>{fullRail}</RailOverlay>
       )}
-      {isFirstRun && (
+      {(isFirstRun || view.tab === 'about') && (
         <FirstRun
+          firstRun={isFirstRun}
           onOpenSchema={(schemaId) => goTo({ tab: 'schema', schemaId })}
           onOpenProject={(projectId) => goTo({ tab: 'project', projectId })}
         />

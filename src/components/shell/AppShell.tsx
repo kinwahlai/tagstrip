@@ -21,6 +21,7 @@ interface AppShellProps {
   // rather than being dropped: it is the product's central claim, and the M4
   // rubric requires it visible at 375px.
   stackClaim: boolean
+  onOpenAbout: () => void
   children: ReactNode
 }
 
@@ -69,6 +70,7 @@ export function AppShell({
   onOpenNav,
   navLabel = 'Show navigation',
   stackClaim,
+  onOpenAbout,
   children,
 }: AppShellProps) {
   return (
@@ -212,12 +214,12 @@ export function AppShell({
             </span>
           </div>
 
-          {!stackClaim && <LocalOnlyBadge />}
+          {!stackClaim && <LocalOnlyBadge onClick={onOpenAbout} />}
           <ThemeToggle />
         </div>
         {stackClaim && (
           <div style={{ borderTop: '2px solid var(--color-divider)', display: 'flex' }}>
-            <LocalOnlyBadge />
+            <LocalOnlyBadge onClick={onOpenAbout} />
           </div>
         )}
       </header>

@@ -3,6 +3,8 @@ import type { ChangeEvent, FormEvent } from 'react'
 import { createSchema, SchemaValidationError } from '../db/labelSchemas'
 import { importSchemaExport, parseSchemaExport } from '../lib/schemaImport'
 import { importNativeExport, parseNativeExport } from '../lib/nativeImport'
+import { formatBytes } from '../lib/formatBytes'
+import { useDiskUsage } from '../lib/useWorkspaceStats'
 
 const HINT = 'color-mix(in srgb, var(--color-text) 68%, transparent)'
 const BODY = 'color-mix(in srgb, var(--color-text) 72%, transparent)'
@@ -56,15 +58,20 @@ const POINTS = [
 interface FirstRunProps {
   onOpenSchema: (schemaId: string) => void
   onOpenProject: (projectId: string) => void
+  // The same page serves two moments: the empty database, where the next thing
+  // to do is create a schema, and any time afterwards via the header claim,
+  // where the useful other half is what is on disk right now.
+  firstRun: boolean
 }
 
 // Nothing in IndexedDB yet. This is the one place the accent runs as a full
 // ground rather than as chrome — the claim is the product, so on day one it gets
 // the whole width and 52px type. Both themes clear 4.5:1 on that fill because
 // --ts-accent-solid steps down the ramp in light and up in dark.
-export function FirstRun({ onOpenSchema, onOpenProject }: FirstRunProps) {
+export function FirstRun({ onOpenSchema, onOpenProject, firstRun }: FirstRunProps) {
   const [name, setName] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const diskBytes = useDiskUsage()
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault()
@@ -238,54 +245,87 @@ export function FirstRun({ onOpenSchema, onOpenProject }: FirstRunProps) {
 
         <div className="ts-pad-8" style={{ padding: 'var(--space-8)' }}>
           <h2 className="ts-eyebrow" style={{ margin: '0 0 var(--space-3)' }}>
-            Start here
+            {firstRun ? 'Start here' : 'Where this lives'}
           </h2>
-          <form
-            onSubmit={handleCreate}
-            style={{
-              border: '2px solid var(--color-divider)',
-              padding: 'var(--space-6)',
-              background: 'var(--color-surface)',
-            }}
-          >
-            <h3 style={{ margin: '0 0 var(--space-2)', fontSize: 20 }}>
-              Create your first label schema
-            </h3>
-            <p
+          {!firstRun && (
+            <div
               style={{
-                margin: '0 0 var(--space-4)',
-                fontSize: '13.5px',
-                lineHeight: 1.5,
-                maxWidth: '46ch',
-                color: BODY,
+                border: '2px solid var(--color-divider)',
+                padding: 'var(--space-6)',
+                background: 'var(--color-surface)',
               }}
             >
-              A schema is the set of fields you will annotate. Projects take one schema and many
-              documents, so this comes first.
-            </p>
-            <div style={{ display: 'flex', alignItems: 'flex-end', gap: 'var(--space-3)' }}>
-              <div className="field" style={{ flex: 1, minWidth: 0 }}>
-                <label htmlFor="first-schema-name">Schema name</label>
-                <input
-                  id="first-schema-name"
-                  className="input"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. KYC passport"
-                />
-              </div>
-              <button type="submit" className="btn btn-primary" style={{ minHeight: 36 }}>
-                Create
-              </button>
+              <h3 style={{ margin: '0 0 var(--space-2)', fontSize: 20 }}>
+                IndexedDB, in this browser profile
+              </h3>
+              <p
+                style={{
+                  margin: '0 0 var(--space-4)',
+                  fontSize: '13.5px',
+                  lineHeight: 1.5,
+                  maxWidth: '46ch',
+                  color: BODY,
+                }}
+              >
+                Everything you have added — documents, page images, annotations and label schemas —
+                is in this browser on this machine. Clearing the browser's site data removes it, and
+                no copy exists anywhere else.
+              </p>
+              <p className="mono" style={{ margin: 0, fontSize: '11.5px', color: HINT }}>
+                {diskBytes === null
+                  ? 'This browser does not report how much it is using.'
+                  : `${formatBytes(diskBytes)} on your disk.`}
+              </p>
             </div>
-            <p
-              className="mono"
-              style={{ margin: 'var(--space-2) 0 0', fontSize: '11.5px', color: HINT }}
+          )}
+          {firstRun && (
+            <form
+              onSubmit={handleCreate}
+              style={{
+                border: '2px solid var(--color-divider)',
+                padding: 'var(--space-6)',
+                background: 'var(--color-surface)',
+              }}
             >
-              Written straight to IndexedDB. Nothing is sent.
-            </p>
-          </form>
+              <h3 style={{ margin: '0 0 var(--space-2)', fontSize: 20 }}>
+                Create your first label schema
+              </h3>
+              <p
+                style={{
+                  margin: '0 0 var(--space-4)',
+                  fontSize: '13.5px',
+                  lineHeight: 1.5,
+                  maxWidth: '46ch',
+                  color: BODY,
+                }}
+              >
+                A schema is the set of fields you will annotate. Projects take one schema and many
+                documents, so this comes first.
+              </p>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 'var(--space-3)' }}>
+                <div className="field" style={{ flex: 1, minWidth: 0 }}>
+                  <label htmlFor="first-schema-name">Schema name</label>
+                  <input
+                    id="first-schema-name"
+                    className="input"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g. KYC passport"
+                  />
+                </div>
+                <button type="submit" className="btn btn-primary" style={{ minHeight: 36 }}>
+                  Create
+                </button>
+              </div>
+              <p
+                className="mono"
+                style={{ margin: 'var(--space-2) 0 0', fontSize: '11.5px', color: HINT }}
+              >
+                Written straight to IndexedDB. Nothing is sent.
+              </p>
+            </form>
+          )}
 
           <h2 className="ts-eyebrow" style={{ margin: 'var(--space-6) 0 var(--space-2)' }}>
             Or import what you have
