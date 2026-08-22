@@ -1,0 +1,154 @@
+[
+  {
+    "id": 0,
+    "data": {
+      "image": "statement.png"
+    },
+    "annotations": [
+      {
+        "id": 0,
+        "completed_by": null,
+        "result": [
+          {
+            "id": "a1",
+            "to_name": "image",
+            "original_width": 595,
+            "original_height": 842,
+            "image_rotation": 0,
+            "type": "rectangle",
+            "from_name": "bbox",
+            "value": {
+              "x": 9,
+              "y": 26,
+              "width": 30,
+              "height": 3,
+              "rotation": 0
+            }
+          },
+          {
+            "id": "a1",
+            "to_name": "image",
+            "original_width": 595,
+            "original_height": 842,
+            "image_rotation": 0,
+            "type": "labels",
+            "from_name": "label",
+            "value": {
+              "x": 9,
+              "y": 26,
+              "width": 30,
+              "height": 3,
+              "rotation": 0,
+              "labels": [
+                "account_holder"
+              ]
+            }
+          },
+          {
+            "id": "a1",
+            "to_name": "image",
+            "original_width": 595,
+            "original_height": 842,
+            "image_rotation": 0,
+            "type": "textarea",
+            "from_name": "transcription",
+            "value": {
+              "x": 9,
+              "y": 26,
+              "width": 30,
+              "height": 3,
+              "rotation": 0,
+              "text": [
+                "A. MORGAN"
+              ]
+            }
+          },
+          {
+            "id": "a2",
+            "to_name": "image",
+            "original_width": 595,
+            "original_height": 842,
+            "image_rotation": 0,
+            "type": "rectangle",
+            "from_name": "bbox",
+            "value": {
+              "x": 9,
+              "y": 41,
+              "width": 14.000000000000002,
+              "height": 3,
+              "rotation": 0
+            }
+          },
+          {
+            "id": "a2",
+            "to_name": "image",
+            "original_width": 595,
+            "original_height": 842,
+            "image_rotation": 0,
+            "type": "labels",
+            "from_name": "label",
+            "value": {
+              "x": 9,
+              "y": 41,
+              "width": 14.000000000000002,
+              "height": 3,
+              "rotation": 0,
+              "labels": [
+                "postcode"
+              ]
+            }
+          },
+          {
+            "id": "a2",
+            "to_name": "image",
+            "original_width": 595,
+            "original_height": 842,
+            "image_rotation": 0,
+            "type": "textarea",
+            "from_name": "transcription",
+            "value": {
+              "x": 9,
+              "y": 41,
+              "width": 14.000000000000002,
+              "height": 3,
+              "rotation": 0,
+              "text": [
+                "M14 6QT"
+              ]
+            }
+          }
+        ],
+        "was_cancelled": false,
+        "ground_truth": false,
+        "lead_time": 0,
+        "prediction": {},
+        "result_count": 6,
+        "unique_id": null,
+        "import_id": null,
+        "last_action": null,
+        "task": 0,
+        "project": null,
+        "updated_by": null,
+        "parent_prediction": null,
+        "parent_annotation": null,
+        "last_created_by": null
+      }
+    ],
+    "predictions": [],
+    "meta": {
+      "notes": "",
+      "contentType": "text"
+    },
+    "inner_id": 1,
+    "total_annotations": 1,
+    "cancelled_annotations": 0,
+    "total_predictions": 0,
+    "comment_count": 0,
+    "unresolved_comment_count": 0,
+    "last_comment_updated_at": null,
+    "project": null,
+    "updated_by": null,
+    "comment_authors": [],
+    "drafts": []
+  }
+]

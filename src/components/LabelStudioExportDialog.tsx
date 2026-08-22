@@ -47,9 +47,8 @@ export function LabelStudioExportDialog({
           </h2>
           <p style={{ margin: '4px 0 0', fontSize: 12, lineHeight: 1.5, color: HINT }}>
             The same shape Label Studio's own JSON export produces, so tooling that already reads
-            that format reads this without a converter. Reverse-engineered from a real export
-            sample, so it is best-effort — check it against whatever will consume it. The tag names
-            below have to match what that consumer expects.
+            that format reads this without a converter — checked by running it through their own
+            converter package. The tag names below have to match what your consumer expects.
           </p>
           <p style={{ margin: 0, fontSize: 12, lineHeight: 1.5, color: HINT }}>
             Page images are referenced by filename, not included. Use <strong>Export JSON</strong>{' '}

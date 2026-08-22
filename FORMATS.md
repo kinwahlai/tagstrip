@@ -7,9 +7,43 @@ before you send a file to a teammate.
 
 The third export option is different in kind, so it is documented separately: **Label Studio
 JSON** emits the shape Label Studio's own JSON export produces, so that a pipeline already reading
-that format can read TagStrip's output without a converter in between. It is a one-way, lossy
-translation — TagStrip cannot read it back — and it references page images without containing them.
-See `SPEC.md`'s Label Studio section for the observed shape and its caveats.
+that format can read TagStrip's output without a converter in between. It is one-way — TagStrip
+cannot read it back — and it references page images without containing them.
+
+### It has been checked against their own tooling
+
+The shape was reverse-engineered from a real export, so it was described as best-effort for a long
+time. It has since been run through `label-studio-converter`, Label Studio's own package, which
+read it and produced correct COCO, Pascal VOC, YOLO and JSON_MIN from it. Coordinates were checked
+by hand: a box at `x: 0.09, y: 0.26, w: 0.3, h: 0.03` on a 595x842 page came out as COCO
+`[53.5, 218.9, 178.5, 25.3]` and YOLO `0.24 0.275 0.3 0.03`, both exactly right.
+
+Reproduce it with:
+
+```bash
+uv venv lsv && uv pip install --python lsv/bin/python label-studio-converter
+# then, with a TagStrip Label Studio JSON export and a labeling config that
+# declares the tag names you exported under:
+lsv/bin/python -c "from label_studio_converter import Converter;   Converter(open('config.xml').read(), project_dir='.')   .convert_to_coco('export.json', 'out', is_dir=False)"
+```
+
+`src/lib/__fixtures__/labelStudioExport.verified.json` is the exact output that passed, and
+`labelStudioExport.verified.test.ts` pins the export to it — so if the format drifts, the
+verification has to be redone rather than assumed to still hold.
+
+Two things you will see and should not worry about. Their converter logs `Unknown label type or
+labels are empty` for the bare `rectangle` and `textarea` entries: it takes the geometry from the
+`labels` entries, which carry both the box and the name, and ignores the rest. And the conversion
+needs a labeling config declaring your tag names, because the config is what tells it which
+`from_name` means what.
+
+### If you convert onward, watch what you lose
+
+COCO, Pascal VOC and YOLO are **detection** formats: a box and a class, nothing else. Every one of
+them silently drops the per-box transcription — verified, not assumed. For a pure detector that is
+fine. For document understanding, where the field's _value_ is usually the point, it throws away
+the half of the data TagStrip exists to collect. Label Studio JSON and JSON_MIN both keep it, as
+does TagStrip's own native format.
 
 ## Schema export (`*-tagstrip-schema.json`)
 

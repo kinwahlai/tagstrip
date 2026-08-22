@@ -211,8 +211,20 @@ de facto interchange shape that document-ML tooling reads. TagStrip emits that s
 pipeline can consume TagStrip's output without a converter. Feeding it back into Label Studio
 itself also works, but that is incidental — the target is the format's readers, not the app.
 
-Reverse-engineered from a real Label Studio export sample, not their official schema docs (we
-don't have access to that) — treat as best-effort compatibility, and say so in the README.
+Reverse-engineered from a real Label Studio export sample rather than their published schema, and
+described as best-effort for a long time on that basis. **Since verified** by running the output
+through `label-studio-converter`, their own package, which read it and produced correct COCO,
+Pascal VOC, YOLO and JSON_MIN — coordinates checked by hand. `FORMATS.md` carries the command and
+`src/lib/__fixtures__/labelStudioExport.verified.json` is the output that passed, pinned by a test
+so drift has to be a decision rather than an accident.
+
+**No further export formats.** Label Studio's converter offers thirteen; the ones that could
+plausibly fit a box-drawing tool are COCO, Pascal VOC and YOLO, and all three are detection-only —
+each silently drops the per-box transcription, which for document understanding is usually the
+answer rather than a detail. Implementing them here would mean maintaining three more surfaces
+that emit less than what already exists, when their own converter already produces all three from
+our JSON correctly. If someone needs a detector-training format, the converter is the honest route
+and `FORMATS.md` documents it.
 
 **Not carried:** page images (`data.image` names a file this export does not contain — the native
 export is the one that round-trips pixels), and anything TagStrip-specific beyond a `meta` object
