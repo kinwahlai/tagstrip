@@ -2930,3 +2930,384 @@ note, not a product defect — re-ran the check individually and it passed.
 
 Final tool-call count for this follow-up: approximately 30 (Bash ~4, Read ~3, Playwright
 navigate/evaluate/click/snapshot/screenshot/resize/run_code_unsafe combined ~23).
+
+## Bug fix — tag placement flip (`tagPlacement`, `.ts-box-tag`) (verified 2026-08-22)
+
+Scope: verify the fix for `.ts-box-tag` being pinned `top: -20px` unconditionally (tag clipped at
+page top, or landing on the region above). Fix under test: `src/lib/geometry.ts` `tagPlacement()`
++ `PageStage.tsx` applying it per-region and to the live drag rect. Dev server at
+`http://localhost:5179/` (ports 5173-5178 were already in use by other sessions). Unit tests:
+`pnpm test src/lib/geometry.test.ts` → **12 passed** (3 pre-existing + 9 new `tagPlacement` tests,
+matching the 9 claimed).
+
+1. **Default zoom, tags above where there's room, no overlap with line above: ✓** —
+   `verification-screenshots/tagfix-check1-100pct.png`. Drew the 5 address/date regions on the
+   bundled sample at 100% zoom (this build's true default is `zoom=1`; the very first load auto-
+   fits to 64% only because the fresh viewport is short — I zoomed to 100% for a clean baseline
+   reading). Measured every region's `.ts-box-tag` `getBoundingClientRect()` against every other
+   region's box rect via `page.evaluate`: all 5 tags placed `above` (tag top ≈ box top − 18px),
+   zero pairwise overlaps. `tagfix-check1-default-zoom.png` is a second pass at the actual 64%
+   auto-fit zoom with intentionally tight boxes (16px real gaps) where 2 of 5 already flipped
+   `inside` — also zero overlaps with the region above either way, so the "no overlap" half of
+   this check holds regardless of which zoom is treated as "default."
+
+2. **Zoom out toward 50%, stacked lines flip to inside, no overlap once flipped: ✓** —
+   `verification-screenshots/tagfix-check2-zoomedout-50pct.png`. Using the 100%-zoom baseline from
+   check 1 (gaps calibrated to 30px screen-px at 100%, i.e. above the 20px threshold), zoomed out
+   to 50% via the toolbar `−` button twice. `address_line_1` and `address_line_2` (gap 30px×0.5 =
+   15px < 20px) flipped from `above` to `inside` exactly as predicted; `account_holder`,
+   `statement_date`, `postcode` (isolated, gap far >20px even at 50%) stayed `above`. DOM-measured
+   overlap check on all 5 at 50%: zero overlaps between any tag and any other region's box. The
+   zoom-dependent transition is real and reproducible, not a claim taken on faith.
+
+3. **Region hard against the page's top edge, tag visible (not clipped) at 2+ zoom levels: ✓** —
+   `verification-screenshots/tagfix-check3-top-edge-50pct.png` and `-100pct.png`. Drew a box
+   starting at `y ≈ pageTop + 1.4px` (screen space) at 50% zoom: tag flipped `inside`
+   (`tag.top = 208.99` vs `pageTop = 205.59`, fully on-page). Zoomed to 100% and re-measured the
+   same region: `tag.top = 210.41` vs `pageTop = 205.59`, still fully visible. No clipping at
+   either zoom.
+
+4. **Live drag size readout stays visible, no flicker crossing existing regions: ✓** — Started a
+   drag at the page's top edge and stepped the pointer down through 10 y-positions crossing the
+   vertical span of an existing region; sampled the live tag's `top`/`visible` at each step via
+   `page.evaluate`. Tag stayed visible throughout (`top: 211` unchanged across all 10 samples) —
+   stable because the live-rect placement call passes an empty `others` array, so it only reacts
+   to the page-top edge, never to other regions' positions. No screenshot needed; this was a
+   before/after-comparison of tag position across mouse-move steps, not a single visual state.
+
+5. **Regression — draw/select/delete/undo/redo/hotkeys: ✓** —
+   `verification-screenshots/tagfix-check5-selected.png`. Drew a region, selected it: confirmed
+   via `getComputedStyle` the ink-ring `box-shadow`, 4 `.ts-handle` elements, and tag text
+   containing `· selected`. Deleted via `Delete` key → region count 0. Undo → count back to 1.
+   Deleted the same region via its inspector "Delete" button → count 0. Undo → count 1. Redo →
+   count 0 (both directions of the undo stack work). Pressed hotkey `3` with canvas focused →
+   `address_line_2` (assigned key 3) became the pressed/selected label. All as expected, nothing
+   regressed.
+
+6. **`scrollWidth === clientWidth` at 375/1440, light/dark, on annotate: ✓** — measured via
+   `document.documentElement.scrollWidth` vs `clientWidth` directly (not eyeballed): 375×800 light
+   375/375, 375×800 dark 375/375, 1440×900 dark 1440/1440, 1440×900 light 1440/1440. No overflow
+   in any of the 4 combinations.
+
+7. **Judgment call on the flipped-inside state — ✗, needs attention, one real bug found beyond
+   the described trade-off**:
+
+   The described trade-off (flipped tag covers the top of the box's own text) is fine and reads
+   as intended — see check 1/2 screenshots, the "inside" tags for `address_line_1`/`address_line_2`
+   sit cleanly within their own boxes with no overlap on the region above.
+
+   **But there is a second, undescribed failure mode**: the tag is a fixed 20px CSS height while
+   the box's on-screen height shrinks with zoom. When a box is annotating a single short line of
+   text and the app is zoomed out (a completely ordinary combination — a short address-line box at
+   50-65% zoom is routinely 12-17px tall on screen), the "inside" tag (≈19.5-20.5px tall) is
+   *taller than the box it's flipped into* and overflows past the box's own bottom edge into
+   whatever sits below it. Measured directly: drew `account_holder` (y 480-504 at 100%) and
+   `address_line_1` immediately below it with a forced small gap, zoomed to 50%: `address_line_1`
+   box height shrank to 11.99px, its inside-flipped tag is 19.5px tall and its bottom
+   (`391.29px`) sits `9.5px` past the box's own bottom (`381.78px`) — i.e. past the boundary the
+   flip was supposed to stay inside. Screenshot:
+   `verification-screenshots/tagfix-check7-tag-overflow-past-box.png` — visibly, the orange
+   "address_line_1 · selected" tag chip extends below its own thin box into the "ACCOUNT HOLDER"
+   caption row beneath it. `tagPlacement()`'s collision check only looks at the *above* band
+   against other boxes; it never checks whether the *inside* placement actually fits within the
+   box's own height, so a short box at typical zoomed-out scale can still end up with its tag
+   spilling onto unrelated content below — the exact class of bug the fix set out to close, just
+   moved from "above" to "below."
+
+   **My honest answer to the question asked**: the "above vs. inside, inside covers your own
+   text" trade is acceptable and reads fine in the screenshots where the box is tall enough to
+   contain the tag. It is not acceptable as shipped for boxes shorter than ~20px on screen — which
+   will be common for single text-line annotations at anything below 100% zoom — because in that
+   case the tag doesn't just cover the box's own text, it overflows past the box into the content
+   below, undoing the fix for exactly that box. I'd ask for one more guard: clamp/skip the `inside`
+   flip (or clip the tag) when `box.height * pageHeightPx < TAG_HEIGHT_PX`, or accept that inside
+   tags can render at reduced height/font for short boxes. As shipped, I would not call this fully
+   closed.
+
+**README hero re-shoot**: `verification-screenshots/readme-hero-candidate.png` (overwritten per
+instruction). Light theme, 1440×900, 100% zoom, bundled sample document, 5 regions
+(`account_holder`/`address_line_1`/`address_line_2`/`postcode`/`statement_date`) each with a real
+transcription typed into its inspector field, `account_holder` selected (ink ring + 4 handles
+visible), SPECIMEN banner visible near the top. All 5 tags sit `above` their boxes at this zoom
+with no overlaps — this is the well-behaved case from check 1, so the fix reads as an improvement
+in this shot, not a regression.
+
+Tool-call count for this run: approximately 70 (Bash ~6, Read ~7, Playwright
+navigate/click/evaluate/snapshot/screenshot/resize/run_code_unsafe/find/fill_form combined ~57).
+No budget number was given for this task; scope was 7 checks plus a screenshot re-shoot, which
+this run completed in full without needing to cut anything for budget reasons.
+
+## Bug fix re-check — `tagPlacement` short-box fallback (verified 2026-08-22, follow-up to check 7)
+
+Scope: re-check after the fix to `src/lib/geometry.ts` that added `box.height >= tagHeight` as a
+requirement for the `inside` escape, per the coordinator's response to the previous run's check 7.
+`pnpm test src/lib/geometry.test.ts` → 15 passed (12 previous + 3 new short-box cases). Full suite
+103 passed. `pnpm run lint` → clean. `pnpm run build` → exits 0.
+
+1. **The case previously found (short box with a neighbour above, zoomed out): ✗ — not fixed,
+   reproduces the original bug in a new form.** Reproduced exactly: `account_holder` (screen
+   height 24px at 100%) then `address_line_1` immediately below it with a 6px gap at 100% zoom,
+   zoomed to 50% so both boxes become 11.99px tall (below the ~19.5-20px tag height). Measured via
+   `page.evaluate`: `address_line_1`'s tag no longer spills past its own box (`spillsPastBox:
+   false` — that half of the fix works). But it now renders `above` its own box, and that `above`
+   band **overlaps `account_holder`'s entire box** (tag y-range 339.79–359.29 fully contains
+   account_holder's box 342.79–354.78). Screenshot:
+   `verification-screenshots/tagfix2-check1-shortbox-50pct.png` — visibly, the `address_line_1`
+   tag chip sits directly on top of/overlapping the `account_holder` tag and box, i.e. the exact
+   "tag covers the region above" failure this whole fix exists to prevent, just relocated from the
+   "inside" branch to the "above" branch for the specific case of a short box with a colliding
+   neighbour.
+
+   **Root cause, as far as I can tell from the code**: the final fallback is
+   `return roomAbove ? 'above' : 'inside'`, where `roomAbove` only means "far enough from the page
+   top edge" — it does **not** mean "above is collision-free." `clearAbove` (which does check
+   collision) already failed to get here, but the fallback re-derives its answer from `roomAbove`
+   alone, discarding the reason `clearAbove` failed. When a short box is blocked from `above` by a
+   *neighbour* (not by the page edge) — `roomAbove` is still `true`, so the fallback picks `above`
+   anyway, re-introducing the neighbour overlap. The `KNOWN LIMIT` comment describes this as "above
+   covers the neighbour, inside spills past the box" as if it were a considered trade, but the
+   implementation doesn't actually choose between those two consciously — it always lands on
+   `above` in this branch unless the box is also near the page top, regardless of whether `above`
+   collides.
+
+2. **Zoom-out flipping still works for boxes tall enough to hold the tag: ✓** —
+   `verification-screenshots/tagfix2-check2-tallbox-flip-50pct.png`. Redrew with boxes tall enough
+   to stay ≥20px even at 50% zoom (60px at 100% → 30px at 50%) and the same 30px-at-100%/15px-at-50%
+   gap calibration as the original check 2. Confirmed via DOM measurement: at 100% both `above`, no
+   overlap; at 50%, `account_holder` stays `above` (isolated), `address_line_1` flips to `inside`
+   cleanly (`overlapsOther: false`, `spillsPastOwnBox: false`). The rule change did not break the
+   core zoom-dependent flip for the case it's meant to handle.
+
+3. **Page-top on a short box: ✓, tag visible, and it does spill past the box as the coordinator
+   expected — reads acceptable in practice.** `verification-screenshots/tagfix2-check3-topedge-shortbox-50pct.png`.
+   Drew a 12px-tall box hard against the page top at 50% zoom. Tag stays `inside`, fully on-page
+   (`tagTop 208.99 ≥ pageTop 205.59`), and does spill past its own box bottom by ~9.5px
+   (`spillsPastBox: true`) exactly as the coordinator flagged as the deliberately-kept trade. In
+   this specific document the spill lands in blank margin above the SPECIMEN banner, so it doesn't
+   visually read as broken here — but the spill is real and would land on real content if something
+   else were positioned there, same as before this branch existed.
+
+4. **Check 5 (regression) and check 6 (overflow): ✓, both still pass.** Draw → select (ink-ring
+   `box-shadow`, 4 `.ts-handle`s, tag text containing `· selected`, screenshot
+   `tagfix2-check5-regression.png`) → delete via `Delete` key (count 0) → undo (count 1) → delete
+   via inspector button (count 0) → undo (count 1) → redo (count 0, both undo-stack directions
+   confirmed) → hotkey `3` with canvas focused selects `address_line_2` (`pressed` state). Overflow:
+   `scrollWidth === clientWidth` at 375×800 light (375/375), 375×800 dark (375/375), 1440×900 dark
+   (1440/1440), 1440×900 light (1440/1440) — no overflow in any combination.
+
+**Answer to "is there any zoom at which a tag now sits somewhere that looks simply wrong":** yes —
+see item 1. A short box with a colliding neighbour above it (not just a short box at the page top)
+produces a tag that fully overlaps the neighbouring region's own tag and box at 50% zoom in this
+run. That is not the accepted trade described in the `KNOWN LIMIT` comment (which frames it as
+"above covers the neighbour" vs. "inside spills past the box" as if either were a deliberate
+choice) — the code doesn't actually choose between them, it defaults to `above` whenever there's
+room from the page top, independent of whether `above` is collision-free. I'd suggest the fallback
+needs to know *why* `clearAbove` failed (page-edge vs. neighbour collision) and pick the branch
+that avoids covering a neighbour's box when that's the reason, falling back to `inside`-with-spill
+only when the block is the page edge itself or when both branches would hit a neighbour.
+
+Tool-call count for this follow-up: approximately 45 (Bash ~3, Playwright
+navigate/click/evaluate/screenshot/resize/run_code_unsafe/find combined ~42).
+
+## Bug fix re-check (3rd attempt) — `tagPlacement` compact-tag escape (verified 2026-08-22)
+
+Scope: re-check `above | inside | inside-compact` in `src/lib/geometry.ts`, which drops the tag to
+an 8px/11px-tall compact cut instead of ever letting it leave the box. `pnpm test
+src/lib/geometry.test.ts` → 16 passed. Full suite 104 passed. `pnpm run lint` clean. `pnpm run
+build` exits 0.
+
+1. **Original repro (short box, colliding neighbour, ~50% zoom): ✓, fixed — with one negligible
+   sub-pixel caveat.** Reproduced exactly (account_holder 24px @100%, address_line_1 6px below it,
+   zoomed to 50% so both boxes are 11.99px): `address_line_1`'s tag is now `inside-compact`
+   (8px font), sits inside its own box, does **not** land on `account_holder` (`overlapsOtherBox:
+   false`), and does not hang meaningfully below its own box. Screenshot:
+   `verification-screenshots/tagfix3-check1-shortbox-compact-50pct.png` — the two tags are visibly
+   separated with a clean gap between them, nothing like the previous two failures. One caveat: the
+   compact tag's measured bottom edge is ~1px past the box's own outer (border) edge at this exact
+   box height (11.99px) — traced to the box's 2px border eating into the already-tiny interior, not
+   a logic error, and it disappears by 75% zoom (18px box, tag fits with 5px margin). At 1px this
+   is not visually distinguishable from a clean fit; I would not block on it, but it means the
+   "never leaves its own box" invariant is *almost* exact, not exact, for boxes right at this
+   threshold. Where it sits: fully inside the box, compact-sized, not on the neighbour.
+
+2. **Zoom sweep 50-300% (both a well-spaced 5-region layout and the adversarial tight-neighbour
+   pair): ✓, clean across the whole range** — no `overlapsOtherBox: true` at any of the 11 steps
+   (50/75/100/125/150/175/200/225/250/275/300%) for either layout. The tight pair sits
+   `inside-compact` at 50% (12px box, the ~1px caveat above), `inside-compact` still at 75% (18px
+   box, 0 overflow), and `inside` (full tag) from 100% up. The well-spaced layout is `above`
+   everywhere from 75% up and `inside-compact` only at 50% for the two closest boxes, with zero
+   overlaps or spills at any step. I did not find a zoom in this sweep where a tag looked wrong.
+
+3. **Full tag wins at 100%+: ✓** — confirmed in the same sweep data: from 100% through 300%, all
+   five regions in the well-spaced layout are `above`, full 10px tag, matching what the committed
+   hero screenshot shows.
+
+4. **Regression set and no-overflow: ✓, both unaffected.** Draw → select (ink-ring `box-shadow`, 4
+   `.ts-handle`s, `· selected` in tag text) → delete via `Delete` key (count 0) → undo (1) → delete
+   via inspector button (0) → undo (1) → redo (0) → hotkey `3` selects `address_line_2`
+   (`pressed`). Also re-confirmed Esc-returns-to-project still works (triggered accidentally
+   mid-test, landed back on the project detail screen correctly). Overflow: `scrollWidth ===
+   clientWidth` at 375×800 light (375/375), 375×800 dark (375/375), 1440×900 dark (1440/1440),
+   1440×900 light (1440/1440).
+
+5. **Accessibility judgment (color never travels without its name) — marginal, not a clean pass.**
+   The compact tag is real text, not a color-only chip — the label name and the `· selected` suffix
+   are both present in the DOM and on screen. But at 8px white-on-color text it is legible only
+   under close inspection or extra zoom, not at a glance; a close-up crop
+   (`verification-screenshots/tagfix3-compact-tag-closeup.png`) shows the letterforms are
+   technically distinguishable but small enough that I would not call this a comfortable read on a
+   real monitor at 100% OS scale. My honest read: it satisfies the letter of "colour never travels
+   without its name" (the name is there, attached to the colour, not stripped out), but it is
+   functionally closer to "recognizable if you already suspect what it says" than "readable." The
+   regions inspector's full-size list is doing the actual work of making the name legible in this
+   state — which is a reasonable division of labour (canvas for position/color, inspector for
+   text), but only if that's an accepted design position rather than an assumption. I'd flag this
+   as "acceptable given the inspector exists," not "acceptable on its own."
+
+**A fourth problem, found during the zoom sweep (not one of the five points asked about): the
+live-drag size-readout never uses the compact tag.** `PageStage.tsx`'s live-rect branch calls
+`tagPlacement(liveRect, [], height)` and only branches on `=== 'above'` vs. not — it never checks
+for `'inside-compact'` and never applies the `ts-box-tag--compact` class, unlike the per-annotation
+render path just above it. Reproduced: selected a label, started a drag right at the page top at
+50% zoom, dragged to make a 9px-tall live box. The size-readout tag (`"400 × 18"`) is still the
+full ~19.5px tag and spills **12.5px past the live box's own bottom edge**, straight into the
+SPECIMEN banner below it — the same class of failure this whole fix exists to close, reappearing
+in the one rendering path that was never updated to use the new placement value. Screenshot:
+`verification-screenshots/tagfix3-livedrag-tag-not-compact.png`. This is real and reproducible, not
+an edge case requiring an unusual setup — any short box drawn away from the very top of the page
+(where the "only checks page-top" comment says collision is deliberately not considered for the
+live rect) would show the same spill if it's short enough, since the live-rect logic still doesn't
+know about the compact variant at all.
+
+Tool-call count for this follow-up: approximately 40 (Bash ~4, Playwright
+navigate/click/evaluate/screenshot/resize/run_code_unsafe/find combined ~36).
+
+## Bug fix re-check (4th attempt) — `tagStyle` unification + a 5th finding (verified 2026-08-22)
+
+Scope: re-check after `PageStage.tsx` was refactored so both the saved-region tags and the live
+drag readout render through one `tagStyle(placement)` helper (fixing the duplication that let the
+compact class reach regions but not the live readout). `pnpm test` → 104 passed (unchanged, no new
+geometry tests needed — the refactor is UI-only, `tagPlacement`'s signature/behaviour didn't
+change). `pnpm run lint` clean. `pnpm run build` exits 0. Confirmed by reading
+`src/components/canvas/PageStage.tsx`: only two call sites render `.ts-box-tag`, and both now go
+through `tagStyle()`, which returns `{ className, top }` together — matching the claim that a
+placement state can no longer be wired into one spot and forgotten in the other.
+
+1. **Live drag readout — ✓, fixed for all three sub-cases.**
+   - Short drag away from the page top (50% zoom): resolved to `above` (empty-collision-list
+     placement has nothing to collide with away from the edge), no spill, no compact needed —
+     correct, not a case that should ever need the compact tag.
+   - Short drag right at the page top (50% zoom, ~8px box): now renders `ts-box-tag--compact`,
+     stays visible (`tagTop 207.99 ≥ pageTop 205.59`), and is much closer to the box than before —
+     though at 8px of actual box height it still overflows the box by ~5px, which the code's own
+     comment already discloses as expected below ~12px of box. Not a new problem; smaller than the
+     unfixed version's 12.5px.
+   - Drag crossing an existing finalized region: sampled the live tag's screen position at 7 steps
+     while the drag box grew across the existing region's y-range. Placement stayed `above` and
+     `tagTop` stayed pixel-identical (287 at every sample) throughout — no jump, no flicker, exactly
+     because the live-rect collision list is still empty by design.
+
+2. **Saved-region behaviour — ✓, survived the refactor.** Re-ran the round-3 repro (short box,
+   colliding neighbour, 50% zoom) after the `tagStyle` refactor: `address_line_1` is
+   `inside-compact`, does not overlap `account_holder`'s box (`overlapsOtherBox: false` on both,
+   checked programmatically). The working path stayed working.
+
+3. **A third render path — none found**, confirmed by reading the file rather than trusting the
+   claim: `/usr/bin/grep -rn "ts-box-tag" src/` after the refactor returns exactly the two
+   `tagStyle(...)`-driven call sites in `PageStage.tsx`. No other component renders this class.
+
+4. **Regression set and overflow — ✓, both unaffected.** Draw → select (ink-ring, 4 handles,
+   `· selected`) → delete via `Delete` key (0) → undo (1) → delete via inspector button (0) → undo
+   (1) → redo (0) → hotkey `3` selects `address_line_2`. (Note: an earlier batched version of this
+   same sequence produced a spurious "undo did nothing" reading — re-running the identical clicks
+   one at a time, waiting for each to settle, showed undo/redo working correctly both times; that
+   was a test-harness timing artifact from firing the next click before React had flushed, not a
+   product bug — flagging so it isn't mistaken for a real regression if anyone re-reads this
+   transcript.) Overflow: `scrollWidth === clientWidth` at 375×800 light (375/375), 375×800 dark
+   (375/375), 1440×900 dark (1440/1440), 1440×900 light (1440/1440).
+
+**A fifth problem, per the request to keep looking.** The code's stated falsifier for the compact
+tag ("if the compact tag ever appears at a zoom where the page IS readable, that reasoning has
+broken") is violated, directly and easily. At **100% zoom** — the zoom the committed hero
+screenshot uses, unambiguously a zoom where the document's own text is fully legible — I drew two
+adjacent 16px-tall boxes tightly cropped around two single lines of the real address block (not an
+extreme or contrived crop: 16px is a normal single-line box for this document's body text at
+100%), 2px apart. `address_line_1` renders `inside-compact` (8px font) right there at 100% zoom.
+Screenshot: `verification-screenshots/tagfix4-compact-at-100pct.png` — the "NORTHGATE ENERGY"
+heading and surrounding address lines are crisp and fully readable in the same frame as the tiny
+compact tag, which is visibly and obviously smaller than everything else on the page. The
+reasoning in the code comment ties box-shortness to zoom ("a box is only this short at a zoom
+where the document's own text is equally unreadable"), but box height in screen pixels is a
+function of the *source line height* as well as zoom — a document with normal or dense line
+spacing can produce a sub-20px single-line box at 100% zoom just from precise annotation, with no
+need to zoom out at all. The stated condition is not actually load-bearing: nothing in
+`tagPlacement` or the calling code ties the compact branch to zoom level, only to `box.height`
+relative to `TAG_HEIGHT_PX`, so it will trigger under exactly this ordinary condition (a tight box
+around one line of body text, drawn at any zoom) regardless of whether the page is readable.
+
+Tool-call count for this follow-up: approximately 45 (Bash ~4, Playwright
+navigate/click/evaluate/screenshot/resize/run_code_unsafe/find combined ~41).
+
+## Bug fix re-check (5th attempt) — compact tag keeps 10px type (verified 2026-08-22)
+
+Scope: re-check after `TAG_COMPACT_HEIGHT_PX` changed from 11 (8px font) to 13 (10px font, height
+won back from `padding: 0 4px; line-height: 13px` instead of shrinking the type). `pnpm test` → 104
+passed (unchanged — the height constant and CSS aren't covered by geometry unit tests, correctly,
+since they're presentation not placement logic). `pnpm run lint` clean, `pnpm run build` exits 0.
+Read `src/lib/geometry.ts` and `ts-modernist.css`: the false "only appears at unreadable zooms"
+justification is gone from both comments, replaced with the actual repro and why it invalidated the
+claim; `SPEC.md` now logs the five-round history plainly.
+
+1. **The 100% repro — ✓, and it reads at a glance now.** Redrew the exact case (two ~16px boxes, 2px
+   apart, on the real address block, 100% zoom): `address_line_1` renders `inside-compact`,
+   `fontSize: 10px` (same as the full tag), height 13px. Screenshot:
+   `verification-screenshots/tagfix5-check1-compact-at-100pct.png` — "address_line_1 · selected" is
+   legible on a normal read of the frame, not just on close inspection; a tight device-scale crop
+   (`tagfix5-compact-closeup-13px.png`) confirms the letterforms are the same weight/size as the
+   full tag, just a shorter box. This is a real improvement over the 8px version — I would not have
+   called that one legible at a glance; I would call this one legible at a glance.
+
+2. **Fit within the box the compact tag is meant for — ✓, measured.** Same repro: box height
+   15.99px, tag height 13px, tag bottom sits 0.99px *inside* the box's own bottom edge (no touch,
+   no overflow) — `getBoundingClientRect()` numbers, not eyeballed. `overlapsOtherBox: false`
+   against the neighbouring `account_holder` box, same as prior rounds.
+
+3. **Full tag still wins where it should — ✓.** Confirmed in the zoom sweep below: from 75% through
+   300% on the well-spaced 5-region layout, every region is `above`, full-size (`fontSize: 10px`,
+   ~19.5px tag height), matching the committed hero. The CSS diff only touched the `--compact`
+   modifier rule; the base `.ts-box-tag` rule is untouched, and the sweep confirms that in practice,
+   not just by reading the diff.
+
+4. **Zoom sweep 50–300%, both layouts — ✓, matches the documented threshold exactly, no surprises.**
+   - Well-spaced layout: `inside-compact` only at 50% (two closest regions, box height 14–15px,
+     spill 0–1px), `above` full-size everywhere from 75% up. Zero overlaps at any of the 11 steps.
+   - Adversarial tight pair: `inside-compact` at 50% (12px box, spill 3px — expected, box is under
+     the ~13px threshold the code now states plainly) and 75% (18px box, spill −3px, fits clean),
+     `inside` full tag from 100% up (spill always negative, i.e. fits with margin). Zero
+     `overlapsOtherBox: true` anywhere in either sweep. Nothing looked wrong at any step.
+
+5. **Regression set and overflow — ✓, both unaffected.** Draw → select (ink-ring, 4 handles,
+   `· selected`) → delete via `Delete` key (0) → undo (1) → delete via inspector button (0) → undo
+   (1) → redo (0) → hotkey `3` selects `address_line_2`. Each action run and checked individually
+   this round (learned from the earlier batching artifact) — no ambiguity this time. Overflow:
+   `scrollWidth === clientWidth` at 375×800 light (375/375), 375×800 dark (375/375), 1440×900 dark
+   (1440/1440), 1440×900 light (1440/1440).
+
+6. **README hero — not re-shot; not needed.** The hero's five regions are all comfortably spaced
+   and render `above` at full size both before and after this change (confirmed directly in the
+   100% row of the zoom sweep above, using the same box geometry as the hero shot). The only CSS
+   touched is the `.ts-box-tag--compact` rule; `.ts-box-tag` itself, which is what the hero uses, is
+   byte-for-byte unchanged. I did not re-shoot, since the evidence for "nothing changed for this
+   path" is direct measurement, not just reasoning from the diff.
+
+**Sixth problem: none found.** I looked for one specifically — re-read the full `tagPlacement`
+function for logic I might have skimmed past on the fourth read, re-confirmed there's genuinely
+only one render path in the CSS/JS now (not just for `.ts-box-tag` but checked `.ts-handle` and the
+live-drag div too, since those are the other visual elements this feature touches), and swept both
+an easy and an adversarial layout across the full zoom range. Nothing contradicted the stated
+behaviour this round. I'd call this one closed, with the standing, disclosed limit (sub-~13px boxes
+still overflow slightly, stated plainly rather than justified) being the honest remaining edge —
+not a bug, since it's now documented as a known floor rather than argued away.
+
+Tool-call count for this follow-up: approximately 40 (Bash ~4, Playwright
+navigate/click/evaluate/screenshot/resize/run_code_unsafe/find combined ~36).

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { MouseEvent as ReactMouseEvent } from 'react'
-import { MIN_BOX_SIZE, pointToNormalized, rectFromPoints } from '../../lib/geometry'
+import { MIN_BOX_SIZE, pointToNormalized, rectFromPoints, tagPlacement } from '../../lib/geometry'
+import type { TagPlacement } from '../../lib/geometry'
 import type { NormalizedRect } from '../../lib/geometry'
 import type { Annotation, Label, Page } from '../../db/types'
 
@@ -15,6 +16,17 @@ interface PageStageProps {
   onCreateAnnotation: (rect: NormalizedRect) => void
   onSelectAnnotation: (id: string) => void
   onDeselect: () => void
+}
+
+// Both the saved-region tags and the live drag readout render through this, so a
+// placement state cannot be wired into one and forgotten in the other. It was:
+// the compact state reached the regions but not the drag readout, which went
+// back to spilling past the box — the exact bug the compact state exists to fix.
+function tagStyle(placement: TagPlacement): { className: string; top: 0 | undefined } {
+  return {
+    className: `ts-box-tag${placement === 'inside-compact' ? ' ts-box-tag--compact' : ''}`,
+    top: placement === 'above' ? undefined : 0,
+  }
 }
 
 export function PageStage({
@@ -93,6 +105,10 @@ export function PageStage({
   const width = page.width * zoom
   const height = page.height * zoom
   const liveRect = drag ? rectFromPoints(drag.start, drag.current) : null
+  // An empty collision list on purpose: weighing the readout against existing
+  // boxes mid-drag would make it jump around while you are trying to read it.
+  // It still shrinks and flips, so it stays inside the box being drawn.
+  const livePlacement: TagPlacement = liveRect ? tagPlacement(liveRect, [], height) : 'above'
 
   return (
     <div className="ts-scroll" style={{ padding: 'var(--space-6)' }}>
@@ -121,6 +137,13 @@ export function PageStage({
           const label = labelsById.get(annotation.labelId)
           const color = label?.color ?? '#999'
           const isSelected = annotation.id === selectedAnnotationId
+          // Recomputed per render because it depends on zoom: the tag is a
+          // fixed pixel height, so the gap it needs grows as the page shrinks.
+          const placement = tagPlacement(
+            annotation,
+            annotations.filter((other) => other.id !== annotation.id),
+            height,
+          )
           return (
             <button
               key={annotation.id}
@@ -146,7 +169,10 @@ export function PageStage({
                 cursor: 'pointer',
               }}
             >
-              <span className="ts-box-tag" style={{ background: color }}>
+              <span
+                className={tagStyle(placement).className}
+                style={{ background: color, top: tagStyle(placement).top }}
+              >
                 {label?.name ?? 'Unknown'}
                 {isSelected ? ' · selected' : ''}
               </span>
@@ -174,7 +200,10 @@ export function PageStage({
               background: 'color-mix(in srgb, var(--color-accent) 10%, transparent)',
             }}
           >
-            <span className="ts-box-tag" style={{ background: 'var(--color-accent)' }}>
+            <span
+              className={tagStyle(livePlacement).className}
+              style={{ background: 'var(--color-accent)', top: tagStyle(livePlacement).top }}
+            >
               {Math.round(liveRect.width * page.width)} ×{' '}
               {Math.round(liveRect.height * page.height)}
             </span>

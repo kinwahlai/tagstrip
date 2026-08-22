@@ -827,6 +827,16 @@ textarea.input {
   color: #fff;
   white-space: nowrap;
 }
+/* For a box too short to hold the full tag — see tagPlacement in lib/geometry.ts.
+   The height comes off the padding, NOT the type: same 10px text as the full tag,
+   ~13px tall against its ~20px. An earlier version dropped to 8px and justified it
+   as only appearing at unreadable zooms; that was wrong — a tightly drawn
+   single-line box triggers this at 100%, with the page perfectly legible. So the
+   name stays readable wherever it lands. */
+.ts-box-tag--compact {
+  padding: 0 4px;
+  line-height: 13px;
+}
 .ts-handle {
   position: absolute;
   width: 8px;

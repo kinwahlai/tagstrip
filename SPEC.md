@@ -340,6 +340,26 @@ app code, and not ported.
   CDN — that would falsify the product's own claim. Open item, not a blocker.
 - **Responsive is not designed.** The mockups are fixed 1440×900. R7 covers 375–1920 and is the
   only milestone with no reference frames to work from.
+- **A region's tag never leaves its own box unless that is safe** *(R7 follow-up)*. Tags sit above
+  their box by preference, flip inside when above would run off the page or cover another region,
+  and switch to a compact cut when the box is too short to hold a full one — see `tagPlacement` in
+  `lib/geometry.ts`. The third state exists because two earlier two-state versions each just moved
+  the collision: the first spilled the tag past the bottom edge onto the content below, the second
+  sent it back onto the neighbour above. A tag is a fixed pixel height while a box scales with
+  zoom, so shrinking the tag is the only move that does not displace the problem. The compact cut
+  wins its height back from padding rather than from the type — the name is set at the same 10px
+  either way, because `tagPlacement` compares box height against a pixel constant and never
+  consults zoom, so a precisely drawn single-line box triggers it at *any* zoom, over a page that
+  may be perfectly readable. Below roughly 13px of box height even the compact tag overflows a
+  little; a box that short is a sliver, and the regions inspector carries the label in full
+  regardless. Both the saved-region tags and the live drag readout render through one helper in
+  `PageStage`, because wiring a placement state into one and forgetting the other is how this
+  recurred once already.
+
+  Five rounds of verification went into this, four of them failures: spilling below the box, then
+  landing back on the neighbour, then reaching the regions but not the drag readout, then
+  justifying 8px type with a claim about zoom that the function's own logic contradicts. Worth
+  recording because the bug looked like a twenty-line fix each time.
 - **Document content type is the worst case of its pages** *(decided at R6)*. The mockups put one
   content-type tag on each document row, but `contentType` is stored per page, so a multi-page
   document has no stored answer and a mixed one has no obvious one. The rule is: any page
