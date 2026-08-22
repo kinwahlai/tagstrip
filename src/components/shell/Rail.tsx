@@ -1,3 +1,6 @@
+import { useState } from 'react'
+import { formatBytes } from '../../lib/formatBytes'
+import { useDiskUsage } from '../../lib/useWorkspaceStats'
 import type { LabelSchema, Project } from '../../db/types'
 
 const MUTED = 'color-mix(in srgb, var(--color-text) 55%, transparent)'
@@ -39,8 +42,8 @@ function Chevron() {
 // carry the count that made them look clickable, so they are the route to each
 // overview; a rail *item* being current means neither header is.
 export function Rail({
-  schemas,
-  projects,
+  schemas: allSchemas,
+  projects: allProjects,
   schemaNameById,
   atSchemas,
   atProjects,
@@ -51,6 +54,14 @@ export function Rail({
   onOpenSchema,
   onOpenProject,
 }: RailProps) {
+  const [find, setFind] = useState('')
+  const diskBytes = useDiskUsage()
+
+  const needle = find.trim().toLowerCase()
+  const match = (name: string) => name.toLowerCase().includes(needle)
+  const schemas = needle ? allSchemas.filter((s) => match(s.name)) : allSchemas
+  const projects = needle ? allProjects.filter((p) => match(p.name)) : allProjects
+
   return (
     <nav
       aria-label="Schemas and projects"
@@ -62,6 +73,27 @@ export function Rail({
         borderRight: '2px solid var(--color-divider)',
       }}
     >
+      <div
+        style={{
+          flex: 'none',
+          padding: 'var(--space-3) var(--space-4)',
+          borderBottom: '2px solid var(--color-divider)',
+        }}
+      >
+        <div className="field" style={{ margin: 0 }}>
+          <label htmlFor="rail-find">Find</label>
+          <input
+            id="rail-find"
+            className="input"
+            type="search"
+            value={find}
+            onChange={(e) => setFind(e.target.value)}
+            placeholder="schema or project"
+            style={{ fontSize: 13 }}
+          />
+        </div>
+      </div>
+
       <div className="ts-scroll" style={{ flex: 1, minHeight: 0 }}>
         <h2
           style={{
@@ -77,7 +109,7 @@ export function Rail({
             onClick={onOpenSchemas}
           >
             <span>Label schemas</span>
-            <span className="ts-grouphd-n">{schemas.length}</span>
+            <span className="ts-grouphd-n">{allSchemas.length}</span>
             <Chevron />
           </button>
         </h2>
@@ -90,7 +122,9 @@ export function Rail({
               color: 'color-mix(in srgb, var(--color-text) 62%, transparent)',
             }}
           >
-            No label schemas yet. Create one to define the fields you'll annotate.
+            {needle
+              ? `No label schema matches "${find.trim()}".`
+              : "No label schemas yet. Create one to define the fields you'll annotate."}
           </p>
         ) : (
           schemas.map((schema) => (
@@ -149,7 +183,7 @@ export function Rail({
             onClick={onOpenProjects}
           >
             <span>Projects</span>
-            <span className="ts-grouphd-n">{projects.length}</span>
+            <span className="ts-grouphd-n">{allProjects.length}</span>
             <Chevron />
           </button>
         </h2>
@@ -162,7 +196,9 @@ export function Rail({
               color: 'color-mix(in srgb, var(--color-text) 62%, transparent)',
             }}
           >
-            No projects yet. Create one to start uploading documents.
+            {needle
+              ? `No project matches "${find.trim()}".`
+              : 'No projects yet. Create one to start uploading documents.'}
           </p>
         ) : (
           projects.map((project) => (
@@ -228,6 +264,12 @@ export function Rail({
           }}
         >
           IndexedDB · this browser profile
+          {diskBytes !== null && (
+            <>
+              <br />
+              {formatBytes(diskBytes)} on your disk
+            </>
+          )}
         </span>
       </div>
     </nav>

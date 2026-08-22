@@ -7,6 +7,8 @@ import { ConfirmDialog } from './ConfirmDialog'
 import { DEFAULT_LABEL_COLOR, LABEL_COLORS, suggestColor } from '../lib/labelColors'
 import { spacesToUnderscores } from '../lib/labelName'
 import { formatHotkeyRanges, HOTKEY_OPTIONS } from '../lib/hotkeys'
+import { formatWhen } from '../lib/formatDate'
+import { useWorkspaceStats } from '../lib/useWorkspaceStats'
 import type { Label } from '../db/types'
 
 interface LabelFormState {
@@ -31,6 +33,7 @@ export function LabelEditor({ schemaId }: { schemaId: string }) {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Label | null>(null)
+  const stats = useWorkspaceStats()
 
   if (schema === undefined) return null
   if (schema === null) return <p style={{ padding: 'var(--space-4)' }}>Schema not found.</p>
@@ -267,6 +270,8 @@ export function LabelEditor({ schemaId }: { schemaId: string }) {
                 <th style={{ width: 52 }}>Key</th>
                 <th>Name</th>
                 <th style={{ width: 190 }}>Colour</th>
+                <th style={{ width: 110 }}>Regions</th>
+                <th style={{ width: 160 }}>Last used</th>
                 <th style={{ width: 130 }}>
                   <span className="sr-only">Actions</span>
                 </th>
@@ -277,6 +282,8 @@ export function LabelEditor({ schemaId }: { schemaId: string }) {
                 const paletteName = LABEL_COLORS.find(
                   (c) => c.hex.toUpperCase() === label.color.toUpperCase(),
                 )?.name
+                const regions = stats.regionsByLabel.get(label.id) ?? 0
+                const lastUsed = stats.lastUsedByLabel.get(label.id)
                 return (
                   <tr key={label.id}>
                     <td>{label.hotkey && <span className="ts-kbd">{label.hotkey}</span>}</td>
@@ -296,6 +303,12 @@ export function LabelEditor({ schemaId }: { schemaId: string }) {
                           {paletteName ?? label.color.toUpperCase()}
                         </span>
                       </span>
+                    </td>
+                    <td className="mono" style={{ fontSize: 13 }}>
+                      {regions}
+                    </td>
+                    <td style={{ fontSize: '12.5px', color: HINT }}>
+                      {lastUsed === undefined ? 'never' : formatWhen(lastUsed)}
                     </td>
                     <td>
                       <span style={{ display: 'flex', gap: 'var(--space-2)' }}>

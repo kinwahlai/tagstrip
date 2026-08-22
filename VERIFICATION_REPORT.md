@@ -1921,3 +1921,192 @@ Screenshots: `R5-first-run-light.png`, `R5-first-run-dark.png`, `R5-create-schem
 
 Final tool-call count for this run: approximately 73 (Bash ~20, Read ~6, Playwright
 navigate/click/type/press/find/snapshot/evaluate/screenshot/resize/file_upload combined ~47).
+
+## R6 — Deferred aggregates (verified 2026-08-22)
+
+Dev server: `pnpm run dev` on http://localhost:5176 (5173-5175 already in use). Cheap checks run
+first: `pnpm run build` → clean (`tsc -b && vite build`, 0 errors). `pnpm test` → 91/91 passed
+across 17 files, including `stats.test.ts`. `pnpm run lint` → "ESLint: No issues found". None of
+these were assumed — all three were actually invoked and their real output captured above.
+
+Read `src/db/db.ts`, `src/lib/stats.ts`, `src/lib/useWorkspaceStats.ts`, `src/components/shell/Rail.tsx`,
+`src/components/{ProjectsOverview,SchemasOverview,ProjectDetail}.tsx` before testing, to know what
+each screen was supposed to be reading and from where.
+
+- ✓ **Region counts per schema and per label, used-by, last used, annotated ratio with progress
+  bar, and per-document region counts all show real numbers that match IndexedDB.** Seeded a
+  workspace directly via raw `indexedDB` writes (schema "Invoice Fields" with labels Vendor/Amount
+  plus a third label "lab-deleted" **deliberately left out of `schema.labels`** to simulate a
+  deleted label whose annotations survive; project "Acme Batch" with 5 docs: doc1 (2 text pages, 3
+  regions: Vendor×2, Amount×1), doc2 (1 scanned page, 2 regions: Vendor×1, lab-deleted×1), doc3 (3
+  pages text/unknown/text, 0 regions), doc4 (1 scanned page, 0 regions), doc5 (2 pages
+  text/scanned, 5 regions: Vendor×2, Amount×2, lab-deleted×1)). Cross-checked every figure the app
+  showed against the seed:
+  - Schemas overview: "2 labels across 1 schema · 8 regions drawn" and the row's Regions cell = 8
+    — this is **Vendor(5) + Amount(3), excluding the 2 regions still tagged with the deleted
+    label** — confirms the documented design decision ("a schema's region count sums its own
+    labels", SchemaSummary in `stats.ts`) is what actually happens, not just what the comment
+    claims.
+  - Schema detail (labels table): Vendor row Regions=5, Amount row Regions=3, both Last used
+    "today, 08:19" (all annotations were seeded within the same minute so finer granularity wasn't
+    distinguishable, but the field is populated and not blank/wrong).
+  - Projects overview: "5 documents · 3 annotated · 10 regions", row shows Documents=5,
+    Annotated="3 / 5", Regions=10. **This 10 (project total) vs 8 (schema total) is the correct,
+    deliberate divergence** — the project sums `regionsByDoc` regardless of which label an
+    annotation points to, while the schema only sums its own current labels. Both numbers were
+    independently arithmetically reconstructed from the seed data before looking at the UI, and
+    both matched exactly.
+  - Project detail per-document rows: doc1 "text · 2 pages · 3 regions", doc2 "scanned · 1 page ·
+    2 regions", doc3 "unknown · 3 pages · 0 regions", doc4 "scanned · 1 page · 0 regions", doc5
+    "scanned · 2 pages · 5 regions" — every count and every content-type tag matched the seed
+    exactly, including the worst-case content-type rule (doc3: text+unknown+text → "unknown" per
+    the documented precedence scanned > unknown > text; doc5: text+scanned → "scanned").
+  Screenshots: `R6-projects-overview-aggregates.png`, `R6-project-detail-per-doc.png`.
+
+- ✓ **The v2 migration is safe on an existing v1 database (implementer's specific ask).** Deleted
+  the `tagstrip` IndexedDB database, then hand-built a v1-shaped database at raw IDB version 10
+  (Dexie multiplies `version(N)` by 10 internally — confirmed the hard way after a first attempt
+  at raw version 1 threw `VersionError: requested version 1 is less than existing version 20`)
+  with exactly the five object stores and indexes from `version(1).stores()`, no compound v2
+  indexes. Wrote one schema/project/doc/page/annotation record directly via `IDBObjectStore.add`
+  (bypassing Dexie and the app entirely). Reloaded the app — this is the point where Dexie's
+  `version(2).stores()` upgrade function fires against a real v1-shaped store. Read the resulting
+  database back with a raw `indexedDB.open('tagstrip')` (no version pinned): `db.version` is 20
+  (confirms the v2 schema is now active), all 5 original records (schema, project, doc, page,
+  annotation) are byte-for-byte present with no loss, and the three new compound indexes exist —
+  `pages` has `[documentId+contentType]`, `annotations` has `[labelId+updatedAt]`, `docs` has
+  `[projectId+id]` — alongside the original v1 indexes. The UI then rendered this migrated data
+  correctly (schema shows "1 label", 1 region on the surviving label, project shows "V1 Migration
+  Project" using it) — confirming the upgrade doesn't just preserve raw bytes but that the app's
+  new index-based queries work against upgraded data. Screenshot: `R6-v1-migration-safe.png`.
+
+- ✓ **Disk usage comes from `navigator.storage.estimate()` and degrades gracefully.** Normal case:
+  rail footer showed "IndexedDB · this browser profile" followed by a real KB figure (e.g. "43.2
+  KB on your disk", later "629 KB on your disk" after the 300-doc seed) that changed as data grew.
+  Stubbed `navigator.storage = {}` (no `estimate` method at all) via `page.addInitScript` before a
+  fresh navigation: rail showed only "IndexedDB · this browser profile" with **no byte figure at
+  all** — not "0 bytes", nothing. Then stubbed `navigator.storage.estimate` to return a rejected
+  promise: same result, no byte line, no thrown/unhandled rejection reported in the console.
+  Screenshot: `R6-disk-usage-unavailable.png`. **Caveat worth recording**: `page.addInitScript`
+  persists across `page.goto()` navigations on the same Playwright page/tab, which meant a stub
+  from this test silently carried into my next few actions on the same tab until I noticed the
+  disk-usage line had gone missing where I expected a real figure and opened a fresh tab to
+  confirm it was my own test artifact, not an app bug (confirmed: fresh tab immediately showed
+  "44.7 KB on your disk" again). Flagging this so a future verifier doesn't repeat the confusion
+  or, worse, misattribute it to the app.
+
+- ✓ **The rail's Find box filters both groups; group-header counts stay absolute; empty states
+  read as "nothing matched" not "nothing exists".** With 2 schemas ("Invoice Fields", "Passport
+  Fields") and 2 projects ("Acme Batch", "Zeta Rollout") seeded, typed "Invoice" into Find: the
+  schema list narrowed to just "Invoice Fields", the project list showed **zero rows** with the
+  paragraph `No project matches "Invoice".` — while both group headers kept reading "Label schemas
+  2" and "Projects 2" (the real totals, not "1" and "0"). Typed a string matching nothing
+  ("zzznomatch"): both lists emptied simultaneously, each showing its own distinctly-worded
+  message (`No label schema matches "zzznomatch".` / `No project matches "zzznomatch".`) — visibly
+  different from the zero-data empty-state text ("No label schemas yet. Create one to define the
+  fields you'll annotate." / "No projects yet. Create one to start uploading documents."), so a
+  user can tell "your filter didn't match" apart from "there's nothing here yet". Screenshot:
+  `R6-find-no-match.png`.
+
+- ✓ **Performance: hundreds of documents stays responsive; aggregates are not recomputed per
+  row.** Seeded 300 documents (1 page each, mixed content types) into a new "Big Project" via raw
+  IndexedDB writes, then measured rather than eyeballed:
+  - Clicking into the project and waiting for all 300 rows to render (measured with
+    `performance.now()` around the click, polling until `Documents · 300` appeared) took **~81ms**
+    — well inside "stays responsive."
+  - Typing three characters into the Find box while the 300-row list was mounted took **~35ms**
+    total and triggered **zero** `IDBIndex.getAll/getAllKeys/openCursor` calls (instrumented by
+    monkey-patching those prototype methods and diffing a counter before/after) — confirming Find
+    input changes only re-render the `Rail` component (which has its own separate, small
+    `allSchemas`/`allProjects` arrays) and do not re-touch the database or re-run
+    `useWorkspaceStats`'s aggregate at all, let alone per row.
+  - This is also confirmed by direct code reading: `useWorkspaceStats` performs its four
+    `orderBy(...).keys()` index reads exactly once per mount inside a single `useLiveQuery`, and
+    every table row then does only `Map.get(id)` lookups (`stats.regionsByDoc.get(doc.id)`,
+    `stats.contentTypeByDoc.get(doc.id)`, `summarizeProject`/`summarizeSchema` iterating only over
+    that row's own doc/label list) — no per-row IndexedDB access is possible given this
+    structure, not just absent in this particular run.
+  - Caveat: my IDB-call instrumentation (patching `IDBIndex.prototype` methods after the initial
+    page load) undercounted the *baseline* query volume — it recorded only 1 `getAll`-style call
+    for the entire click-and-render-300-rows sequence, fewer than the ≥5 I'd expect from
+    `useWorkspaceStats`'s 4 index reads plus the docs-list query, which suggests Dexie's
+    IndexedDB backend caches references to the native store/index methods at db-open time rather
+    than looking them up per call, so my patch (applied after the db was already open) missed
+    some. The absolute count is therefore not trustworthy as a precise number, but the *relative*
+    comparison (zero additional calls when typing in Find, no growth with row count) and the
+    timing measurements stand on their own and were not affected by that gap.
+  Screenshots: `R6-project-detail-300docs-light.png`, `R6-project-detail-300docs-dark.png`.
+
+- ✓ **Both themes, no horizontal overflow at 1280×800, 2px accent focus rings including the Find
+  box.** With the 300-doc project open, `document.documentElement.scrollWidth ===
+  document.documentElement.clientWidth === 1280` held in both light and dark theme. Projects
+  overview and schema detail screens were also overflow-checked at 1280×800 in both themes — all
+  passed. Focused the Find box via `element.focus()` (following the same-file precedent from R5
+  that Chromium reliably shows `:focus-visible` styling for programmatic focus on text inputs) and
+  read computed style: dark theme `outline: rgb(255, 86, 60) solid 2px`, light theme `outline:
+  rgb(236, 48, 19) solid 2px` — both are the theme's accent colour at 2px, matching the rest of the
+  shell's focus-ring convention. Visually inspected both `R6-projects-overview-light.png` and
+  `R6-projects-overview-dark.png` — text is legible against its background in both themes (dark:
+  light grey/white text on near-black surfaces with a red accent; light: near-black text on
+  off-white/light-grey surfaces with a darker red accent), including the small mono figures in the
+  Documents/Annotated/Regions columns and the rail's "Where this lives" footer. Did not
+  separately re-run a full WCAG contrast-ratio computation for R6-specific new text (progress-bar
+  ratio labels, region-count cells) the way the R5 report did for hero text — visual inspection
+  only for this run; flagging that as a lighter check than R5's, done to conserve budget, not
+  because contrast was assumed fine.
+  Screenshots: `R6-schema-detail-light.png`, `R6-find-focus-ring-dark.png`,
+  `R6-projects-overview-light.png`, `R6-projects-overview-dark.png`.
+
+- ✓ **The progress bar never conveys meaning by colour or length alone.** Every row that has a
+  progress bar shows the written ratio in mono text immediately beside it: "0 / 300" (Big
+  Project, 0-length bar), "0 / 0" (Zeta Rollout, 0-length bar — an edge case with no documents at
+  all, which the code handles via `summary.docs === 0 ? 0 : ...` rather than dividing by zero),
+  "3 / 5" (Acme Batch, partially filled bar). Confirmed in both the DOM (`browser_snapshot`) and
+  visually in both theme screenshots above — the numeric ratio is always present, never only a bar
+  width or fill colour.
+
+### Implementer's specific question: worst-case content-type rule
+
+The implementer asked whether "worst case" (any scanned → scanned; else any unknown → unknown;
+else text) serves users better than "commonest" or "all-must-match." I did not evaluate this as a
+UX/product question — that's outside what I can verify by running the app — but I did confirm the
+*implementation* matches the *documented* rule exactly: seeded doc3 (text, unknown, text) rendered
+as "unknown," and doc5 (text, scanned) rendered as "scanned," both consistent with the stated
+precedence order in `docContentType`/`CONTENT_TYPE_PRECEDENCE`. No implementation bug found here;
+the question of which rule is more useful is a product call for the user/implementer, not
+something I can settle by testing.
+
+### Not checked this run
+
+- Deleting a label or a schema *through the UI* while regions exist (the M1/M2 rubric already
+  covers delete-blocking-in-use-schema; this run tested the "orphaned regions after deletion"
+  aggregate math via direct seeding rather than by clicking Delete in the running app and
+  re-observing the count update live). The seeded-data approach is equivalent for verifying the
+  aggregate math but does not exercise the live-update path (Dexie's `useLiveQuery` re-firing
+  immediately after a UI-driven delete). Given budget, this was not separately re-tested.
+  Recommend a future pass click-deletes a label with existing regions in the running UI and
+  confirms the schema's region count drops immediately without a reload, if this hasn't been
+  covered in an M1/M2 report already.
+- Full WCAG contrast-ratio computation for R6's new text elements (see note above) — done by eye
+  only, not measured numerically, unlike the R5 report's approach for the same kind of claim.
+- 375/768/1024/1440/1920 widths — out of scope for R6 (that's R7's rubric item), only 1280×800 was
+  in the R6 checklist and was checked.
+
+### Result
+
+All 5 `VERIFICATION.md` R6 rubric items pass, plus the implementer's extra migration-safety ask
+and the "progress bar never colour/length-only" prompt check. No bugs found in this milestone.
+One methodology caveat recorded (IDB call-count instrumentation undercounts baseline volume due
+to Dexie likely caching native method references at db-open time) and one process note recorded
+(Playwright's `addInitScript` persists across same-tab navigations, which briefly contaminated an
+unrelated screenshot with a stubbed disk-usage state until caught and corrected by opening a fresh
+tab).
+
+Screenshots: `R6-v1-migration-safe.png`, `R6-projects-overview-aggregates.png`,
+`R6-project-detail-per-doc.png`, `R6-disk-usage-unavailable.png`, `R6-find-no-match.png`,
+`R6-project-detail-300docs-light.png`, `R6-project-detail-300docs-dark.png`,
+`R6-schema-detail-light.png`, `R6-find-focus-ring-dark.png`, `R6-projects-overview-light.png`,
+`R6-projects-overview-dark.png`.
+
+Final tool-call count for this run: approximately 62 (Bash ~10, Read ~7, Playwright
+navigate/click/type/find/snapshot/evaluate/screenshot/resize/tabs/run_code_unsafe combined ~45).

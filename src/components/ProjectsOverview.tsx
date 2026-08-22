@@ -5,6 +5,8 @@ import { db } from '../db/db'
 import { createProject, deleteProject } from '../db/projects'
 import { importNativeExport, parseNativeExport } from '../lib/nativeImport'
 import { formatWhen } from '../lib/formatDate'
+import { summarizeProject } from '../lib/stats'
+import { useWorkspaceStats } from '../lib/useWorkspaceStats'
 import { ConfirmDialog } from './ConfirmDialog'
 import { SurfaceHeader } from './shell/SurfaceHeader'
 import type { Project } from '../db/types'
@@ -18,24 +20,17 @@ interface ProjectsOverviewProps {
 export function ProjectsOverview({ onOpenProject }: ProjectsOverviewProps) {
   const projects = useLiveQuery(() => db.projects.orderBy('updatedAt').reverse().toArray(), [])
   const schemas = useLiveQuery(() => db.labelSchemas.orderBy('name').toArray(), [])
-  // One index read rather than a count per row: keys() walks the projectId index
-  // without loading the doc records, which matter here because a Doc carries the
-  // original PDF bytes.
-  const docProjectIds = useLiveQuery(() => db.docs.orderBy('projectId').keys(), [])
+  const stats = useWorkspaceStats()
 
   const [name, setName] = useState('')
   const [schemaId, setSchemaId] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Project | null>(null)
 
-  if (projects === undefined || schemas === undefined || docProjectIds === undefined) return null
+  if (projects === undefined || schemas === undefined) return null
 
   const schemaNameById = new Map(schemas.map((s) => [s.id, s.name]))
-  const docCounts = new Map<string, number>()
-  for (const id of docProjectIds) {
-    const key = String(id)
-    docCounts.set(key, (docCounts.get(key) ?? 0) + 1)
-  }
+  const summaries = new Map(projects.map((p) => [p.id, summarizeProject(p.id, stats)]))
   const selectedSchemaId = schemaId || schemas[0]?.id || ''
 
   async function handleImport(e: ChangeEvent<HTMLInputElement>) {
@@ -80,7 +75,9 @@ export function ProjectsOverview({ onOpenProject }: ProjectsOverviewProps) {
     setPendingDelete(null)
   }
 
-  const docTotal = docProjectIds.length
+  const docTotal = [...summaries.values()].reduce((n, s) => n + s.docs, 0)
+  const annotatedTotal = [...summaries.values()].reduce((n, s) => n + s.annotated, 0)
+  const regionTotal = [...summaries.values()].reduce((n, s) => n + s.regions, 0)
 
   return (
     <>
@@ -89,8 +86,8 @@ export function ProjectsOverview({ onOpenProject }: ProjectsOverviewProps) {
         subtitle={
           projects.length === 0
             ? undefined
-            : `${docTotal} document${docTotal === 1 ? '' : 's'} across ${projects.length} project${
-                projects.length === 1 ? '' : 's'
+            : `${docTotal} document${docTotal === 1 ? '' : 's'} · ${annotatedTotal} annotated · ${regionTotal} region${
+                regionTotal === 1 ? '' : 's'
               }`
         }
         error={error}
@@ -181,6 +178,8 @@ export function ProjectsOverview({ onOpenProject }: ProjectsOverviewProps) {
                 <th>Project</th>
                 <th style={{ width: 220 }}>Schema</th>
                 <th style={{ width: 110 }}>Documents</th>
+                <th style={{ width: 190 }}>Annotated</th>
+                <th style={{ width: 110 }}>Regions</th>
                 <th style={{ width: 170 }}>Updated</th>
                 <th style={{ width: 86 }}>
                   <span className="sr-only">Actions</span>
@@ -188,39 +187,79 @@ export function ProjectsOverview({ onOpenProject }: ProjectsOverviewProps) {
               </tr>
             </thead>
             <tbody>
-              {projects.map((project) => (
-                <tr key={project.id}>
-                  <td>
-                    <button
-                      type="button"
-                      className="btn btn-ghost"
-                      style={{ fontSize: 14, padding: 0, color: 'var(--color-text)' }}
-                      onClick={() => onOpenProject(project.id)}
-                    >
-                      {project.name}
-                    </button>
-                  </td>
-                  <td style={{ fontSize: '12.5px', color: HINT }}>
-                    {schemaNameById.get(project.schemaId) ?? 'unknown schema'}
-                  </td>
-                  <td className="mono" style={{ fontSize: 13 }}>
-                    {docCounts.get(project.id) ?? 0}
-                  </td>
-                  <td style={{ fontSize: '12.5px', color: HINT }}>
-                    {formatWhen(project.updatedAt)}
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      className="btn btn-ghost btn-sm"
-                      aria-label={`Delete ${project.name}`}
-                      onClick={() => setPendingDelete(project)}
-                    >
-                      Delete
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {projects.map((project) => {
+                const summary = summaries.get(project.id) ?? { docs: 0, annotated: 0, regions: 0 }
+                const pct = summary.docs === 0 ? 0 : (summary.annotated / summary.docs) * 100
+                return (
+                  <tr key={project.id}>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        style={{ fontSize: 14, padding: 0, color: 'var(--color-text)' }}
+                        onClick={() => onOpenProject(project.id)}
+                      >
+                        {project.name}
+                      </button>
+                    </td>
+                    <td style={{ fontSize: '12.5px', color: HINT }}>
+                      {schemaNameById.get(project.schemaId) ?? 'unknown schema'}
+                    </td>
+                    <td className="mono" style={{ fontSize: 13 }}>
+                      {summary.docs}
+                    </td>
+                    <td>
+                      {/* Progress is a bar AND a written ratio: the bar alone would
+                        put the whole meaning in length and colour. */}
+                      <span
+                        style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}
+                      >
+                        <span
+                          style={{
+                            flex: 1,
+                            height: 8,
+                            background: 'var(--color-neutral-200)',
+                            position: 'relative',
+                          }}
+                        >
+                          <span
+                            style={{
+                              position: 'absolute',
+                              left: 0,
+                              top: 0,
+                              bottom: 0,
+                              width: `${pct}%`,
+                              background: 'var(--color-accent)',
+                            }}
+                          />
+                        </span>
+                        <span
+                          className="mono"
+                          style={{ fontSize: 12, width: 66, textAlign: 'right' }}
+                        >
+                          {summary.annotated} / {summary.docs}
+                        </span>
+                      </span>
+                    </td>
+                    <td className="mono" style={{ fontSize: 13 }}>
+                      {summary.regions}
+                    </td>
+                    <td style={{ fontSize: '12.5px', color: HINT }}>
+                      {formatWhen(project.updatedAt)}
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn btn-ghost btn-sm"
+                        aria-label={`Delete ${project.name}`}
+                        onClick={() => setPendingDelete(project)}
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         )}

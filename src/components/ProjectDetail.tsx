@@ -7,7 +7,9 @@ import { exportProjectToFile } from '../lib/nativeExport'
 import { ConfirmDialog } from './ConfirmDialog'
 import { DocDetail } from './DocDetail'
 import { LabelStudioExportDialog } from './LabelStudioExportDialog'
+import { ContentTypeBadge } from './ContentTypeBadge'
 import { SurfaceHeader } from './shell/SurfaceHeader'
+import { useWorkspaceStats } from '../lib/useWorkspaceStats'
 import type { Doc } from '../db/types'
 
 const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])
@@ -37,6 +39,7 @@ export function ProjectDetail({ projectId, onOpenAnnotate }: ProjectDetailProps)
   const [error, setError] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Doc | null>(null)
   const [showLabelStudioDialog, setShowLabelStudioDialog] = useState(false)
+  const stats = useWorkspaceStats()
 
   if (project === undefined || docs === undefined) return null
   if (project === null) return <p style={{ padding: 'var(--space-4)' }}>Project not found.</p>
@@ -213,17 +216,29 @@ export function ProjectDetail({ projectId, onOpenAnnotate }: ProjectDetailProps)
                     {doc.filename}
                   </span>
                   <span
-                    className="mono"
                     style={{
-                      display: 'block',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
                       marginTop: 3,
-                      fontSize: '10.5px',
-                      color: 'color-mix(in srgb, var(--color-text) 58%, transparent)',
                     }}
                   >
-                    {doc.sourceType === 'image'
-                      ? 'image'
-                      : `${doc.pageCount} page${doc.pageCount === 1 ? '' : 's'}`}
+                    <ContentTypeBadge
+                      contentType={stats.contentTypeByDoc.get(doc.id) ?? 'unknown'}
+                    />
+                    <span
+                      className="mono"
+                      style={{
+                        fontSize: '10.5px',
+                        whiteSpace: 'nowrap',
+                        color: 'color-mix(in srgb, var(--color-text) 58%, transparent)',
+                      }}
+                    >
+                      {doc.sourceType === 'image'
+                        ? 'image'
+                        : `${doc.pageCount} page${doc.pageCount === 1 ? '' : 's'}`}{' '}
+                      · {stats.regionsByDoc.get(doc.id) ?? 0} regions
+                    </span>
                   </span>
                 </span>
               </button>

@@ -7,6 +7,8 @@ import { exportSchemaToFile } from '../lib/schemaExport'
 import { importSchemaExport, parseSchemaExport } from '../lib/schemaImport'
 import { formatHotkeyRanges } from '../lib/hotkeys'
 import { formatWhen } from '../lib/formatDate'
+import { summarizeSchema } from '../lib/stats'
+import { useWorkspaceStats } from '../lib/useWorkspaceStats'
 import { ConfirmDialog } from './ConfirmDialog'
 import { RenameDialog } from './RenameDialog'
 import { SurfaceHeader } from './shell/SurfaceHeader'
@@ -24,14 +26,17 @@ interface SchemasOverviewProps {
 // routes to.
 export function SchemasOverview({ onOpenSchema }: SchemasOverviewProps) {
   const schemas = useLiveQuery(() => db.labelSchemas.orderBy('updatedAt').reverse().toArray(), [])
+  const projects = useLiveQuery(() => db.projects.toArray(), [])
+  const stats = useWorkspaceStats()
   const [newName, setNewName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [renaming, setRenaming] = useState<LabelSchema | null>(null)
   const [pendingDelete, setPendingDelete] = useState<LabelSchema | null>(null)
 
-  if (schemas === undefined) return null
+  if (schemas === undefined || projects === undefined) return null
 
   const labelTotal = schemas.reduce((n, s) => n + s.labels.length, 0)
+  const regionTotal = schemas.reduce((n, s) => n + summarizeSchema(s, projects, stats).regions, 0)
 
   async function handleImport(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -100,7 +105,7 @@ export function SchemasOverview({ onOpenSchema }: SchemasOverviewProps) {
             ? undefined
             : `${labelTotal} label${labelTotal === 1 ? '' : 's'} across ${schemas.length} schema${
                 schemas.length === 1 ? '' : 's'
-              }`
+              } · ${regionTotal} region${regionTotal === 1 ? '' : 's'} drawn`
         }
         error={error}
         actions={
@@ -168,6 +173,8 @@ export function SchemasOverview({ onOpenSchema }: SchemasOverviewProps) {
                   <th>Schema</th>
                   <th style={{ width: 100 }}>Labels</th>
                   <th style={{ width: 150 }}>Hotkeys set</th>
+                  <th style={{ width: 210 }}>Used by</th>
+                  <th style={{ width: 110 }}>Regions</th>
                   <th style={{ width: 170 }}>Updated</th>
                   <th style={{ width: 210 }}>
                     <span className="sr-only">Actions</span>
@@ -179,6 +186,7 @@ export function SchemasOverview({ onOpenSchema }: SchemasOverviewProps) {
                   const hotkeys = formatHotkeyRanges(
                     schema.labels.map((l) => l.hotkey).filter((k): k is string => Boolean(k)),
                   )
+                  const summary = summarizeSchema(schema, projects, stats)
                   return (
                     <tr key={schema.id}>
                       <td>
@@ -196,6 +204,14 @@ export function SchemasOverview({ onOpenSchema }: SchemasOverviewProps) {
                       </td>
                       <td className="mono" style={{ fontSize: '12.5px', color: HINT }}>
                         {hotkeys || 'none'}
+                      </td>
+                      <td style={{ fontSize: '12.5px', color: HINT }}>
+                        {summary.usedBy.length === 0
+                          ? 'No projects yet'
+                          : summary.usedBy.join(', ')}
+                      </td>
+                      <td className="mono" style={{ fontSize: 13 }}>
+                        {summary.regions}
                       </td>
                       <td style={{ fontSize: '12.5px', color: HINT }}>
                         {formatWhen(schema.updatedAt)}

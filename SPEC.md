@@ -331,6 +331,15 @@ app code, and not ported.
   CDN — that would falsify the product's own claim. Open item, not a blocker.
 - **Responsive is not designed.** The mockups are fixed 1440×900. R7 covers 375–1920 and is the
   only milestone with no reference frames to work from.
+- **Document content type is the worst case of its pages** *(decided at R6)*. The mockups put one
+  content-type tag on each document row, but `contentType` is stored per page, so a multi-page
+  document has no stored answer and a mixed one has no obvious one. The rule is: any page
+  `scanned` makes the document `scanned`; otherwise any page `unknown` makes it `unknown`;
+  otherwise `text`. A document with no pages reads `unknown` rather than guessing. The tag exists
+  to say which route Suggest text will take, so it reports the worst case, not the commonest —
+  one scanned page in a forty-page PDF still means OCR somewhere in that document, and a tag
+  reading `text` would have hidden it. Implemented in `lib/stats.ts` as `docContentType`, which is
+  where to change it if the opposite reading turns out to be more useful in practice.
 
 ### Milestones
 

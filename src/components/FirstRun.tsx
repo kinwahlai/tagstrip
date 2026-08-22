@@ -175,9 +175,9 @@ export function FirstRun({ onOpenSchema, onOpenProject }: FirstRunProps) {
           <strong style={{ fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
             What this is not:
           </strong>{' '}
-          IndexedDB is plaintext at rest. TagStrip claims no encryption and adds no protection to
-          the file on your disk. The claim is location, and it is one you can falsify in ten seconds
-          by pulling your network cable.
+          IndexedDB is plaintext at rest: anything that can read this browser profile can read
+          your documents. TagStrip adds nothing on top of that. The claim is location, and it is
+          one you can falsify in ten seconds by pulling your network cable.
         </p>
       </div>
 
