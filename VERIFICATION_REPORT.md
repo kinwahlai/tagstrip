@@ -2590,3 +2590,182 @@ Screenshots added this run: `about-recheck-375-click.png`, `about-recheck-375-fo
 `about-recheck-375-focus-light.png`, `about-recheck-1440-from-project-detail.png`.
 
 Tool-call count for this re-check: approximately 25.
+
+## Archivo self-hosted follow-up — adversarial network/offline/typography audit (verified 2026-08-22)
+
+Scope: post-R7 follow-up vendoring Archivo (400/600/700/800 woff2) into `src/styles/`,
+replacing the placeholder `@font-face` comment in `ts-modernist.css`. Verified against the
+built output (`pnpm run build` && `pnpm run preview`, port 4173), not the dev server, per the
+brief. Test data (one schema, one project, one uploaded PNG) was created from an empty
+IndexedDB to reach every screen, since `pnpm run dev`/`preview` starts empty.
+
+### 0. Build / lint / test — ✓ PASS
+
+- `pnpm run build`: exit 0. Emits `dist/assets/archivo-{400,600,700,800}-<hash>.woff2`
+  (21.1–22.4 KB each) alongside the JS/CSS bundle.
+- `pnpm run lint`: `ESLint: No issues found`, exit 0.
+- `pnpm test`: `Test Files 17 passed (17)`, `Tests 91 passed (91)`, exit 0.
+- `dist/assets/index-*.css` references them as `url(./archivo-400-_ClBWN_m.woff2)` etc. — relative,
+  content-hashed, matching the emitted filenames exactly. Confirmed by grepping the built CSS
+  and `ls dist/assets/*.woff2` side by side.
+
+### 1. No third-party request at runtime, on the built output — ✓ PASS
+
+Recorded the network log (`browser_network_requests`) repeatedly across the session — on first
+load, after creating a schema/project/document, on the Schemas overview, Project detail,
+Annotate canvas, and the About page, in both light and dark theme, and again during the two
+throttled-reload experiments in items 3 and 6 below. Every single request across the entire
+session (31 requests in the final accumulated log, more across the full session) resolved to
+either `http://localhost:4173/*` or `blob:http://localhost:4173/*` (in-tab object URLs from the
+uploaded PNG, not network fetches). Zero requests to any other origin — no `fonts.googleapis.com`,
+no `fonts.gstatic.com`, nothing else. Screenshots `archivo-schemas-overview-dark.png`,
+`archivo-about-dark.png` document two of the screens checked.
+
+### 2. Works offline — ✓ PASS, with one caveat worth flagging separately
+
+A hard reload (`page.reload()`/CDP `Page.reload`) while `context.setOffline(true)` fails outright
+with `net::ERR_INTERNET_DISCONNECTED` on the main document itself — this app has no service
+worker, so nothing about a cold, from-scratch reload works offline, font or otherwise. This is
+**not new behaviour from the font change** — the same failure would occur with the old system-font
+fallback, since it's the HTML/JS shell that can't be refetched, not the font. It also matches what
+the app itself claims: "Load the page once, disconnect, and keep working" (About page, "Works
+offline" panel), not "reload from cold while offline."
+
+Testing the claim as actually stated: loaded the app online, called `context.setOffline(true)`,
+then drove **client-side** navigation (SPA routing, no full reload) to two different screens.
+`document.fonts` reported all four Archivo faces `status: "loaded"` throughout, and the rendered
+heading's computed `font-family` still resolved to `Archivo` (not a fallback) after navigating
+offline. Screenshot `archivo-offline-render.png` (dark theme, offline, mid-navigation). Verdict:
+the claim as the app actually makes it holds; a literal cold-reload-while-offline does not work,
+but that's a pre-existing architectural fact unrelated to this font change, not a font-CDN leak.
+
+### 3. Archivo is actually rendering, not silently falling back — ✓ PASS
+
+- `document.fonts` after `document.fonts.ready`: 4 `FontFace` entries, all `family: "Archivo"`,
+  one per weight (400/600/700/800), all `status: "loaded"`.
+- `getComputedStyle(el).fontFamily` on real rendered elements (a `<p>`, a table `<span>`
+  filename, an `<h2>`) all resolve to `Archivo, "Helvetica Neue", Helvetica, "Liberation Sans",
+  Arial, sans-serif` — i.e. `document.fonts.check()` at the element's actual computed weight
+  returns `true` (the exact face is present, not matched by fallback).
+- Canvas `measureText` comparison of the same string set in `Archivo` vs. the fallback stack
+  alone, same size/weight: an 800-weight ~200px-wide heading string measured 206.6px in Archivo
+  vs. 201.1px in the fallback (+5.5px / +2.7%); a 400-weight ~150px string measured 148.2px vs.
+  151.1px (−3.0px / −2.0%). Different widths confirm two visually distinct faces are actually
+  being used, not one face silently standing in for the other.
+
+### 4. All four weights load; none synthesised — ✓ PASS on the mechanical claim, ✗ on FONTS.md's own description of *where* 700 is used
+
+All four `FontFace` objects load with `status: "loaded"` and each is matched exactly
+(`document.fonts.check('<weight> 16px "Archivo"')` returns `true` for 400/600/700/800), so no
+weight is browser-synthesised anywhere it's actually used.
+
+However, I went element-hunting for the specific mapping FONTS.md and the brief both assert —
+"700 = the selected label chip in the annotate toolbar" — and **that specific claim is wrong**.
+Inspected the selected chip's DOM directly on the annotate canvas:
+
+```html
+<button type="button" class="ts-chip" aria-pressed="true">
+  <span class="ts-swatch" ...></span>
+  <span class="mono" style="font-size: 12px; font-weight: 700;">full_name</span>
+</button>
+```
+
+`getComputedStyle()` on that `span.mono` reports `font-family: ui-monospace, SFMono-Regular, "SF
+Mono", Menlo, Consolas, "Liberation Mono", monospace` — the **system mono stack**, not Archivo, at
+any weight. `Toolbar.tsx:81` sets `fontWeight: on ? 700 : 400` on a `className="mono"` span, and
+`.mono` overrides `font-family` to the monospace stack elsewhere in the CSS. So the selected label
+chip's text has never rendered in Archivo at all, at any weight — this was true before the
+self-hosting change too, since the label text has always used the mono class for that element,
+per `FONTS.md`'s own comment: "Transcriptions cannot reach here — those render in the mono stack."
+The chip text just happens to *also* be a transcription-adjacent label render that inherited the
+mono treatment.
+
+I then scanned the whole live DOM for any element with computed `fontWeight: 700` AND
+`fontFamily` containing `Archivo`, across both the annotate canvas (found none — only the mono
+chip span) and the Schemas overview (found 8: every `<th>` column header — "Schema", "Labels",
+"Hotkeys set", "Used by", "Regions", "Updated", "Actions", plus a `.sr-only` "Actions" span).
+**Table column headers, not the label chip, are Archivo's real weight-700 consumer.** The 700
+weight file is genuinely needed and genuinely used and not synthesised — the mechanical claim in
+item 4 holds — but the documentation (`FONTS.md`'s usage table, and this task's own framing of
+item 4) misattributes which UI element uses it. `FONTS.md` should be corrected to say "700 — table
+column headers" and drop the "selected label chip" claim, or else drop weight 700 as
+speculatively-reserved-for-a-currently-mono element, since as shipped that element doesn't use
+Archivo at all.
+
+### 5. R7 overflow sweep re-run — ✓ PASS
+
+`document.documentElement.scrollWidth === clientWidth` measured at 375/768/1024/1440/1920, in
+both `data-theme="light"` and `data-theme="dark"` (toggled via attribute in the same evaluate
+call to avoid drift), on Schemas overview, Project detail, and Annotate canvas — 30 data points,
+all `overflow: false`, no discrepancy anywhere. Archivo's wider/narrower metrics vs. the previous
+system-font fallback (see item 3's measurements) did not push any of these three screens past
+their viewport at any tested width in either theme.
+
+### 6. `font-display: swap` reflow — judgment: small but real, size-adjust would help but isn't required
+
+Routed `**/*.woff2` through a 2-second artificial delay (`page.route` + `waitForTimeout`, targeting
+only font files so JS/CSS load at normal speed) and reloaded. At 100ms post-DOMContentLoaded, with
+`document.fonts` confirmed `anyLoaded: false` (still on fallback), the Schemas-overview `<h2>`
+heading measured 185.4px wide. After the fonts finished loading (`allLoaded: true`), the same
+element measured 181.3px — a 4.1px / 2.2% shift on a single short heading. This matches the
+magnitude found in item 3's canvas measurements. Screenshots `archivo-swap-early.png` /
+`archivo-swap-late.png` (both look similar at a glance at this zoom level — the shift is real but
+subtle, confirmed numerically rather than visually).
+
+No `size-adjust`/`ascent-override`/`descent-override` is declared on any `@font-face` block
+(confirmed by grep). Judgment: ~2% width shift on short strings is a minor, single-digit-pixel
+CLS contributor, not a layout-breaking one — nothing in the overflow sweep (item 5) broke as a
+result, and headings/labels in this design have generous surrounding whitespace. It is not
+"acceptable and done, no further action" in an absolute sense — a `size-adjust` tuned to Archivo's
+metrics on the Helvetica/Arial fallback would eliminate the reflow outright and costs nothing at
+runtime — but I would not block shipping on it. This is a polish item, not a defect.
+
+### 7. Licence — I agree with the coordinator's concern, but the premise is stale: **it's already fixed in the working tree**
+
+`FONTS.md`'s own "Licence — OUTSTANDING" section (still present, unedited) says: "The licence text
+is not in this repository yet, and it needs to be... To close it: take `OFL.txt` from
+github.com/Omnibus-Type/Archivo, put it beside these files as `src/styles/OFL.txt`, and note the
+bundled font in `README.md`."
+
+Both of those things are **already done**, uncommitted, in the current working tree:
+- `src/styles/OFL.txt` exists (93 lines), contains the genuine SIL OFL 1.1 text, correctly
+  attributed: "Copyright 2020 The Archivo Project Authors
+  (https://github.com/Omnibus-Type/Archivo)", full licence body, correct DISCLAIMER/TERMINATION
+  sections at the end — not a stub or placeholder.
+- `README.md` has a "### Bundled fonts" section (after the "## License / MIT" section) stating
+  Archivo is used under SIL OFL 1.1, linking `src/styles/OFL.txt`, and explicitly noting "If you
+  redistribute TagStrip, the OFL notice has to travel with those files."
+- `git status` confirms `README.md` (modified), `src/styles/OFL.txt` (new/untracked) and the four
+  woff2 files are all part of the same uncommitted change set as `ts-modernist.css` — i.e. this
+  isn't a stale file left over from something else, it was added alongside this same font work.
+
+So: I agree OFL compliance was a genuine blocker for shipping self-hosted Archivo under an MIT
+repo, and I agree with the reasoning in the brief for why. But as of what's actually on disk right
+now, it is **not outstanding** — it's resolved. The only actual defect here is that `FONTS.md`
+itself is stale: its "Licence — OUTSTANDING" section still describes a gap that's already closed
+one directory below it. That section should be deleted or rewritten to say "done, see OFL.txt,"
+the same way the top of the file already says "Status: done" for the font files themselves.
+
+### Summary
+
+All mechanical/security-critical checks pass: no third-party request at any point in the built
+output, across every screen and both themes; the app keeps working (and keeps rendering the real
+Archivo, not a fallback) once offline as the app's own claim is actually worded; all four weights
+load as real, non-synthesised faces; the R7 overflow sweep is clean at all five breakpoints on
+three screens in both themes; build/lint/test are clean; the woff2s are correctly emitted and
+referenced. Two non-blocking documentation defects found and should be corrected: (a) `FONTS.md`'s
+usage table wrongly attributes weight 700 to the annotate toolbar's selected label chip, which
+actually renders in the system mono stack and never touches Archivo — the real weight-700 consumer
+is table column headers; (b) `FONTS.md`'s "Licence — OUTSTANDING" section is stale — `OFL.txt` and
+the README note it asks for both already exist in the working tree.
+
+Screenshots added this run (all prefixed `archivo-`): `archivo-schemas-overview-dark.png`,
+`archivo-about-dark.png`, `archivo-offline-render.png`, `archivo-swap-early.png`,
+`archivo-swap-late.png`.
+
+Final tool-call count for this run: approximately 100 (Bash ~17, Read ~4, Playwright
+navigate/resize/click/type/snapshot/evaluate/run_code_unsafe/screenshot/find/network_requests/
+file_upload combined ~79 — most of the cost went into manufacturing test data from an empty
+database, the 30-point overflow sweep across three screens/five widths/two themes, and two
+separate network-throttling experiments to get real numbers for items 3 and 6 rather than
+eyeballing screenshots).

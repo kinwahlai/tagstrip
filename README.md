@@ -142,3 +142,13 @@ See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 ## License
 
 MIT — see [`LICENSE`](LICENSE).
+
+### Bundled fonts
+
+The interface is set in [Archivo](https://github.com/Omnibus-Type/Archivo) by
+Omnibus-Type, under the SIL Open Font License 1.1 — see
+[`src/styles/OFL.txt`](src/styles/OFL.txt). The four `.woff2` files in
+`src/styles/` are served from this app's own origin rather than a font CDN: a
+third-party request would contradict the guarantee at the top of this README on
+the very page that makes it. If you redistribute TagStrip, the OFL notice has to
+travel with those files.
