@@ -41,8 +41,10 @@ not by reading the code and reasoning that it should work. Reading code tells yo
 
 - [ ] Create a new label schema via the UI; reload the page; the schema is still there
       (confirm via Playwright's `page.evaluate` reading IndexedDB directly, not just visually)
-- [ ] Add a label with a name, color, and hotkey to a schema; it appears in the label list with
-      the correct color swatch
+- [ ] Add a label by typing only a name; it appears in the label list with a colour swatch and a
+      hotkey the app assigned, and both persist to IndexedDB after reload
+- [ ] Add a second label without touching anything — confirm it gets a different colour and a
+      different hotkey from the first
 - [ ] Delete a label; it's gone from the list and from IndexedDB after reload
 - [ ] Attempt to add two labels with the same name in one schema — confirm the app either
       prevents this or handles it sensibly (does not silently create a broken/duplicate state)
@@ -65,8 +67,11 @@ not by reading the code and reasoning that it should work. Reading code tells yo
 - [ ] Type a label name containing spaces (e.g. `date of birth`) — confirm the field itself shows
       `date_of_birth` as you type, with no error message shown, and the name stored in IndexedDB
       uses underscores
-- [ ] The hotkey picker offers `a`–`z` in addition to `1`–`9` and `0`; assign one and confirm it
-      persists to IndexedDB after reload
+- [ ] The add form shows no colour swatches and no hotkey picker — a name is the only input
+- [ ] Edit a label: the hotkey picker offers `a`–`z` in addition to `1`–`9` and `0`; assign one and
+      confirm it persists to IndexedDB after reload
+- [ ] Edit a label and pick an off-palette colour with the colour wheel; confirm that exact hex
+      persists, and that a pale pick (e.g. `#FFFF00`) shows the low-contrast warning
 
 ## M2 — Projects & documents
 
@@ -210,7 +215,7 @@ not by reading the code and reasoning that it should work. Reading code tells yo
       that exact hex in IndexedDB
 - [ ] A schema imported with an off-palette hex still shows it as an extra swatch and editing the
       label without touching colour leaves the hex unchanged
-- [ ] Hotkey select offers a–z then 1–9 and 0, and marks already-taken keys
+- [ ] Hotkey select (edit mode only) offers a–z then 1–9 and 0, and marks already-taken keys
 - [ ] Region tag text clears 4.5:1 on every named swatch AND on the colours generated past the
       twelfth label — add a 20-label schema and confirm no two labels share a colour
 

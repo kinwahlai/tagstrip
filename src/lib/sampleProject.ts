@@ -1,8 +1,6 @@
-import { addLabel, createSchema } from '../db/labelSchemas'
+import { addAutoStyledLabel, createSchema } from '../db/labelSchemas'
 import { createProject } from '../db/projects'
 import { addPdfDocument } from '../db/docs'
-import { colorForIndex } from './labelColors'
-import { suggestHotkey } from './hotkeys'
 
 // The audience for this tool has a bootstrapping problem: the documents they
 // would naturally test it on are exactly the ones they are not allowed to put
@@ -16,8 +14,8 @@ import { suggestHotkey } from './hotkeys'
 const SAMPLE_PDF = 'sample/northgate-energy-statement.pdf'
 const SAMPLE_FILENAME = 'northgate_energy_statement.pdf'
 
-// Names only: the hotkeys are derived the same way the label editor derives
-// them, so the sample always demonstrates the assignment a user would get
+// Names only: colours and hotkeys come from the same auto-assignment the label
+// editor uses, so the sample always demonstrates what a user would actually get
 // rather than a hand-picked set that quietly drifts from it.
 const SAMPLE_LABELS = [
   'account_holder',
@@ -57,11 +55,8 @@ export async function createSampleProject(
   const file = new File([await response.blob()], SAMPLE_FILENAME, { type: 'application/pdf' })
 
   const schemaId = await createSchema('Proof of address')
-  const takenHotkeys: string[] = []
-  for (const [i, name] of SAMPLE_LABELS.entries()) {
-    const hotkey = suggestHotkey(name, takenHotkeys)
-    if (hotkey) takenHotkeys.push(hotkey)
-    await addLabel(schemaId, { name, color: colorForIndex(i), hotkey })
+  for (const name of SAMPLE_LABELS) {
+    await addAutoStyledLabel(schemaId, name)
   }
   const projectId = await createProject('Sample — proof of address', schemaId)
   const docId = await addPdfDocument(projectId, file, onProgress)

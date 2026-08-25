@@ -1,5 +1,7 @@
 import { db } from './db'
 import { createId } from '../lib/id'
+import { suggestHotkey } from '../lib/hotkeys'
+import { suggestColor } from '../lib/labelColors'
 import type { Label, LabelSchema } from './types'
 
 export class SchemaValidationError extends Error {
@@ -87,17 +89,40 @@ function validateLabel(
   return { name, hotkey }
 }
 
+async function insertLabel(schema: LabelSchema, input: LabelInput): Promise<void> {
+  const { name, hotkey } = validateLabel(schema.labels, input)
+  const label: Label = { id: createId(), name, color: input.color, hotkey }
+
+  await db.labelSchemas.update(schema.id, {
+    labels: [...schema.labels, label],
+    updatedAt: Date.now(),
+  })
+}
+
 export async function addLabel(schemaId: string, input: LabelInput): Promise<void> {
   await db.transaction('rw', db.labelSchemas, async () => {
     const schema = await db.labelSchemas.get(schemaId)
     if (!schema) throw new Error('Schema not found.')
+    await insertLabel(schema, input)
+  })
+}
 
-    const { name, hotkey } = validateLabel(schema.labels, input)
-    const label: Label = { id: createId(), name, color: input.color, hotkey }
+/** Add a label the user only named. Colour and hotkey are derived from what the
+ *  schema has already spent, inside the same transaction that writes the label,
+ *  so the answer can never be one write out of date — which is exactly how two
+ *  labels used to come out the same colour. Import paths keep using addLabel:
+ *  a label imported with no hotkey is meant to have no hotkey, not to be given
+ *  one here. */
+export async function addAutoStyledLabel(schemaId: string, name: string): Promise<void> {
+  await db.transaction('rw', db.labelSchemas, async () => {
+    const schema = await db.labelSchemas.get(schemaId)
+    if (!schema) throw new Error('Schema not found.')
 
-    await db.labelSchemas.update(schemaId, {
-      labels: [...schema.labels, label],
-      updatedAt: Date.now(),
+    const takenHotkeys = schema.labels.map((l) => l.hotkey).filter((k): k is string => Boolean(k))
+    await insertLabel(schema, {
+      name,
+      color: suggestColor(schema.labels.map((l) => l.color)),
+      hotkey: suggestHotkey(name, takenHotkeys),
     })
   })
 }

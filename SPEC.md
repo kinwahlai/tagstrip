@@ -401,7 +401,8 @@ app code, and not ported.
   list pages until R2/R3 replace them. **Checkpoint — stop for human review.**
 - **R2 — Schema screens.** Label-schemas overview table (new; this is where "create a schema"
   finally lives) and schema detail: add-label form pinned above the table it feeds, full
-  twelve-swatch palette inline, hotkey select, labels table.
+  name-only add form (colour and hotkey auto-assigned), twelve-swatch palette plus colour wheel
+  and hotkey select when editing a label, labels table.
 - **R3 — Project screens.** Projects overview table (new) and project detail as three columns —
   documents list, then the selected document with notes and the per-page content-type list.
 - **R4 — Annotate.** Labels, undo/redo, zoom, page nav and layer tag in the toolbar; canvas; the

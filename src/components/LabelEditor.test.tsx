@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { db } from '../db/db'
 import { addLabel, createSchema } from '../db/labelSchemas'
 import { HOTKEY_OPTIONS } from '../lib/hotkeys'
-import { LABEL_COLORS } from '../lib/labelColors'
+import { colorForIndex, LABEL_COLORS } from '../lib/labelColors'
 import { LabelEditor } from './LabelEditor'
 
 let schemaId: string
@@ -18,61 +18,145 @@ async function renderEditor() {
   await screen.findByLabelText('Name')
 }
 
-describe('LabelEditor color palette', () => {
-  it('offers the palette as swatches instead of an OS color picker', async () => {
+async function addNamed(name: string) {
+  fireEvent.change(screen.getByLabelText('Name'), { target: { value: name } })
+  fireEvent.click(screen.getByRole('button', { name: 'Add label' }))
+  await waitFor(async () => {
+    const schema = await db.labelSchemas.get(schemaId)
+    expect(schema?.labels.some((l) => l.name === name)).toBe(true)
+  })
+}
+
+async function startEditingFirstLabel() {
+  fireEvent.click((await screen.findAllByRole('button', { name: 'Edit' }))[0])
+  await screen.findByRole('button', { name: 'Save label' })
+}
+
+describe('LabelEditor add form', () => {
+  it('asks only for a name', async () => {
     await renderEditor()
+    expect(screen.queryAllByTestId('color-option')).toHaveLength(0)
+    expect(screen.queryByLabelText('Hotkey')).toBeNull()
     expect(document.querySelector('input[type="color"]')).toBeNull()
-    expect(screen.getAllByTestId('color-option')).toHaveLength(LABEL_COLORS.length)
   })
 
-  it('selects a color by clicking its swatch', async () => {
+  it('assigns a colour and a mnemonic hotkey without being asked', async () => {
     await renderEditor()
+    await addNamed('date_of_birth')
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Teal' }))
-    expect(screen.getByRole('radio', { name: 'Teal' })).toBeChecked()
-  })
-
-  it('saves the chosen palette color on the label', async () => {
-    await renderEditor()
-
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'invoice_total' } })
-    fireEvent.click(screen.getByRole('radio', { name: 'Purple' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Add label' }))
-
-    await waitFor(async () => {
-      const schema = await db.labelSchemas.get(schemaId)
-      expect(schema?.labels[0]).toMatchObject({
-        name: 'invoice_total',
-        color: LABEL_COLORS.find((c) => c.name === 'Purple')!.hex,
-      })
+    const schema = await db.labelSchemas.get(schemaId)
+    expect(schema?.labels[0]).toMatchObject({
+      name: 'date_of_birth',
+      color: colorForIndex(0),
+      hotkey: 'd',
     })
   })
 
-  it('gives successive labels different colors when the swatches are never touched', async () => {
-    // Regression: resetForm read a one-render-stale color list, so the color just
-    // consumed still looked free and labels 1 and 2 both came out red.
+  it('gives successive labels distinct colours and distinct hotkeys', async () => {
     await renderEditor()
-    for (const name of ['one', 'two', 'three']) {
-      fireEvent.change(screen.getByLabelText('Name'), { target: { value: name } })
-      fireEvent.click(screen.getByRole('button', { name: 'Add label' }))
-      await waitFor(async () => {
-        const schema = await db.labelSchemas.get(schemaId)
-        expect(schema?.labels.some((l) => l.name === name)).toBe(true)
-      })
-    }
+    for (const name of ['one', 'two', 'three']) await addNamed(name)
+
     const schema = await db.labelSchemas.get(schemaId)
-    const colors = schema!.labels.map((l) => l.color)
-    expect(new Set(colors).size).toBe(3)
+    const labels = schema!.labels
+    expect(new Set(labels.map((l) => l.color)).size).toBe(3)
+    expect(labels.map((l) => l.hotkey)).toEqual(['o', 't', 'h'])
+  })
+})
+
+describe('LabelEditor edit form', () => {
+  it('offers the palette as swatches and a colour wheel for anything else', async () => {
+    await addLabel(schemaId, { name: 'legacy', color: LABEL_COLORS[0].hex })
+    await renderEditor()
+    await startEditingFirstLabel()
+
+    expect(screen.getAllByTestId('color-option')).toHaveLength(LABEL_COLORS.length)
+    expect(screen.getByLabelText('Custom colour')).toHaveAttribute('type', 'color')
   })
 
-  it('shows an extra swatch for an imported color outside the palette', async () => {
+  it('saves a palette colour chosen by swatch', async () => {
+    await addLabel(schemaId, { name: 'invoice_total', color: LABEL_COLORS[0].hex })
+    await renderEditor()
+    await startEditingFirstLabel()
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Purple' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save label' }))
+
+    await waitFor(async () => {
+      const schema = await db.labelSchemas.get(schemaId)
+      expect(schema?.labels[0].color).toBe(LABEL_COLORS.find((c) => c.name === 'Purple')!.hex)
+    })
+  })
+
+  it('saves an off-palette colour chosen with the wheel', async () => {
+    await addLabel(schemaId, { name: 'invoice_total', color: LABEL_COLORS[0].hex })
+    await renderEditor()
+    await startEditingFirstLabel()
+
+    fireEvent.change(screen.getByLabelText('Custom colour'), { target: { value: '#123456' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save label' }))
+
+    await waitFor(async () => {
+      const schema = await db.labelSchemas.get(schemaId)
+      expect(schema?.labels[0].color).toBe('#123456')
+    })
+  })
+
+  it('warns when a wheel colour is too light for white tag text', async () => {
+    await addLabel(schemaId, { name: 'invoice_total', color: LABEL_COLORS[0].hex })
+    await renderEditor()
+    await startEditingFirstLabel()
+
+    expect(screen.queryByTestId('contrast-warning')).toBeNull()
+    fireEvent.change(screen.getByLabelText('Custom colour'), { target: { value: '#ffff00' } })
+    expect(screen.getByTestId('contrast-warning')).toBeInTheDocument()
+  })
+
+  it('shows an extra swatch for an imported colour outside the palette', async () => {
     await addLabel(schemaId, { name: 'legacy', color: '#123456' })
     await renderEditor()
-
-    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }))
+    await startEditingFirstLabel()
 
     expect(screen.getAllByTestId('color-option')).toHaveLength(LABEL_COLORS.length + 1)
     expect(screen.getByRole('radio', { name: 'Current color' })).toBeChecked()
+  })
+
+  it('offers every hotkey option, letters and digits alike', async () => {
+    await addLabel(schemaId, { name: 'legacy', color: LABEL_COLORS[0].hex })
+    await renderEditor()
+    await startEditingFirstLabel()
+
+    const options = [...screen.getByLabelText('Hotkey').querySelectorAll('option')]
+      .map((o) => o.value)
+      .filter(Boolean)
+    expect(options).toEqual(HOTKEY_OPTIONS)
+  })
+
+  it('changes an auto-assigned hotkey and persists it', async () => {
+    await renderEditor()
+    await addNamed('other')
+    await startEditingFirstLabel()
+
+    fireEvent.change(screen.getByLabelText('Hotkey'), { target: { value: '0' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save label' }))
+
+    await waitFor(async () => {
+      const schema = await db.labelSchemas.get(schemaId)
+      expect(schema?.labels[0].hotkey).toBe('0')
+    })
+  })
+
+  it('clears a hotkey back to none', async () => {
+    await renderEditor()
+    await addNamed('other')
+    await startEditingFirstLabel()
+
+    fireEvent.change(screen.getByLabelText('Hotkey'), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Save label' }))
+
+    await waitFor(async () => {
+      const schema = await db.labelSchemas.get(schemaId)
+      expect(schema?.labels[0].hotkey).toBeUndefined()
+    })
   })
 })
 
@@ -87,36 +171,9 @@ describe('LabelEditor name field', () => {
 
   it('stores the underscored name', async () => {
     await renderEditor()
+    await addNamed('place_of_issue')
 
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'place of issue' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Add label' }))
-
-    await waitFor(async () => {
-      const schema = await db.labelSchemas.get(schemaId)
-      expect(schema?.labels[0].name).toBe('place_of_issue')
-    })
-  })
-})
-
-describe('LabelEditor hotkey picker', () => {
-  it('offers 0 alongside 1-9', async () => {
-    await renderEditor()
-    const options = [...screen.getByLabelText('Hotkey').querySelectorAll('option')]
-      .map((o) => o.value)
-      .filter(Boolean)
-    expect(options).toEqual(HOTKEY_OPTIONS)
-    expect(options).toContain('0')
-  })
-
-  it('assigns 0 as a hotkey and persists it', async () => {
-    await renderEditor()
-    fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'other' } })
-    fireEvent.change(screen.getByLabelText('Hotkey'), { target: { value: '0' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Add label' }))
-
-    await waitFor(async () => {
-      const schema = await db.labelSchemas.get(schemaId)
-      expect(schema?.labels[0].hotkey).toBe('0')
-    })
+    const schema = await db.labelSchemas.get(schemaId)
+    expect(schema?.labels[0].name).toBe('place_of_issue')
   })
 })

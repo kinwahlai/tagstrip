@@ -2,9 +2,14 @@ import { useState } from 'react'
 import type { CSSProperties, FormEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
-import { addLabel, removeLabel, SchemaValidationError, updateLabel } from '../db/labelSchemas'
+import {
+  addAutoStyledLabel,
+  removeLabel,
+  SchemaValidationError,
+  updateLabel,
+} from '../db/labelSchemas'
 import { ConfirmDialog } from './ConfirmDialog'
-import { DEFAULT_LABEL_COLOR, LABEL_COLORS, suggestColor } from '../lib/labelColors'
+import { contrastWithWhite, DEFAULT_LABEL_COLOR, LABEL_COLORS } from '../lib/labelColors'
 import { spacesToUnderscores } from '../lib/labelName'
 import { formatHotkeyRanges, HOTKEY_OPTIONS } from '../lib/hotkeys'
 import { formatWhen } from '../lib/formatDate'
@@ -27,6 +32,12 @@ function hintStyle() {
 // The add-label form is pinned above the table it feeds. It used to sit below,
 // so it drifted further down the page with every label added — the point at
 // which you most want to keep adding them (survey finding 5).
+//
+// Adding asks for a name and nothing else. Colour and hotkey were two decisions
+// per label that nobody wanted to make and that got harder the more labels a
+// schema had — by the twentieth field you are picking from a palette you have
+// already exhausted. They are assigned in addAutoStyledLabel now, and this form
+// only surfaces them when you edit a label to override one.
 export function LabelEditor({ schemaId }: { schemaId: string }) {
   const schema = useLiveQuery(() => db.labelSchemas.get(schemaId), [schemaId])
   const [form, setForm] = useState<LabelFormState>(EMPTY_FORM)
@@ -38,7 +49,6 @@ export function LabelEditor({ schemaId }: { schemaId: string }) {
   if (schema === undefined) return null
   if (schema === null) return <p style={{ padding: 'var(--space-4)' }}>Schema not found.</p>
 
-  const labelColors = schema.labels.map((l) => l.color)
   const inPalette = LABEL_COLORS.some((c) => c.hex.toUpperCase() === form.color.toUpperCase())
   const swatches = inPalette
     ? LABEL_COLORS
@@ -51,12 +61,8 @@ export function LabelEditor({ schemaId }: { schemaId: string }) {
   )
   const takenSummary = formatHotkeyRanges([...usedHotkeys])
 
-  // useLiveQuery has not re-rendered with the label we just wrote, so `labelColors`
-  // is one render stale — the color just consumed still looks free. Callers that
-  // have just spent a color pass it in explicitly.
-  function resetForm(alsoUsed?: string) {
-    const used = alsoUsed ? [...labelColors, alsoUsed] : labelColors
-    setForm({ ...EMPTY_FORM, color: suggestColor(used) })
+  function resetForm() {
+    setForm(EMPTY_FORM)
     setEditingId(null)
     setError(null)
   }
@@ -71,13 +77,16 @@ export function LabelEditor({ schemaId }: { schemaId: string }) {
     e.preventDefault()
     setError(null)
     try {
-      const input = { name: form.name, color: form.color, hotkey: form.hotkey || undefined }
       if (editingId) {
-        await updateLabel(schemaId, editingId, input)
+        await updateLabel(schemaId, editingId, {
+          name: form.name,
+          color: form.color,
+          hotkey: form.hotkey || undefined,
+        })
       } else {
-        await addLabel(schemaId, input)
+        await addAutoStyledLabel(schemaId, form.name)
       }
-      resetForm(input.color)
+      resetForm()
     } catch (err) {
       if (err instanceof SchemaValidationError) {
         setError(err.message)
@@ -130,103 +139,135 @@ export function LabelEditor({ schemaId }: { schemaId: string }) {
               aria-describedby="label-name-hint"
             />
             <p className="mono" id="label-name-hint" style={hintStyle()}>
-              Spaces become underscores
+              {editingId
+                ? 'Spaces become underscores'
+                : 'Spaces become underscores. Colour and key are assigned — edit to change them.'}
             </p>
           </div>
 
-          <fieldset className="field" style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
-            <legend
-              style={{
-                display: 'block',
-                padding: 0,
-                fontSize: '12px',
-                marginBottom: 5,
-                color: 'color-mix(in srgb, var(--color-text) 70%, transparent)',
-              }}
-            >
-              Colour
-            </legend>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 28px)', gap: 6 }}>
-              {swatches.map((c) => {
-                const selected = c.hex.toUpperCase() === form.color.toUpperCase()
-                return (
-                  <label
-                    key={c.hex}
-                    title={c.name}
-                    data-testid="color-option"
-                    data-selected={selected}
-                    style={{ position: 'relative', cursor: 'pointer' }}
-                  >
-                    <input
-                      className="ts-swatch-radio"
-                      type="radio"
-                      name="label-color"
-                      value={c.hex}
-                      checked={selected}
-                      onChange={() => setForm((f) => ({ ...f, color: c.hex }))}
-                      style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
-                    />
-                    <span
-                      aria-hidden="true"
-                      className="ts-swatch-box"
-                      style={{
-                        display: 'grid',
-                        placeItems: 'center',
-                        width: 28,
-                        height: 28,
-                        boxSizing: 'border-box',
-                        background: c.hex,
-                        border: `2px solid ${
-                          selected
-                            ? 'var(--color-text)'
-                            : 'color-mix(in srgb, #000 20%, transparent)'
-                        }`,
-                      }}
+          {editingId && (
+            <fieldset className="field" style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
+              <legend
+                style={{
+                  display: 'block',
+                  padding: 0,
+                  fontSize: '12px',
+                  marginBottom: 5,
+                  color: 'color-mix(in srgb, var(--color-text) 70%, transparent)',
+                }}
+              >
+                Colour
+              </legend>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 28px)', gap: 6 }}>
+                {swatches.map((c) => {
+                  const selected = c.hex.toUpperCase() === form.color.toUpperCase()
+                  return (
+                    <label
+                      key={c.hex}
+                      title={c.name}
+                      data-testid="color-option"
+                      data-selected={selected}
+                      style={{ position: 'relative', cursor: 'pointer' }}
                     >
-                      {selected && (
-                        <svg viewBox="0 0 20 20" fill="none" style={{ width: 15, height: 15 }}>
-                          <path
-                            d="M5 10.5l3.5 3.5L15 7"
-                            stroke="#fff"
-                            strokeWidth="2.5"
-                            strokeLinecap="square"
-                          />
-                        </svg>
-                      )}
-                    </span>
-                    <span className="sr-only">{c.name}</span>
-                  </label>
-                )
-              })}
-            </div>
-            <p className="mono" style={hintStyle()}>
-              Fixed palette. An imported off-palette hex is added as a 13th swatch.
-            </p>
-          </fieldset>
-
-          <div className="field" style={{ width: 96 }}>
-            <label htmlFor="label-hotkey">Hotkey</label>
-            <select
-              id="label-hotkey"
-              className="input mono"
-              value={form.hotkey}
-              onChange={(e) => setForm((f) => ({ ...f, hotkey: e.target.value }))}
-            >
-              <option value="">None</option>
-              {HOTKEY_OPTIONS.map((key) => (
-                <option
-                  key={key}
-                  value={key}
-                  disabled={usedHotkeys.has(key) && form.hotkey !== key}
+                      <input
+                        className="ts-swatch-radio"
+                        type="radio"
+                        name="label-color"
+                        value={c.hex}
+                        checked={selected}
+                        onChange={() => setForm((f) => ({ ...f, color: c.hex }))}
+                        style={{ position: 'absolute', opacity: 0, width: 0, height: 0 }}
+                      />
+                      <span
+                        aria-hidden="true"
+                        className="ts-swatch-box"
+                        style={{
+                          display: 'grid',
+                          placeItems: 'center',
+                          width: 28,
+                          height: 28,
+                          boxSizing: 'border-box',
+                          background: c.hex,
+                          border: `2px solid ${
+                            selected
+                              ? 'var(--color-text)'
+                              : 'color-mix(in srgb, #000 20%, transparent)'
+                          }`,
+                        }}
+                      >
+                        {selected && (
+                          <svg viewBox="0 0 20 20" fill="none" style={{ width: 15, height: 15 }}>
+                            <path
+                              d="M5 10.5l3.5 3.5L15 7"
+                              stroke="#fff"
+                              strokeWidth="2.5"
+                              strokeLinecap="square"
+                            />
+                          </svg>
+                        )}
+                      </span>
+                      <span className="sr-only">{c.name}</span>
+                    </label>
+                  )
+                })}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '8px 0 0' }}>
+                <label className="mono" htmlFor="label-color-custom" style={{ fontSize: 11 }}>
+                  Custom colour
+                </label>
+                <input
+                  id="label-color-custom"
+                  type="color"
+                  value={form.color}
+                  onChange={(e) => setForm((f) => ({ ...f, color: e.target.value }))}
+                  style={{ width: 34, height: 26, padding: 0, border: 0, background: 'none' }}
+                />
+              </div>
+              {/* A region's name is white text on a chip filled with this colour, so a
+                pale pick makes the tag unreadable. The palette can't produce one; the
+                wheel can, so say so rather than silently allowing it. It stays a
+                warning — an imported brand colour is the user's call, not ours. */}
+              {contrastWithWhite(form.color) < 4.5 ? (
+                <p
+                  className="mono"
+                  data-testid="contrast-warning"
+                  style={{ ...hintStyle(), color: 'var(--color-accent-700)' }}
                 >
-                  {key}
-                </option>
-              ))}
-            </select>
-            <p className="mono" style={hintStyle()}>
-              {takenSummary ? `${takenSummary} taken` : 'None taken'}
-            </p>
-          </div>
+                  Too light — white region-tag text will be hard to read on this colour.
+                </p>
+              ) : (
+                <p className="mono" style={hintStyle()}>
+                  Twelve named colours, or pick any hex with the wheel.
+                </p>
+              )}
+            </fieldset>
+          )}
+
+          {editingId && (
+            <div className="field" style={{ width: 96 }}>
+              <label htmlFor="label-hotkey">Hotkey</label>
+              <select
+                id="label-hotkey"
+                className="input mono"
+                value={form.hotkey}
+                onChange={(e) => setForm((f) => ({ ...f, hotkey: e.target.value }))}
+              >
+                <option value="">None</option>
+                {HOTKEY_OPTIONS.map((key) => (
+                  <option
+                    key={key}
+                    value={key}
+                    disabled={usedHotkeys.has(key) && form.hotkey !== key}
+                  >
+                    {key}
+                  </option>
+                ))}
+              </select>
+              <p className="mono" style={hintStyle()}>
+                {takenSummary ? `${takenSummary} taken` : 'None taken'}
+              </p>
+            </div>
+          )}
 
           <div style={{ display: 'flex', gap: 'var(--space-2)', marginTop: 21 }}>
             <button type="submit" className="btn btn-primary" style={{ minHeight: 36 }}>
