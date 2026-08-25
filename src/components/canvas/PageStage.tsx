@@ -22,6 +22,11 @@ interface PageStageProps {
 // placement state cannot be wired into one and forgotten in the other. It was:
 // the compact state reached the regions but not the drag readout, which went
 // back to spilling past the box — the exact bug the compact state exists to fix.
+// Low enough that the selected label reads as the foreground, high enough that
+// the other regions are still visible as context — you need to see that a field
+// is already boxed even while working on a different one.
+const DIMMED_OPACITY = 0.28
+
 function tagStyle(placement: TagPlacement): { className: string; top: 0 | undefined } {
   return {
     className: `ts-box-tag${placement === 'inside-compact' ? ' ts-box-tag--compact' : ''}`,
@@ -137,6 +142,16 @@ export function PageStage({
           const label = labelsById.get(annotation.labelId)
           const color = label?.color ?? '#999'
           const isSelected = annotation.id === selectedAnnotationId
+          // A schema with 20+ fields puts 20+ colours on the page at once, which
+          // is well past the number anyone can tell apart at a glance. Dimming
+          // the labels you are not working on means you only ever have to
+          // discriminate one colour against a muted background — it does more
+          // for a large schema than any palette could. The region you have
+          // actually selected is never dimmed, even under another label, or
+          // clicking a neighbour would make it fade as you inspect it. Dimmed
+          // regions stay clickable, so this narrows attention, not access.
+          const dimmed =
+            Boolean(selectedLabelId) && !isSelected && annotation.labelId !== selectedLabelId
           // Recomputed per render because it depends on zoom: the tag is a
           // fixed pixel height, so the gap it needs grows as the page shrinks.
           const placement = tagPlacement(
@@ -167,6 +182,8 @@ export function PageStage({
                   ? '0 0 0 3px color-mix(in srgb, var(--color-text) 34%, transparent)'
                   : undefined,
                 cursor: 'pointer',
+                opacity: dimmed ? DIMMED_OPACITY : undefined,
+                transition: 'opacity 120ms ease-out',
               }}
             >
               <span

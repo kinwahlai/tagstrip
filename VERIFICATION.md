@@ -105,6 +105,11 @@ not by reading the code and reasoning that it should work. Reading code tells yo
       both remove it from the canvas and from IndexedDB after reload
 - [ ] Resize the browser window while boxes exist — confirm they stay visually aligned with the
       underlying image (not drifted)
+- [ ] With regions of two different labels on a page, select one label — confirm the other label's
+      regions visibly dim while the selected label's stay full strength, and that a dimmed region
+      is still clickable
+- [ ] Click a region belonging to a label that is NOT the selected label — confirm that region does
+      not dim while it is selected
 - [ ] Assign hotkey `0` to a label, then press `0` with the canvas focused — confirm that label
       actually becomes the selected label. (The picker and the canvas key handler used to hold
       separate copies of the allowed digit range, so a hotkey could be assignable but dead;
