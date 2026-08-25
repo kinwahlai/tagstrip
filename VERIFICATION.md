@@ -211,7 +211,8 @@ not by reading the code and reasoning that it should work. Reading code tells yo
 - [ ] A schema imported with an off-palette hex still shows it as an extra swatch and editing the
       label without touching colour leaves the hex unchanged
 - [ ] Hotkey select offers a–z then 1–9 and 0, and marks already-taken keys
-- [ ] Region tag text clears 4.5:1 on every swatch in the palette
+- [ ] Region tag text clears 4.5:1 on every named swatch AND on the colours generated past the
+      twelfth label — add a 20-label schema and confirm no two labels share a colour
 
 ## R3 — Project screens
 

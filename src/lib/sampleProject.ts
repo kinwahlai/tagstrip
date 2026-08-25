@@ -1,7 +1,7 @@
 import { addLabel, createSchema } from '../db/labelSchemas'
 import { createProject } from '../db/projects'
 import { addPdfDocument } from '../db/docs'
-import { LABEL_COLORS } from './labelColors'
+import { colorForIndex } from './labelColors'
 import { suggestHotkey } from './hotkeys'
 
 // The audience for this tool has a bootstrapping problem: the documents they
@@ -61,7 +61,7 @@ export async function createSampleProject(
   for (const [i, name] of SAMPLE_LABELS.entries()) {
     const hotkey = suggestHotkey(name, takenHotkeys)
     if (hotkey) takenHotkeys.push(hotkey)
-    await addLabel(schemaId, { name, color: LABEL_COLORS[i].hex, hotkey })
+    await addLabel(schemaId, { name, color: colorForIndex(i), hotkey })
   }
   const projectId = await createProject('Sample — proof of address', schemaId)
   const docId = await addPdfDocument(projectId, file, onProgress)
