@@ -3311,3 +3311,42 @@ not a bug, since it's now documented as a known floor rather than argued away.
 
 Tool-call count for this follow-up: approximately 40 (Bash ~4, Playwright
 navigate/click/evaluate/screenshot/resize/run_code_unsafe/find combined ~36).
+
+## Schema scaling to 20+ labels (verified 2026-08-25)
+
+Verifier run date: 2026-08-25
+Scope: targeted re-verification of commits 28d9af2, d27cbe4, 471e26e, 27f4239 (schema scaling to 20+ labels), checked against the specific items called out in VERIFICATION.md under M1/R2 (schema editor) and M3 (canvas). Full M1/M3/R2/R3 rubrics were NOT re-run — only the items listed below.
+Dev server: `pnpm run dev` (Vite) on http://localhost:5180/ (ports 5173-5179 were already in use by other sessions)
+Browser: Playwright (Chromium), IndexedDB inspected directly via `page.evaluate` reading the `tagstrip` DB, not just the on-screen table.
+
+### Schema editor (M1 / R2)
+
+1. ✓ Add-label form shows only a Name input — confirmed via snapshot of the schema-detail "Add a label" panel: one textbox labelled "Name" plus the "Add label" button, no colour swatches, no hotkey select, no colour wheel present anywhere in that form.
+2. ✓ Added label `date_of_birth` by typing only the name; after a full page reload, read IndexedDB directly (`indexedDB.open('tagstrip')` → `labelSchemas` store → `getAll()`) and confirmed the label object carries `color: "#E6194B"` and `hotkey: "d"`, both present after reload.
+3. ✓ The mnemonic hotkey assignment works as specified: `date_of_birth` → `d`, `full_name` → `f` — both first-letter mnemonics, read from IndexedDB.
+4. ✓ Two labels added back-to-back without touching any control got different colours (`#E6194B` vs `#B35C13`) and different hotkeys (`d` vs `f`), confirmed via IndexedDB read.
+5. ✓ THE KEY ONE. Added 20 more labels (`label_01_test`…`label_20_test`, 22 total including the two above) by driving the real "Add label" form in a single `page.evaluate` loop (native `value` setter + `input` event + click on the "Add label" button, one iteration per label, no manual per-label UI drive). Read the full `labelSchemas` record back from IndexedDB: **all 22 labels have 22 distinct `color` values** (`new Set(colors).size === 22`) and **all 22 have a non-empty `hotkey`** (well above the required ≥14). No repeated colours, no missing hotkeys past label 12/10. Screenshot: `verification-screenshots/schema-scaling-20-labels.png`.
+6. ✓ Editing a label (clicked Edit on `date_of_birth`) revealed: the 12 named palette swatches (Red…Charcoal), a `input[type="color"]` element (id `label-color-custom`) paired with a text field both under a fieldset whose visible label text is "Custom colour", and a `<select>` labelled "Hotkey". Screenshot: `verification-screenshots/M1-edit-label-palette-hotkey.png`.
+7. ✓ The Hotkey `<select>` options run `a, b, c, ... z, 1, 2, ... 9, 0` in that order (confirmed from the accessibility snapshot's option list) and every already-assigned key among the 22 labels (`a–i, l, s–t, 1–0`) shows as `[disabled]` in the option list, matching the "a–c, e–i, l, s–t, 1–0 taken" helper text below the select.
+8. ✓ Set the `input[type=color]` value to an off-palette hex `#123456` (native setter + `input`/`change` events) and clicked "Save label". After a full reload, read IndexedDB directly: the label's stored `color` is exactly `"#123456"`.
+9. ✓ With the same label still in edit mode, setting the colour wheel to `#FFFF00` produced the visible warning text "Too light — white region-tag text will be hard to read on this colour." (confirmed present in `document.body.innerText`); setting it to a dark colour `#202020` made that same warning text disappear (confirmed absent). Screenshot: `verification-screenshots/M1-contrast-warning.png` (taken with the dark colour applied, warning gone).
+
+### Canvas (M3)
+
+For this section: created project "QA Project" bound to the same 22-label schema, uploaded `public/sample/northgate-energy-statement.pdf`, opened the annotation canvas, and drew one region with label `date_of_birth` (hotkey `d`) and one region with label `full_name` (hotkey `f`) on page 1.
+
+10. ✓ With `full_name` selected as the active label, clicked on an empty part of the canvas (to move DOM focus off any label button) then pressed `d` — the toolbar's `date_of_birth` label button became `aria-pressed="true"` and `full_name`'s became `false`, confirming the letter hotkey switched the active label.
+11. ✓ Re-selected `full_name`, clicked the empty canvas again, then held Ctrl and pressed `d` (`keyboard.down('Control')` → `press('d')` → `up('Control')`) — the active label stayed `full_name` (`aria-pressed` unchanged), confirming Ctrl+letter does not fire the hotkey.
+12. ✓ With `full_name` selected and both a `date_of_birth` region and a `full_name` region on the page, read each region overlay's computed style directly: the `date_of_birth` region (non-selected label) had `opacity: 0.28`; the `full_name` region (selected label) had `opacity: 1`. Screenshot: `verification-screenshots/M3-two-regions-fullname-selected.png`.
+13. ✓ Clicked directly on the dimmed `date_of_birth` region — the click was accepted (no error, Playwright's actionability check passed) and the region visibly became the selected region (its accessible name changed to "date_of_birth · selected"), confirming a dimmed region is still clickable.
+14. ✓ After that click, re-read computed opacity of both regions: `date_of_birth` (the region just clicked, whose label `date_of_birth` is NOT the toolbar-selected label — `full_name` was still `aria-pressed=true`) was `opacity: 1`, not dimmed, confirming that selecting/clicking a region belonging to a non-selected label does not leave it dimmed while it is the selected region.
+
+### Command line
+
+15. ✓ All three ran for real with the stated exit codes: `pnpm run lint` → "ESLint: No issues found", exit 0. `pnpm run build` → `tsc -b && vite build` completed, produced `dist/` with all expected assets, exit 0. `pnpm test` → `vitest run`, "Test Files 19 passed (19)", "Tests 127 passed (127)", exit 0.
+
+### Summary
+
+All 15 checklist items ✓. No blockers encountered. Nothing was fixed by the verifier (none needed). The 20-label regression this change targeted (repeated colours past label 12, dead hotkeys past label 10) was not reproduced — all 22 labels got distinct colours and hotkeys.
+
+Tool-call count for this run: 47.
