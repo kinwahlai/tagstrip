@@ -65,8 +65,8 @@ not by reading the code and reasoning that it should work. Reading code tells yo
 - [ ] Type a label name containing spaces (e.g. `date of birth`) — confirm the field itself shows
       `date_of_birth` as you type, with no error message shown, and the name stored in IndexedDB
       uses underscores
-- [ ] The hotkey picker offers `0` in addition to `1`–`9`; assign `0` and confirm it persists to
-      IndexedDB after reload
+- [ ] The hotkey picker offers `a`–`z` in addition to `1`–`9` and `0`; assign one and confirm it
+      persists to IndexedDB after reload
 
 ## M2 — Projects & documents
 
@@ -104,6 +104,8 @@ not by reading the code and reasoning that it should work. Reading code tells yo
       actually becomes the selected label. (The picker and the canvas key handler used to hold
       separate copies of the allowed digit range, so a hotkey could be assignable but dead;
       pressing the key is the only way to catch that.)
+- [ ] Do the same with a letter hotkey (e.g. `d`) — confirm it selects the label, and that holding
+      Ctrl while pressing it does NOT (bare letters would otherwise swallow browser shortcuts)
 
 ## M4 — Import / export
 
@@ -208,7 +210,7 @@ not by reading the code and reasoning that it should work. Reading code tells yo
       that exact hex in IndexedDB
 - [ ] A schema imported with an off-palette hex still shows it as an extra swatch and editing the
       label without touching colour leaves the hex unchanged
-- [ ] Hotkey select offers 1–9 then 0 and marks already-taken keys
+- [ ] Hotkey select offers a–z then 1–9 and 0, and marks already-taken keys
 - [ ] Region tag text clears 4.5:1 on every swatch in the palette
 
 ## R3 — Project screens
@@ -230,7 +232,7 @@ not by reading the code and reasoning that it should work. Reading code tells yo
 - [ ] The regions inspector lists every region on the page, each with its own transcription input
       and Suggest text button; a region whose text came from OCR is tagged
 - [ ] Every M3 behaviour still passes: draw, drag off the edge, zoom-normalised coordinates, page
-      isolation, delete by key and by button, resize alignment, and hotkeys 1–9 plus 0
+      isolation, delete by key and by button, resize alignment, and hotkeys a–z plus 1–9 and 0
 - [ ] Empty page shows the source's own sentence rather than blank space
 
 ## R5 — First run

@@ -177,7 +177,9 @@ export function AnnotationCanvas({
         handleRedo()
         return
       }
-      if (isHotkey(e.key) && schema) {
+      // Guarded on isModified: hotkeys are bare letters now, so without this
+      // Ctrl+D (or any other browser shortcut) would also switch label.
+      if (!isModified && isHotkey(e.key) && schema) {
         const label = schema.labels.find((l) => l.hotkey === e.key)
         if (label) setSelectedLabelId(label.id)
         return

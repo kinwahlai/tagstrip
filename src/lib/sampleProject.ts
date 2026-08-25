@@ -2,6 +2,7 @@ import { addLabel, createSchema } from '../db/labelSchemas'
 import { createProject } from '../db/projects'
 import { addPdfDocument } from '../db/docs'
 import { LABEL_COLORS } from './labelColors'
+import { suggestHotkey } from './hotkeys'
 
 // The audience for this tool has a bootstrapping problem: the documents they
 // would naturally test it on are exactly the ones they are not allowed to put
@@ -15,12 +16,15 @@ import { LABEL_COLORS } from './labelColors'
 const SAMPLE_PDF = 'sample/northgate-energy-statement.pdf'
 const SAMPLE_FILENAME = 'northgate_energy_statement.pdf'
 
+// Names only: the hotkeys are derived the same way the label editor derives
+// them, so the sample always demonstrates the assignment a user would get
+// rather than a hand-picked set that quietly drifts from it.
 const SAMPLE_LABELS = [
-  { name: 'account_holder', hotkey: '1' },
-  { name: 'address_line_1', hotkey: '2' },
-  { name: 'address_line_2', hotkey: '3' },
-  { name: 'postcode', hotkey: '4' },
-  { name: 'statement_date', hotkey: '5' },
+  'account_holder',
+  'address_line_1',
+  'address_line_2',
+  'postcode',
+  'statement_date',
 ]
 
 export interface SampleProject {
@@ -53,8 +57,11 @@ export async function createSampleProject(
   const file = new File([await response.blob()], SAMPLE_FILENAME, { type: 'application/pdf' })
 
   const schemaId = await createSchema('Proof of address')
-  for (const [i, label] of SAMPLE_LABELS.entries()) {
-    await addLabel(schemaId, { ...label, color: LABEL_COLORS[i].hex })
+  const takenHotkeys: string[] = []
+  for (const [i, name] of SAMPLE_LABELS.entries()) {
+    const hotkey = suggestHotkey(name, takenHotkeys)
+    if (hotkey) takenHotkeys.push(hotkey)
+    await addLabel(schemaId, { name, color: LABEL_COLORS[i].hex, hotkey })
   }
   const projectId = await createProject('Sample — proof of address', schemaId)
   const docId = await addPdfDocument(projectId, file, onProgress)

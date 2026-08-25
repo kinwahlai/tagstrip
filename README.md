@@ -42,7 +42,7 @@ workflows and the integrations. TagStrip exists for the case where that option i
 ## Features
 
 - Rectangle (bounding box) annotation, each with an editable **text transcription field**
-- User-defined, reusable **label schemas** (name, color, optional 1–9 or 0 hotkey per label) —
+- User-defined, reusable **label schemas** (name, color, optional a–z, 1–9 or 0 hotkey per label) —
   create once, reuse across projects, and export/import a schema on its own to share a label set
   with a team without dragging any documents along
 - **Projects**: a project pairs one label schema with a set of uploaded documents and their
