@@ -301,7 +301,9 @@ export function ProjectDetail({ projectId, onOpenAnnotate }: ProjectDetailProps)
             }
           />
           {selectedDoc ? (
-            <DocDetail doc={selectedDoc} />
+            // Keyed so the notes field, which drafts in local state, starts over on the
+            // document actually selected rather than keeping the previous one's note.
+            <DocDetail key={selectedDoc.id} doc={selectedDoc} />
           ) : (
             <p style={{ padding: 'var(--space-4)', fontSize: '12.5px', color: HINT }}>
               Select a document to view its pages, or upload a new one.
