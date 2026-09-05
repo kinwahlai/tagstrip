@@ -3350,3 +3350,85 @@ For this section: created project "QA Project" bound to the same 22-label schema
 All 15 checklist items ✓. No blockers encountered. Nothing was fixed by the verifier (none needed). The 20-label regression this change targeted (repeated colours past label 12, dead hotkeys past label 10) was not reproduced — all 22 labels got distinct colours and hotkeys.
 
 Tool-call count for this run: 47.
+
+---
+
+## Bug-fix re-verification — notes/caret (2026-09-05)
+
+Scope: targeted re-verification of two bug fixes only (not a full milestone pass), per
+instructions. Dev server: already-running `pnpm run dev` on http://localhost:5173/ (Vite),
+reused as instructed. Browser: Playwright via MCP browser tools (Chromium). Existing project
+"R4 Test Project" (3 documents: `test-multipage.pdf`, `text-two-page.pdf`, `test-image.png`)
+already present in this browser's IndexedDB from a prior session; reused rather than re-uploading.
+
+Confirmed in source before testing:
+- `src/components/ProjectDetail.tsx:306` — `<DocDetail key={selectedDoc.id} doc={selectedDoc} />`.
+- `src/components/canvas/RegionList.tsx` — `TranscriptionInput` component (lines 167-201) holds
+  local `draft` state, only re-syncs from the stored `annotation.text` when that value is not one
+  this field itself wrote (`selfWritten` ref set).
+
+### Bug A — document notes leaked across documents
+
+- A1 ✓ — Typed "NOTE-DOC1" into doc 1's Notes field, blurred (Tab), selected doc 2: its Notes
+  `<textarea>` value read back as `""` (empty), not "NOTE-DOC1". Screenshot:
+  `verification-screenshots/notes-caret-A1-doc2-empty.png`.
+- A2 ✓ — Switched back to doc 1: Notes value read back as `"NOTE-DOC1"`, unchanged.
+- A3 ✓ — Typed "NOTE-DOC2" into doc 2, blurred. Switched doc1→doc2→(re-check both): doc 1 read
+  `"NOTE-DOC1"`, doc 2 read `"NOTE-DOC2"` — each kept its own note through repeated switching.
+  Screenshot: `verification-screenshots/notes-caret-A3-doc2-note.png`.
+- A4 ✓ — Full `page.goto()` reload, re-navigated Project → doc 1 → doc 2 via the UI (not just
+  DB query): doc 1's Notes field read `"NOTE-DOC1"`, doc 2's read `"NOTE-DOC2"`. Both notes
+  survived the reload attached to the correct document. Screenshot:
+  `verification-screenshots/notes-caret-A4-reload-persist.png`.
+
+Bug A verdict: fixed. No leakage observed across 4 checks including a hard reload.
+
+### Bug B — caret jumped to end of transcription field
+
+- B1 ✓ — Region `zero_field` on the `text-two-page.pdf` canvas: manually set its sibling
+  `name_field` transcription to "JUNKTEXT" via direct value replacement, then clicked
+  "Suggest text" — field refilled to "TextLayerPageOne Sample" (the real text-layer content),
+  confirming Suggest text fills/replaces a field. (Also serves as R1, see below.)
+- B2 ✓ — On the `test-image.png` document's pre-existing OCR-filled region (text "Test Image
+  Page"), set `selectionStart`/`selectionEnd` to index 5 via `element.setSelectionRange(5,5)`
+  (i.e. caret placed as "Test |Image Page"), then sent three separate `Z` keypresses one at a
+  time, reading `document.activeElement.value` and `.selectionStart` after each:
+  - after 1st Z: value `"Test ZImage Page"`, selectionStart `6`
+  - after 2nd Z: value `"Test ZZImage Page"`, selectionStart `7`
+  - after 3rd Z: value `"Test ZZZImage Page"`, selectionStart `8`
+  Result is contiguous "ZZZ" inserted mid-word at the original caret position, caret advancing
+  by exactly one position per keystroke and never jumping to the end (end would have been index
+  19). Screenshot: `verification-screenshots/notes-caret-B2-midstring-caret.png`.
+- B3 ✓ — Read the `annotations` object store directly from IndexedDB (`indexedDB.open('tagstrip')`
+  → `getAll()`) immediately after the B2 edit: the edited annotation's `text` field was already
+  `"Test ZZZImage Page"` (saved on every keystroke, no blur needed). Independently, did a full
+  page reload and re-navigated Project → test-image.png → annotation canvas through the UI: the
+  region's transcription field showed `"Test ZZZImage Page"`, confirming the edit survived a
+  reload, not just an in-memory state. Screenshot:
+  `verification-screenshots/notes-caret-B3-persisted-after-reload.png`.
+- B4 ✓ — Drew a brand-new `zero_field` region (no prior text, no OCR run) on the same
+  `test-image.png` page, clicked into its empty transcription field, typed "HELLO" via
+  `pressSequentially` (one keystroke at a time). Field read back `"HELLO"`. Confirmed persistence
+  by querying IndexedDB's `annotations` store directly afterward: the new annotation's `text` was
+  `"HELLO"`.
+
+Bug B verdict: fixed. Caret position verified numerically after every keystroke, not just
+visually; value stayed contiguous with no reordering or end-jump.
+
+### Regression checks
+
+- R1 ✓ — Covered by B1 above: a field pre-filled with "JUNKTEXT" was fully replaced by
+  "TextLayerPageOne Sample" after clicking Suggest text — external fill still overwrites
+  existing content rather than being ignored or appended.
+- R2 ✓ — The `test-image.png` region arrived already OCR-suggested (visible "OCR" badge next to
+  the label name, `ocrSuggested: true` implied by badge). After the B2/B3 hand-edit (typing "ZZZ"
+  mid-string), the badge disappeared from the region row in the next snapshot, and a direct
+  IndexedDB read confirmed `ocrSuggested: false` on that annotation post-edit. Badge correctly
+  shows after an OCR fill and clears once hand-edited.
+
+### Summary
+
+All 4 Bug-A checks, all 4 Bug-B checks, and both regression checks passed. No ✗ items in this
+run. Tool-call count for this session: approximately 55 (browser navigation/click/type/evaluate/
+screenshot calls plus a handful of Read/Bash calls to confirm the fix was actually present in
+source before testing).
