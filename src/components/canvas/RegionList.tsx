@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { updateAnnotationText } from '../../db/annotations'
 import type { Annotation, Label } from '../../db/types'
 
@@ -129,15 +129,7 @@ export function RegionList({
               </button>
             </div>
             <div style={{ display: 'flex', alignItems: 'stretch', gap: 6 }}>
-              <input
-                className="input mono"
-                type="text"
-                value={annotation.text ?? ''}
-                onChange={(e) => updateAnnotationText(annotation.id, e.target.value)}
-                placeholder="Transcription…"
-                aria-label={`Transcription for ${labelName} region`}
-                style={{ minHeight: 30, fontSize: '12.5px' }}
-              />
+              <TranscriptionInput annotation={annotation} labelName={labelName} />
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
@@ -164,5 +156,46 @@ export function RegionList({
         )
       })}
     </>
+  )
+}
+
+// The stored text arrives back from IndexedDB a keystroke or more behind what has
+// been typed, so driving the field straight off it rewrites the value under the
+// caret — and a rewritten value puts the caret at the end. The field therefore
+// holds its own draft and only takes the stored text when that text is one this
+// field did not produce: a Suggest text fill, or another document's region.
+function TranscriptionInput({
+  annotation,
+  labelName,
+}: {
+  annotation: Annotation
+  labelName: string
+}) {
+  const stored = annotation.text ?? ''
+  const [draft, setDraft] = useState(stored)
+  const selfWritten = useRef<Set<string>>(new Set())
+
+  useEffect(() => {
+    if (selfWritten.current.has(stored)) return
+    selfWritten.current.clear()
+    setDraft(stored)
+  }, [stored])
+
+  function handleChange(value: string) {
+    selfWritten.current.add(value)
+    setDraft(value)
+    updateAnnotationText(annotation.id, value)
+  }
+
+  return (
+    <input
+      className="input mono"
+      type="text"
+      value={draft}
+      onChange={(e) => handleChange(e.target.value)}
+      placeholder="Transcription…"
+      aria-label={`Transcription for ${labelName} region`}
+      style={{ minHeight: 30, fontSize: '12.5px' }}
+    />
   )
 }
