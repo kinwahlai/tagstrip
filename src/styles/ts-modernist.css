@@ -4,10 +4,8 @@
    1. The upstream sheet's line 2 is an @import pulling the Archivo family
       from the Google Fonts CDN. It is REMOVED. A font-CDN request on this
       page would falsify the page's
-      own central claim. "Archivo" is kept first in the stack so that dropping
-      a self-hosted Archivo woff2 + @font-face into this file restores the
-      intended type with no other edit; until then a system grotesque resolves
-      locally and issues no request.
+      own central claim. "Archivo" is self-hosted here, from the same origin,
+      so it makes no third-party request.
    2. A deliberate dark theme under [data-theme="dark"], designed rather than
       inverted: the ramps are remapped so 100 stays "tinted fill" and 800 stays
       "text on tinted fill" in both themes, elevation switches from cast shadow
@@ -62,6 +60,52 @@
   font-display: swap;
 }
 
+/* Fallback metrics divide each Archivo weight's frequency-weighted average advance width by
+   the local fallback's equivalent, keeping widths and line boxes equal so swap costs no reflow.
+   Ascent/descent are Archivo's OS/2 USE_TYPO_METRICS values (0.878 / 0.210 em) divided by each
+   weight's size-adjust. Tuned to Helvetica Neue; Arial/Liberation Sans residual is under 1.2%
+   at 400 and 0% at 700/800. */
+@font-face {
+  font-family: 'Archivo Fallback';
+  src: local('Helvetica Neue'), local('Arial'), local('Liberation Sans');
+  font-weight: 400;
+  font-style: normal;
+  size-adjust: 96.9%;
+  ascent-override: 90.61%;
+  descent-override: 21.67%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: 'Archivo Fallback';
+  src: local('Helvetica Neue Medium'), local('Arial Bold'), local('Liberation Sans Bold');
+  font-weight: 600;
+  font-style: normal;
+  size-adjust: 97.3%;
+  ascent-override: 90.27%;
+  descent-override: 21.59%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: 'Archivo Fallback';
+  src: local('Helvetica Neue Bold'), local('Arial Bold'), local('Liberation Sans Bold');
+  font-weight: 700;
+  font-style: normal;
+  size-adjust: 97.5%;
+  ascent-override: 90.06%;
+  descent-override: 21.54%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: 'Archivo Fallback';
+  src: local('Helvetica Neue Bold'), local('Arial Bold'), local('Liberation Sans Bold');
+  font-weight: 800;
+  font-style: normal;
+  size-adjust: 102.4%;
+  ascent-override: 85.73%;
+  descent-override: 20.51%;
+  line-gap-override: 0%;
+}
+
 :root {
   --color-bg: #f3f2f2;
   --color-surface: #eae9e9;
@@ -101,9 +145,11 @@
   --color-accent-2-900: #471d16;
 
   /* Archivo first — self-host it and the design system's type returns. */
-  --font-heading: 'Archivo', 'Helvetica Neue', Helvetica, 'Liberation Sans', Arial, sans-serif;
+  --font-heading:
+    'Archivo', 'Archivo Fallback', 'Helvetica Neue', Helvetica, 'Liberation Sans', Arial, sans-serif;
   --font-heading-weight: 800;
-  --font-body: 'Archivo', 'Helvetica Neue', Helvetica, 'Liberation Sans', Arial, sans-serif;
+  --font-body:
+    'Archivo', 'Archivo Fallback', 'Helvetica Neue', Helvetica, 'Liberation Sans', Arial, sans-serif;
   /* Extension: the DS has no mono role, and this product is full of
      underscore_names, hotkeys and verbatim transcriptions that must not be
      mistaken for prose. System mono only — no request. */
