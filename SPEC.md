@@ -347,9 +347,11 @@ app code, and not ported.
 - **Invented data is deferred, not faked.** The mockups show region counts per schema and per
   label, "used by", "last used", annotated ratio, disk usage and per-document region counts. None
   of it is queryable today. Those columns are omitted until R6 rather than stubbed with em-dashes.
-- **Archivo is not bundled.** `ts-modernist.css` keeps Archivo first in the stack with a commented
-  `@font-face` block; until a self-hosted woff2 is dropped in, a system grotesque resolves. No font
-  CDN — that would falsify the product's own claim. Open item, not a blocker.
+- **Archivo was not bundled.** `ts-modernist.css` kept Archivo first in the stack with a commented
+  `@font-face` block; until a self-hosted woff2 was dropped in, a system grotesque resolved. No font
+  CDN — that would falsify the product's own claim. Open item, not a blocker. *(Since done: Archivo
+  is self-hosted as four `.woff2` files in `src/styles/`, declared by `ts-modernist.css`; `OFL.txt`
+  sits beside them. There is still no CDN.)*
 - **Desktop only.** TagStrip is a desktop tool: long focused sessions on batches of documents,
   keyboard-driven, on a real screen. Phone-sized layouts are explicitly **not** a supported target.
   The 375px figure in the original brief was carried forward by mistake and drove R7 further than
