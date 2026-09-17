@@ -170,3 +170,11 @@ Both formats are versioned independently (`version: 1` for each, right now). A f
 checked strictly on import — an older or newer TagStrip build reading a file whose version it
 doesn't recognize reports a specific "unsupported version" error rather than importing a
 partially-understood file.
+
+Worth knowing if you are writing tooling against this: **version 1 now describes two shapes**, one
+with the source document and one without. The version was deliberately not bumped when the
+annotations-only variant was added. Bumping it would have made every older build reject every newer
+file, including full exports it could read perfectly well; left at 1, an older build still reads a
+full export unchanged and fails only on an annotations-only file, which is the one file it genuinely
+cannot use. So treat `sourceBase64` and `sourceMimeType` as optional when you parse this format,
+rather than inferring their presence from the version number.

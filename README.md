@@ -42,6 +42,13 @@ workflows and the integrations. TagStrip exists for the case where that option i
 ## Features
 
 - Rectangle (bounding box) annotation, each with an editable **text transcription field**
+- Regions stay editable after they are drawn — drag one to move it, drag a corner to resize it, or
+  nudge it with the arrow keys. A box drawn slightly wrong does not have to be deleted and redrawn
+- Zoom with the toolbar's buttons, **Fit** to the page width, or Ctrl/Cmd+scroll — and a trackpad
+  pinch — to zoom about the pointer rather than the corner
+- The document list marks every document you have already put a region on, in a fixed column you
+  can scan down. Working through a project out of order should not mean reading a region count off
+  every row in turn
 - User-defined, reusable **label schemas** (name, color, optional a–z, 1–9 or 0 hotkey per label) —
   create once, reuse across projects, and export/import a schema on its own to share a label set
   with a team without dragging any documents along
@@ -53,8 +60,10 @@ workflows and the integrations. TagStrip exists for the case where that option i
   pdf.js's text layer at upload time, with manual override, plus a free-form notes field per
   document
 - Local persistence via IndexedDB — reload the page, everything's still there
-- **Import/export**: a self-describing native JSON format (round-trips a whole project, including
-  the source documents), a lightweight standalone schema export/import for sharing just a label
+- **Import/export**: a self-describing native JSON format that round-trips a whole project —
+  with the source documents embedded, or deliberately without them, so you can hand someone a
+  project's annotations without also handing them every document it was drawn on — a lightweight
+  standalone schema export/import for sharing just a label
   set, and a best-effort **Label Studio JSON export** — the same shape Label Studio's own JSON
   export produces, so tooling that already reads that format takes TagStrip's output as-is. See
   [`FORMATS.md`](FORMATS.md) for the exact shape of each
@@ -62,8 +71,9 @@ workflows and the integrations. TagStrip exists for the case where that option i
   model), falling back to on-device OCR ([Tesseract.js](https://tesseract.projectnaptha.com/),
   English only for now) only when there's no text layer to read from — the OCR engine and its
   language data are self-hosted (no CDN) and only downloaded the first time OCR is actually needed
-- Undo/redo, keyboard-driven workflow (hotkeys per label, arrow-key page nav, Delete key), and a
-  responsive layout down to phone widths
+- Undo/redo and a keyboard-driven workflow: a hotkey per label, Delete to remove the selected
+  region, and arrow keys that nudge a selected region (Shift+arrow moves it further) or page
+  through the document when nothing is selected — Esc deselects before it leaves the canvas
 
 See [`SPEC.md`](SPEC.md) for the full product spec, data model, and milestone plan, and its
 section 2 for what's explicitly out of scope for v1 (polygons, document classification,
@@ -150,7 +160,16 @@ React + TypeScript + Vite, Tailwind CSS, Dexie.js over IndexedDB, pdf.js. See
 
 Milestones M0–M5 and M4.5 (scaffold, schema management, projects/documents, annotation canvas,
 import/export, OCR-assisted transcription, polish) are implemented and verified against
-[`VERIFICATION.md`](VERIFICATION.md) — see `VERIFICATION_REPORT.md` for the run-by-run results.
+[`VERIFICATION.md`](VERIFICATION.md), as is the M7–M9 feature round that followed: exporting
+without the source document, moving and resizing regions, and zoom controls with document progress
+markers. See `VERIFICATION_REPORT.md` for the run-by-run results.
+
+Table-aware extraction — drawing a box over a table and getting its cells back as structure rather
+than one flattened string — is written up in [`SPEC.md`](SPEC.md) section 10 but deliberately has
+no verification rubric yet, which under this repo's working policy means it cannot be built. Two
+different features hide in that one sentence: extraction into a box you drew, which is in scope,
+and detecting tables and drawing the boxes for you, which section 2 puts out of it. That is the
+open question, not the implementation.
 M4.5's Transformers.js/Donut engine (an alternate OCR backend for messier scans, per SPEC.md
 section 2) is not yet built — Tesseract.js is the only engine today, behind a pluggable
 `OcrEngine` interface a second engine can implement later.
