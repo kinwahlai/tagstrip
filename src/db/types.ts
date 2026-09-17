@@ -37,6 +37,14 @@ export interface Doc {
   // the lazy-rendering requirement in section 6 survive a reload). Not set for
   // sourceType "image", where the page's own `image` Blob already is the source.
   sourceBlob?: Blob
+  // Set when this doc was imported from a native export built with
+  // includeSource: false (see nativeExport.ts / nativeImport.ts) — there never
+  // was a sourceBlob or a page image, and there never will be. Page.image is
+  // already optional because pages are rasterized lazily, so its absence alone
+  // can't tell "not rendered yet" from "no pixels to render"; this flag is what
+  // ensurePageRendered (db/docs.ts) checks to avoid trying and throwing. Not
+  // indexed, so it doesn't need a Dexie version bump in db.ts.
+  sourceMissing?: boolean
 }
 
 export interface PdfTextItem {

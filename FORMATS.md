@@ -76,10 +76,12 @@ it's a good fit for "set the label list up once, everyone else just imports it" 
 
 Produced by **Export JSON** on a project's page, and read back by **Import project…** on the
 Projects screen. This is the full backup/restore/hand-off format: one project, its label schema,
-every uploaded document (original file bytes included, base64-encoded), and every annotation with
-its transcription text. Because the source files are embedded, this file can be large — a
-multi-page PDF project's export is roughly the size of its source PDFs, times ~1.33 for base64
-overhead.
+every uploaded document, and every annotation with its transcription text. **Export JSON** opens a
+dialog offering two modes: this section describes the default, "include source document," which
+also embeds every document's original file bytes, base64-encoded. Because the source files are
+embedded, this file can be large — a multi-page PDF project's export is roughly the size of its
+source PDFs, times ~1.33 for base64 overhead. The other mode, "annotations only," leaves the bytes
+out; see the variant documented below.
 
 ```json
 {
@@ -137,6 +139,30 @@ overhead.
 - `textLayer` (omitted from the example above) is carried per-page when pdf.js extracted one at
   upload time, so exact (non-OCR) "Suggest text" keeps working after a round-trip without
   re-parsing the PDF.
+
+### Annotations-only variant (`*-tagstrip-annotations-only.json`)
+
+**Export JSON** opens a dialog with two modes rather than downloading immediately. Choosing
+"Annotations only" produces this variant instead of the one above: every field is the same except
+that `sourceBase64` and `sourceMimeType` are left out of every document object entirely, not
+present as empty strings. It still carries the label schema, every annotation's coordinates and
+text, each document's `notes`, and each page's `contentType`, `width`, `height` and `textLayer` — a
+project's structure and everything typed into it survives the round-trip. What it does not carry
+is the original PDF or image bytes, so it is dramatically smaller than the full export of the same
+project, and it is what you want when you need to hand off (or back up) annotations without also
+handing off the source documents.
+
+**It does not round-trip pixels.** A document imported from this variant has no page image and
+never will — that's `Doc.sourceMissing: true`, not a page that just hasn't been rasterized yet.
+Opening it in the annotation canvas shows a stated placeholder in place of the page; existing
+regions can still be selected, re-labelled, transcribed and deleted, but drawing a new region and
+"Suggest text" are disabled, because both need pixels this file doesn't have. If you need the
+document to render again, re-export with "Include source document" selected, or reimport whichever
+file still has it.
+
+A file with `"sourceBase64": ""` present but empty is rejected on import rather than treated as
+this variant — an empty string means the data was lost or corrupted somewhere, not that it was
+deliberately left out.
 
 ## Compatibility
 

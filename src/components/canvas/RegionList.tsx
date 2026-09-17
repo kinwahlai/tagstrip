@@ -9,6 +9,10 @@ interface RegionListProps {
   onSelect: (id: string) => void
   onDelete: (id: string) => void
   onSuggestText: (id: string) => Promise<void>
+  // Set when this document's source was not included on import (Doc.sourceMissing)
+  // — Suggest text needs pixels that don't exist, so every row's button is
+  // disabled and this text explains why, rather than the button just vanishing.
+  suggestUnavailableReason?: string | null
 }
 
 const HINT = 'color-mix(in srgb, var(--color-text) 68%, transparent)'
@@ -20,6 +24,7 @@ export function RegionList({
   onSelect,
   onDelete,
   onSuggestText,
+  suggestUnavailableReason,
 }: RegionListProps) {
   const [suggestingId, setSuggestingId] = useState<string | null>(null)
   const [errorById, setErrorById] = useState<Record<string, string>>({})
@@ -46,13 +51,30 @@ export function RegionList({
   if (annotations.length === 0) {
     return (
       <p style={{ margin: 0, padding: 'var(--space-4)', fontSize: '12.5px', lineHeight: 1.6, color: HINT }}>
-        No regions on this page yet. Pick a label above, then drag on the page to draw one.
+        {suggestUnavailableReason
+          ? 'No regions on this page. This document has no source pixels to draw on, so a new region can’t be drawn here — only a document imported with its source can be annotated further.'
+          : 'No regions on this page yet. Pick a label above, then drag on the page to draw one.'}
       </p>
     )
   }
 
   return (
     <>
+      {suggestUnavailableReason && (
+        <p
+          role="status"
+          style={{
+            margin: 0,
+            padding: 'var(--space-3) var(--space-4)',
+            fontSize: '11.5px',
+            lineHeight: 1.6,
+            color: HINT,
+            borderBottom: '1px solid var(--color-divider)',
+          }}
+        >
+          {suggestUnavailableReason}
+        </p>
+      )}
       {annotations.map((annotation) => {
         const label = labelsById.get(annotation.labelId)
         const labelName = label?.name ?? 'Unknown label'
@@ -135,7 +157,8 @@ export function RegionList({
                 className="btn btn-secondary btn-sm"
                 style={{ whiteSpace: 'nowrap' }}
                 onClick={() => handleSuggest(annotation.id)}
-                disabled={suggestingId === annotation.id}
+                disabled={suggestingId === annotation.id || Boolean(suggestUnavailableReason)}
+                title={suggestUnavailableReason ?? undefined}
               >
                 {suggestingId === annotation.id ? 'Suggesting…' : 'Suggest text'}
               </button>

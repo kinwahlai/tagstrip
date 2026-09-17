@@ -229,11 +229,17 @@ export function AnnotationCanvas({
 
   const labelsById = new Map(schema.labels.map((l) => [l.id, l]))
   const activeLabelId = selectedLabelId ?? schema.labels[0]?.id ?? null
+  const sourceMissing = doc.sourceMissing ?? false
+
+  const suggestUnavailableReason = sourceMissing
+    ? 'This export did not include the source document, so there are no pixels for Suggest text to read. Re-import it with the source included to use this.'
+    : null
 
   const suggestHint =
-    currentPage && currentPage.contentType !== 'text'
+    suggestUnavailableReason ??
+    (currentPage && currentPage.contentType !== 'text'
       ? 'The text layer is tried first on every page. This one has none, so Suggest text crops the region and runs Tesseract in this tab — English only, engine and model loaded locally, never from a CDN.'
-      : 'The text layer is tried first on every page, exactly and for free. OCR only runs when it finds nothing, and its assets are not fetched until then.'
+      : 'The text layer is tried first on every page, exactly and for free. OCR only runs when it finds nothing, and its assets are not fetched until then.')
 
   return (
     <div className="ts-annotate">
@@ -284,10 +290,11 @@ export function AnnotationCanvas({
               labelsById={labelsById}
               selectedAnnotationId={selectedAnnotationId}
               selectedLabelId={activeLabelId}
+              sourceMissing={sourceMissing}
               onSelectAnnotation={setSelectedAnnotationId}
               onDeselect={() => setSelectedAnnotationId(null)}
               onCreateAnnotation={(rect: NormalizedRect) => {
-                if (!activeLabelId) return
+                if (!activeLabelId || sourceMissing) return
                 createAnnotation(docId, pageIndex, activeLabelId, rect).then((annotation) => {
                   setSelectedAnnotationId(annotation.id)
                   pushCommand({ type: 'create', annotation })
@@ -343,6 +350,7 @@ export function AnnotationCanvas({
             onSelect={setSelectedAnnotationId}
             onDelete={handleDeleteAnnotation}
             onSuggestText={handleSuggestText}
+            suggestUnavailableReason={suggestUnavailableReason}
           />
         </div>
 

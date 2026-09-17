@@ -7,7 +7,19 @@ import { ensurePageRendered } from '../db/docs'
 // opened has no image yet. Rendering it here is the same on-demand path the
 // canvas uses — it is not a second thumbnail pipeline, and it does not rasterize
 // anything beyond the page actually shown.
-export function PagePreview({ docId, pageCount }: { docId: string; pageCount: number }) {
+export function PagePreview({
+  docId,
+  pageCount,
+  sourceMissing = false,
+}: {
+  docId: string
+  pageCount: number
+  // This document was imported without its source (Doc.sourceMissing) — there
+  // is no blob to rasterize, so this skips ensurePageRendered and shows a
+  // stated placeholder instead of a "rendering page" spinner that would never
+  // resolve.
+  sourceMissing?: boolean
+}) {
   const page = useLiveQuery(
     () => db.pages.where('[documentId+pageIndex]').equals([docId, 0]).first(),
     [docId],
@@ -15,7 +27,7 @@ export function PagePreview({ docId, pageCount }: { docId: string; pageCount: nu
   const [imageUrl, setImageUrl] = useState<string | null>(null)
 
   useEffect(() => {
-    if (!page) return
+    if (!page || sourceMissing) return
     let cancelled = false
     let objectUrl: string | null = null
 
@@ -31,13 +43,18 @@ export function PagePreview({ docId, pageCount }: { docId: string; pageCount: nu
       cancelled = true
       if (objectUrl) URL.revokeObjectURL(objectUrl)
     }
-  }, [page])
+  }, [page, sourceMissing])
 
   const aspect = page ? page.width / page.height : 0.707
 
   return (
     <div className="ts-page" style={{ width: '100%', aspectRatio: aspect }}>
-      {imageUrl ? (
+      {sourceMissing ? (
+        <span className="ts-page-note" role="status">
+          source not included
+          <br />on export
+        </span>
+      ) : imageUrl ? (
         <img
           src={imageUrl}
           alt={`Page 1 of ${pageCount}`}

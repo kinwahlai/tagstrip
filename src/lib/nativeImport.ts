@@ -51,8 +51,15 @@ export function parseNativeExport(input: unknown): NativeExportFile {
           `Document "${String(doc.filename)}" has an invalid "sourceType" (expected pdf or image).`,
         )
       }
-      if (typeof doc.sourceBase64 !== 'string' || doc.sourceBase64.length === 0) {
-        fail(`Document "${String(doc.filename)}" is missing its source file data.`)
+      // Absent means the export deliberately left the source out (see
+      // NativeExportOptions.includeSource) — that's fine, and importNativeExport
+      // handles it by marking the doc sourceMissing. Present-but-empty or
+      // present-but-wrong-type means the file is corrupt, not deliberately
+      // trimmed, so that still fails, with a message that says which.
+      if (doc.sourceBase64 !== undefined) {
+        if (typeof doc.sourceBase64 !== 'string' || doc.sourceBase64.length === 0) {
+          fail(`Document "${String(doc.filename)}" has corrupt source file data.`)
+        }
       }
       if (!Array.isArray(doc.pages)) {
         fail(`Document "${String(doc.filename)}" is missing its "pages" list.`)
@@ -104,7 +111,15 @@ export async function importNativeExport(data: NativeExportFile): Promise<string
 
   for (const exportedDoc of data.documents) {
     const docId = createId()
-    const sourceBlob = base64ToBlob(exportedDoc.sourceBase64, exportedDoc.sourceMimeType)
+    // Absent sourceBase64 means this export was built with includeSource:
+    // false (parseNativeExport already rejected a present-but-empty one as
+    // corrupt). sourceMissing records that on the Doc itself — Page.image is
+    // already optional for lazy rendering, so its absence alone can't tell
+    // "not rendered yet" from "never had pixels to render" (see docs.ts).
+    const sourceMissing = exportedDoc.sourceBase64 === undefined
+    const sourceBlob = sourceMissing
+      ? undefined
+      : base64ToBlob(exportedDoc.sourceBase64!, exportedDoc.sourceMimeType!)
 
     docs.push({
       id: docId,
@@ -115,6 +130,7 @@ export async function importNativeExport(data: NativeExportFile): Promise<string
       notes: exportedDoc.notes,
       createdAt: now,
       sourceBlob: exportedDoc.sourceType === 'pdf' ? sourceBlob : undefined,
+      ...(sourceMissing ? { sourceMissing: true } : {}),
     })
 
     for (const exportedPage of exportedDoc.pages) {

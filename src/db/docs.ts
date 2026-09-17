@@ -128,6 +128,14 @@ export async function ensurePageRendered(page: Page): Promise<Page> {
 
   const doc = await db.docs.get(page.documentId)
   if (!doc) throw new Error('Document not found.')
+  // A source-missing doc (imported from an annotations-only export, see
+  // nativeImport.ts) never had a sourceBlob to rasterize from — callers must
+  // check doc.sourceMissing and show a placeholder instead of reaching here,
+  // but this guard is what keeps a caller that forgets from calling into
+  // pdf.js with nothing to render.
+  if (doc.sourceMissing) {
+    throw new Error(`"${doc.filename}" has no source document to render — it was excluded on export.`)
+  }
 
   const { renderPageToBlob } = await pdfLib()
   const pdfDoc = await getCachedPdfDocument(doc)

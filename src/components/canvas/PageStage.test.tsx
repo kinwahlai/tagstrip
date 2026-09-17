@@ -44,6 +44,7 @@ function renderStage(overrides: { selectedLabelId?: string; selectedAnnotationId
       labelsById={new Map(labels.map((l) => [l.id, l]))}
       selectedAnnotationId={overrides.selectedAnnotationId ?? null}
       selectedLabelId={overrides.selectedLabelId ?? null}
+      sourceMissing={false}
       onCreateAnnotation={() => {}}
       onSelectAnnotation={() => {}}
       onDeselect={() => {}}

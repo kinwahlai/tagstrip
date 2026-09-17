@@ -7,12 +7,19 @@ import type { Annotation, Label, Page } from '../../db/types'
 
 interface PageStageProps {
   page: Page
-  imageUrl: string
+  // Null only when sourceMissing is true (see PageStageLoader) — every other
+  // path resolves an image before this component is even rendered.
+  imageUrl: string | null
   zoom: number
   annotations: Annotation[]
   labelsById: Map<string, Label>
   selectedAnnotationId: string | null
   selectedLabelId: string | null
+  // This document was imported without its source (Doc.sourceMissing). The
+  // page raster is replaced by a stated placeholder, and drawing a new region
+  // is disabled — there is nothing to draw on top of. Existing regions still
+  // render and are still selectable.
+  sourceMissing: boolean
   onCreateAnnotation: (rect: NormalizedRect) => void
   onSelectAnnotation: (id: string) => void
   onDeselect: () => void
@@ -42,6 +49,7 @@ export function PageStage({
   labelsById,
   selectedAnnotationId,
   selectedLabelId,
+  sourceMissing,
   onCreateAnnotation,
   onSelectAnnotation,
   onDeselect,
@@ -100,6 +108,10 @@ export function PageStage({
     if (e.button !== 0) return
     if (e.target !== e.currentTarget) return
     onDeselect()
+    // No pixels to draw on top of — see the sourceMissing prop comment. The
+    // aside panel in AnnotationCanvas states the reason; this just makes sure
+    // a drag can't start one to begin with.
+    if (sourceMissing) return
     if (!selectedLabelId) return
     const rect = containerRef.current?.getBoundingClientRect()
     if (!rect) return
@@ -127,16 +139,39 @@ export function PageStage({
           height,
           background: 'var(--color-neutral-100)',
           boxShadow: 'var(--shadow-md)',
-          cursor: selectedLabelId ? 'crosshair' : 'default',
+          cursor: sourceMissing ? 'default' : selectedLabelId ? 'crosshair' : 'default',
         }}
       >
-        <img
-          src={imageUrl}
-          alt={`Page ${page.pageIndex + 1}`}
-          draggable={false}
-          className="pointer-events-none"
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
-        />
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt={`Page ${page.pageIndex + 1}`}
+            draggable={false}
+            className="pointer-events-none"
+            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+          />
+        ) : (
+          <div
+            role="status"
+            className="pointer-events-none"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 'var(--space-6)',
+              textAlign: 'center',
+              fontSize: '12.5px',
+              lineHeight: 1.6,
+              color: 'color-mix(in srgb, var(--color-text) 60%, transparent)',
+            }}
+          >
+            This export did not include the source document, so there is no page image to show.
+            Existing regions can still be selected, re-labelled, transcribed and deleted — drawing a
+            new region and Suggest text need pixels that aren't here.
+          </div>
+        )}
 
         {annotations.map((annotation) => {
           const label = labelsById.get(annotation.labelId)

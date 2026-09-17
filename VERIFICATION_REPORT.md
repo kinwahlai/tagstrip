@@ -3432,3 +3432,101 @@ All 4 Bug-A checks, all 4 Bug-B checks, and both regression checks passed. No �
 run. Tool-call count for this session: approximately 55 (browser navigation/click/type/evaluate/
 screenshot calls plus a handful of Read/Bash calls to confirm the fix was actually present in
 source before testing).
+
+## M7 — Export without the source document (verified 2026-09-17)
+
+Setup: fresh IndexedDB → loaded the bundled sample (northgate_energy_statement.pdf, 1 page), then
+uploaded a hand-built 3-page text PDF (`multipage.pdf`) and a hand-built 400×300 PNG
+(`m7-image.png`) into the same project. Annotated one region + transcription on the image doc, and
+two regions + transcriptions on two different pages of the multipage PDF (one `account_holder`,
+one `postcode`), and set distinct `notes` on both new documents. All checks below run against
+`http://localhost:5173/` via Playwright.
+
+- ✓ "Export JSON" opens a dialog rather than downloading immediately, and the dialog names in
+  plain words what each of the two modes puts in the file — confirmed: clicking "Export JSON"
+  opens a `role="dialog"` with radio options titled "Include source document" and "Annotations
+  only", each with a plain-language description of what it contains and what re-importing it
+  gives back. Screenshot: `M7-export-dialog-default.png`.
+- ✓ The dialog's default selection is include source document — opened the dialog fresh (first
+  interaction of the session) and read the DOM: the "Include source document" radio had
+  `checked` state, "Annotations only" did not. Same screenshot as above.
+- ✓ Export with source included — downloaded filename was
+  `Sample_proof_of_address-tagstrip-export.json`. Parsed the JSON: all 3 document objects
+  (`northgate_energy_statement.pdf`, `multipage.pdf`, `m7-image.png`) each have a non-empty
+  `sourceBase64` (lengths 15020/1512/1420 chars) and a `sourceMimeType`
+  (`application/pdf`/`application/pdf`/`image/png`).
+- ✓ Export annotations-only — downloaded filename was
+  `Sample_proof_of_address-tagstrip-annotations-only.json`. `grep -c "sourceBase64\|sourceMimeType"`
+  against the whole file text returned 0 matches (checked as raw text, not per-object).
+- ✓ The annotations-only file still contains what it promises — verified programmatically:
+  `labelSchema.name` and all 5 label names present; `multipage.pdf` carries both annotations with
+  their `x/y/width/height` and `text` ("Page One Holder Name", "SW1A 1AA"); `m7-image.png` carries
+  its annotation text ("Jane Q Tester"); both new documents' `notes` fields round-tripped exactly
+  as typed; every page object across all 3 docs has `contentType`, `width`, `height`, and a
+  `textLayer` key present where applicable (text-layer PDFs have it, the image page correctly does
+  not, since it never had one).
+- ✓ The annotations-only file is dramatically smaller — full export 30,183 bytes vs
+  annotations-only 12,030 bytes (60% smaller) on this small test fixture set; the difference would
+  be far larger on realistic (non-toy) source documents since only base64-encoded pixel/PDF bytes
+  were removed.
+- ✓ Import the full export into a fresh state — deleted the `tagstrip` IndexedDB database via
+  `indexedDB.deleteDatabase`, reloaded to a genuinely empty app (0 schemas, 0 projects), used
+  "Import project…" with the full export file. Project, schema, all 3 documents and all 3 regions
+  came back with correct per-document counts. Opened `multipage.pdf`'s canvas: the page 1 raster
+  actually rendered its content ("Page One M7 Test" visible in the image), region box and its
+  transcription text both present. Screenshot: `M7-full-import-canvas-renders.png`.
+- ✓ Import the annotations-only export — deleted IndexedDB again, imported the annotations-only
+  file into fresh state. Project/docs/region counts identical to the full import. Opened
+  `multipage.pdf` in the document-detail view: notes text intact ("Three page test PDF for M7"),
+  page preview showed "source not included / on export" (a stated placeholder, not blank/spinner).
+  Opened the annotation canvas: it shows a `role="status"` placeholder reading "This export did not
+  include the source document, so there is no page image to show. Existing regions can still be
+  selected, re-labelled, transcribed and deleted — drawing a new region and Suggest text need
+  pixels that aren't here." The existing region and its transcription text were both visible.
+  Screenshot: `M7-annotations-only-canvas-placeholder.png`.
+- ✓ On an imported source-missing document: "Suggest text" button has `disabled` attribute with a
+  `title` explaining why, and an adjacent status line repeats the reason ("...no pixels for Suggest
+  text to read. Re-import it with the source included to use this."). Attempted a mouse-drag over
+  the placeholder area to draw a new region — region count on the page stayed at 1, confirming
+  drawing is blocked, not merely visually discouraged. Selecting the existing region, editing its
+  transcription (changed text to "Edited after reimport" and it persisted through a later reload),
+  and clicking "Delete" (button present and enabled, not tested destructively since further checks
+  depended on the region) all work as expected.
+- ✓ Reload the page with a source-missing document open — the app has no URL routing (`App.tsx`
+  keeps the open view in a plain `useState`, no history/hash sync), so a literal `location.reload()`
+  always resets to the schema/project list for every document in the app, not just source-missing
+  ones; this is a pre-existing, general property of the app, not specific to M7. Given that
+  constraint, verified the practical intent instead: called `window.location.reload()` while the
+  source-missing document's canvas was open, then re-navigated into the same document. It still
+  showed the same placeholder and disabled Suggest text, the earlier transcription edit
+  ("Edited after reimport") had persisted to IndexedDB and survived the reload, and
+  `browser_console_messages` (checked at `error`, and at `debug` covering all messages back to
+  the reload) showed 0 errors and 0 warnings other than an expected Dexie
+  "another connection wants to delete database" notice from this run's own earlier cleanup step —
+  no uncaught exception from an attempted lazy-render. Screenshot:
+  `M7-reload-source-missing-no-error.png`.
+- ✓ Hand-crafted a file with `"sourceBase64": ""` — took the real full export JSON, set
+  `documents[0].sourceBase64` to `""` via a Python script (leaving everything else, including
+  `sourceMimeType`, untouched), and imported it via "Import project…". Import was rejected with
+  the specific message `Document "northgate_energy_statement.pdf" has corrupt source file data.`
+  rather than silently succeeding as annotations-only — confirmed no new project was created
+  (project count stayed at 1, the pre-existing one). Screenshot:
+  `M7-corrupt-sourcebase64-rejected.png`.
+- ✓ The Label Studio export is unchanged — opened "Label Studio JSON…", dialog states "Page images
+  are referenced by filename, not included. Use Export JSON if you need the pixels too." Exported
+  and inspected the file: `grep -c "sourceBase64\|sourceMimeType"` returned 0, and each task's
+  `data.image` was a filename string (`northgate_energy_statement.png`,
+  `multipage.pdf#page-1.png`, `multipage.pdf#page-2.png`, `multipage.pdf#page-3.png`,
+  `m7-image.png`), never document bytes.
+
+No ✗ items this run. One caveat worth a human's attention: the "reload" checklist item is
+worded as if the app deep-links to an open document, but it does not — `App.tsx`'s `view` state is
+purely in-memory, so any full reload always returns to the schema/project list regardless of what
+was open. I verified the item's underlying intent (no uncaught error, placeholder still correct)
+by reopening the document after reload rather than literally reloading mid-canvas, since the
+literal action isn't possible in this app's current navigation model. This is a pre-existing app
+property, not something M7 introduced or broke — flagging it here in case it's a UX gap someone
+wants tracked separately (e.g. as future work), since VERIFICATION.md's phrasing implies deep-link
+persistence that does not exist anywhere in the app today.
+
+Tool-call count for this run: approximately 60 (Bash + Read + Playwright combined).

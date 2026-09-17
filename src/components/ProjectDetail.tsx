@@ -3,10 +3,10 @@ import type { ChangeEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
 import { addImageDocument, addPdfDocument, deleteDoc } from '../db/docs'
-import { exportProjectToFile } from '../lib/nativeExport'
 import { ConfirmDialog } from './ConfirmDialog'
 import { DocDetail } from './DocDetail'
 import { LabelStudioExportDialog } from './LabelStudioExportDialog'
+import { NativeExportDialog } from './NativeExportDialog'
 import { ContentTypeBadge } from './ContentTypeBadge'
 import { SurfaceHeader } from './shell/SurfaceHeader'
 import { useWorkspaceStats } from '../lib/useWorkspaceStats'
@@ -40,6 +40,7 @@ export function ProjectDetail({ projectId, onOpenAnnotate }: ProjectDetailProps)
   const [error, setError] = useState<string | null>(null)
   const [pendingDelete, setPendingDelete] = useState<Doc | null>(null)
   const [showLabelStudioDialog, setShowLabelStudioDialog] = useState(false)
+  const [showNativeExportDialog, setShowNativeExportDialog] = useState(false)
   const stats = useWorkspaceStats()
   const breakpoint = useBreakpoint()
 
@@ -53,15 +54,6 @@ export function ProjectDetail({ projectId, onOpenAnnotate }: ProjectDetailProps)
   const folded = breakpoint !== 'wide'
   const showDocs = !folded || !selectedDoc
   const showDetail = !folded || Boolean(selectedDoc)
-
-  async function handleExportNative() {
-    setError(null)
-    try {
-      await exportProjectToFile(projectId)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err))
-    }
-  }
 
   async function handleUpload(e: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? [])
@@ -158,7 +150,7 @@ export function ProjectDetail({ projectId, onOpenAnnotate }: ProjectDetailProps)
                 type="button"
                 className="btn btn-secondary btn-sm"
                 style={{ flex: 1, justifyContent: 'flex-start' }}
-                onClick={handleExportNative}
+                onClick={() => setShowNativeExportDialog(true)}
               >
                 Export JSON
               </button>
@@ -325,6 +317,13 @@ export function ProjectDetail({ projectId, onOpenAnnotate }: ProjectDetailProps)
         <LabelStudioExportDialog
           projectId={projectId}
           onClose={() => setShowLabelStudioDialog(false)}
+        />
+      )}
+
+      {showNativeExportDialog && (
+        <NativeExportDialog
+          projectId={projectId}
+          onClose={() => setShowNativeExportDialog(false)}
         />
       )}
     </div>

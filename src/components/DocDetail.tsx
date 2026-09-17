@@ -37,12 +37,19 @@ export function DocDetail({ doc }: { doc: Doc }) {
         <h3 className="ts-eyebrow" style={{ margin: '0 0 var(--space-3)' }}>
           Page 1 preview
         </h3>
-        <PagePreview key={doc.id} docId={doc.id} pageCount={doc.pageCount} />
+        <PagePreview
+          key={doc.id}
+          docId={doc.id}
+          pageCount={doc.pageCount}
+          sourceMissing={doc.sourceMissing}
+        />
         <p
           className="mono"
           style={{ margin: 'var(--space-2) 0 0', fontSize: 11, lineHeight: 1.5, color: HINT }}
         >
-          Rasterised on demand by pdf.js, so a long PDF does not render every page up front.
+          {doc.sourceMissing
+            ? 'This document was imported from an annotations-only export, which does not carry page pixels.'
+            : 'Rasterised on demand by pdf.js, so a long PDF does not render every page up front.'}
         </p>
       </div>
 

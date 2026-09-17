@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { db } from '../db/db'
-import { buildNativeExport } from './nativeExport'
+import { buildNativeExport, DEFAULT_NATIVE_EXPORT_OPTIONS } from './nativeExport'
 import { ImportValidationError, importNativeExport, parseNativeExport } from './nativeImport'
 
 beforeEach(async () => {
@@ -66,7 +66,7 @@ async function seedProject() {
 describe('buildNativeExport', () => {
   it('produces a self-describing export with schema, annotations, and text', async () => {
     const projectId = await seedProject()
-    const exported = await buildNativeExport(projectId)
+    const exported = await buildNativeExport(projectId, DEFAULT_NATIVE_EXPORT_OPTIONS)
 
     expect(exported.project.name).toBe('Project A')
     expect(exported.labelSchema.labels).toEqual([
@@ -85,14 +85,40 @@ describe('buildNativeExport', () => {
         ocrSuggested: undefined,
       },
     ])
-    expect(exported.documents[0].sourceBase64.length).toBeGreaterThan(0)
+    // includeSource: true (today's default) still embeds the source, exactly
+    // as before options existed.
+    expect(exported.documents[0].sourceBase64?.length).toBeGreaterThan(0)
+    expect(exported.documents[0].sourceMimeType).toBe('image/png')
+  })
+
+  it('omits sourceBase64 and sourceMimeType entirely when includeSource is false', async () => {
+    const projectId = await seedProject()
+    const exported = await buildNativeExport(projectId, { includeSource: false })
+
+    expect(exported.documents).toHaveLength(1)
+    expect('sourceBase64' in exported.documents[0]).toBe(false)
+    expect('sourceMimeType' in exported.documents[0]).toBe(false)
+    // Still carries everything an annotations-only hand-off promises.
+    expect(exported.documents[0].notes).toBe('a note')
+    expect(exported.documents[0].pages).toHaveLength(1)
+    expect(exported.documents[0].annotations).toHaveLength(1)
+  })
+
+  it('does not throw for a missing blob when includeSource is false', async () => {
+    // A doc with no page image at all — buildNativeExport must not try to
+    // read a blob it was told to leave out.
+    const projectId = await seedProject()
+    await db.pages.update('page-1', { image: undefined })
+    await expect(
+      buildNativeExport(projectId, { includeSource: false }),
+    ).resolves.not.toThrow()
   })
 })
 
 describe('importNativeExport', () => {
   it('recreates a project with correctly positioned annotations', async () => {
     const projectId = await seedProject()
-    const exported = await buildNativeExport(projectId)
+    const exported = await buildNativeExport(projectId, DEFAULT_NATIVE_EXPORT_OPTIONS)
 
     const newProjectId = await importNativeExport(exported)
     expect(newProjectId).not.toBe(projectId)
@@ -116,6 +142,26 @@ describe('importNativeExport', () => {
     const newSchema = await db.labelSchemas.get(newProject!.schemaId)
     expect(newSchema?.labels[0].name).toBe('name_field')
     expect(newAnnotations[0].labelId).toBe(newSchema!.labels[0].id)
+  })
+
+  it('marks a source-less document sourceMissing, with no blob and no page image', async () => {
+    const projectId = await seedProject()
+    const exported = await buildNativeExport(projectId, { includeSource: false })
+
+    const newProjectId = await importNativeExport(exported)
+    const newDocs = await db.docs.where('projectId').equals(newProjectId).toArray()
+    expect(newDocs).toHaveLength(1)
+    expect(newDocs[0].sourceMissing).toBe(true)
+    expect(newDocs[0].sourceBlob).toBeUndefined()
+
+    const newPages = await db.pages.where('documentId').equals(newDocs[0].id).toArray()
+    expect(newPages).toHaveLength(1)
+    expect(newPages[0].image).toBeUndefined()
+
+    // Everything that doesn't need pixels still comes back.
+    const newAnnotations = await db.annotations.where('documentId').equals(newDocs[0].id).toArray()
+    expect(newAnnotations).toHaveLength(1)
+    expect(newAnnotations[0].text).toBe('John Doe')
   })
 })
 
@@ -142,7 +188,32 @@ describe('parseNativeExport', () => {
 
   it('accepts a well-formed export', async () => {
     const projectId = await seedProject()
-    const exported = await buildNativeExport(projectId)
+    const exported = await buildNativeExport(projectId, DEFAULT_NATIVE_EXPORT_OPTIONS)
     expect(() => parseNativeExport(JSON.parse(JSON.stringify(exported)))).not.toThrow()
+  })
+
+  it('accepts a well-formed annotations-only export, with sourceBase64 absent', async () => {
+    const projectId = await seedProject()
+    const exported = await buildNativeExport(projectId, { includeSource: false })
+    expect(() => parseNativeExport(JSON.parse(JSON.stringify(exported)))).not.toThrow()
+  })
+
+  it('rejects a present-but-empty sourceBase64, distinctly from an absent one', async () => {
+    const projectId = await seedProject()
+    const exported = await buildNativeExport(projectId, { includeSource: false })
+    const corrupted = JSON.parse(JSON.stringify(exported))
+    corrupted.documents[0].sourceBase64 = ''
+
+    expect(() => parseNativeExport(corrupted)).toThrow(ImportValidationError)
+    expect(() => parseNativeExport(corrupted)).toThrow(/corrupt source file data/)
+  })
+
+  it('rejects a non-string sourceBase64', async () => {
+    const projectId = await seedProject()
+    const exported = await buildNativeExport(projectId, { includeSource: false })
+    const corrupted = JSON.parse(JSON.stringify(exported))
+    corrupted.documents[0].sourceBase64 = 12345
+
+    expect(() => parseNativeExport(corrupted)).toThrow(/corrupt source file data/)
   })
 })
