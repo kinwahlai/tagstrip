@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   MIN_BOX_SIZE,
   clamp,
+  computeFitZoom,
   moveRect,
   pointToNormalized,
   rectFromPoints,
@@ -14,6 +15,32 @@ describe('clamp', () => {
     expect(clamp(-1, 0, 1)).toBe(0)
     expect(clamp(2, 0, 1)).toBe(1)
     expect(clamp(0.5, 0, 1)).toBe(0.5)
+  })
+})
+
+describe('computeFitZoom', () => {
+  it('returns the zoom at which the page width fills the available width', () => {
+    // 1000px container, 48px padding, 600px-wide page: (1000-48)/600.
+    expect(computeFitZoom(1000, 48, 600)).toBeCloseTo(952 / 600)
+  })
+
+  it('returns a value above 1 for a page narrower than the available width', () => {
+    // The behaviour change this milestone is about: unlike the one-shot
+    // auto-fit (which callers cap at 1), this function itself has no
+    // opinion — it just reports the true fit ratio, over 100% included.
+    const fit = computeFitZoom(1000, 48, 300)
+    expect(fit).not.toBeNull()
+    expect(fit as number).toBeGreaterThan(1)
+  })
+
+  it('returns null when the container has no usable width', () => {
+    expect(computeFitZoom(40, 48, 600)).toBeNull()
+    expect(computeFitZoom(48, 48, 600)).toBeNull()
+  })
+
+  it('returns null for a degenerate page width', () => {
+    expect(computeFitZoom(1000, 48, 0)).toBeNull()
+    expect(computeFitZoom(1000, 48, -10)).toBeNull()
   })
 })
 

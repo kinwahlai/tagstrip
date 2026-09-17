@@ -3623,3 +3623,351 @@ milestone is a **checkpoint per CLAUDE.md/SPEC.md section 8** — flag for human
 proceeding to M9 even though the verifier found nothing wrong.
 
 Tool-call count for this run: approximately 95 (Bash + Read + Playwright combined).
+
+## M9 — Zoom controls and document progress markers (verified 2026-09-17)
+
+Test setup: fresh IndexedDB, new schema "M9 Test Schema" with one label `field_a`, new project
+"M9 Test Project". Uploaded four synthetic PNGs built with a small Node script (no image tooling
+available in the sandbox): `narrow-page.png` (300×900, narrower than the viewport — this is the
+page used to force Fit past 100%), `wide-page.png` (2400×800, wider than the viewport, with a
+green 40×40 marker square at image coords 1180–1220×380–420), `a.png` (400×600, plain, left
+untouched), and a 99-character-filename PNG
+(`this-is-a-deliberately-very-long-filename-for-testing-fixed-column-marker-alignment-across-rows.png`,
+400×600). Viewport 1600×1000. All position claims below are measured via
+`getBoundingClientRect()` through `browser_evaluate`/`browser_run_code_unsafe`, not eyeballed.
+
+**Zoom**
+
+- ✓ Fit and 100% buttons are present in the toolbar, alongside the existing −/+ and percentage
+  readout.
+- ✓ Fit on a page wider than the viewport zooms out — opened `wide-page.png` (2400px wide) at
+  100%, clicked Fit, readout dropped to 48% and the image's rendered width matched the container.
+- ✓ Fit on a page narrower than the viewport zooms in past 100% — opened `narrow-page.png`
+  (300px wide) and clicked Fit; readout jumped to **300%** (the top of the zoom range, i.e. Fit's
+  computed ratio exceeded `ZOOM_MAX` and was correctly clamped there rather than being capped at
+  100% the way the old open-time auto-fit is). Screenshot: `M9-fit-narrow-page-300pct.png`.
+- ✓ 100% button returns the readout to exactly 100% — confirmed on both the narrow and wide
+  documents after being at other zoom levels.
+- ✗ **Ctrl/Cmd + scroll wheel zoom-about-pointer is only correct vertically, not horizontally.**
+  Measured the page `<img>`'s bounding rect before/after a Ctrl+wheel zoom with the cursor fixed
+  over a chosen point, on both the narrow page (100%→300%) and the wide page (100%→157%, cursor
+  over on-screen content well clear of any container edge). In both cases the vertical offset
+  updates exactly as required to keep the same image-space y under the cursor (e.g. on
+  `wide-page.png`: image y went from 128.59 to −25.41, matching the math for keeping y=400 under
+  the cursor). But the image's **x never moves** (`img.getBoundingClientRect().x` was 80 before
+  and 80 after in both tests, even on `wide-page.png` where there is plainly horizontal overflow
+  to scroll into) — so the content that was under the cursor's x-position drifts away every time
+  you Ctrl-scroll-zoom; only the corner/left edge stays anchored horizontally, not the pointer.
+  Concretely: cursor at x=400 over image-space x=320 before zooming; after zooming to 157% the
+  content now under x=400 is image-space x≈204, a drift of ~116px in image space. Screenshot:
+  `M9-ctrlscroll-horizontal-drift.png`. Plain scroll (no Ctrl) was separately confirmed to scroll
+  the page (scrollTop/y changed) with **no** change to the zoom readout — that half of the item
+  passes.
+- ✓ −/+ still step by 25% and clamp at the top — from 100%, seven `+` clicks landed exactly on
+  100→125→150→175→200→225→250→275→300%, and an eighth click stayed at 300% (clamped, matches
+  `ZOOM_MAX`).
+- ✓ Existing boxes stay aligned with the underlying image after Fit and after Ctrl+scroll — drew
+  a region over a fixed point (image-space, not just visually) on `narrow-page.png`, clicked Fit
+  (100%→300%): the box's screen rect after Fit matched the value predicted by
+  `imgRect.x/y + imageSpaceCoord × newScale` to sub-pixel precision. Repeated the same check on
+  `wide-page.png` with a region drawn over the green marker square, then Ctrl-scrolled
+  (100%→157%): box rect again matched the predicted post-zoom position exactly (x: predicted
+  1422.76 vs actual 1422.75; y: predicted 490.88 vs actual 490.77). So even though the pointer
+  anchor itself drifts horizontally (previous item), the region overlay stays perfectly glued to
+  the image under both Fit and Ctrl+scroll — no independent region-vs-image drift bug.
+  Screenshots: `M9-box-alignment-after-fit.png`, `M9-box-alignment-after-ctrlscroll.png`.
+
+**Document progress markers**
+
+- ✓ In a project with 2 annotated (`narrow-page.png`, `wide-page.png` — later also the
+  long-filename doc) and 2 untouched documents (`a.png`, then `narrow-page.png` again after its
+  region was deleted), every row with ≥1 region showed a marker (`img alt="Has regions"` with a
+  ✓ glyph) and every 0-region row showed none. Screenshots:
+  `M9-doclist-all-untouched.png` (baseline taken right after upload, before any regions existed,
+  so no marker on any row) and `M9-doclist-markers-fixed-column.png` (taken later, three rows
+  marked, `a.png` still not).
+- ✓ Fixed column position — measured the marker `<img>`'s `getBoundingClientRect().x` on three
+  marked rows with very different filename lengths: `narrow-page.png` (15 chars) → x=343.390625,
+  `wide-page.png` (12 chars) → x=343.390625, and the 99-character-filename document → x=343.390625.
+  All three identical to six decimal places despite an 87-character filename-length spread.
+- ✓ Untouched rows render at visibly lower contrast — computed style check on the filename text
+  node: touched rows (`narrow-page.png`, `wide-page.png`, long-filename doc) all had
+  `color: rgb(32, 30, 29)` at full opacity; the untouched row (`a.png`) had
+  `color(srgb 0.125 0.118 0.114 / 0.55)` — same hue, 55% alpha, visibly dimmer.
+- ✓ "N regions" count text is present on every row in every snapshot taken (e.g. "image · 0
+  regions", "image · 1 regions") — it was never replaced by the marker, only supplemented.
+- ✓ Draw the first region on a previously-untouched document → marker appears without reload —
+  drew a region on the long-filename document (previously 0 regions), returned to the project
+  document list via the in-app breadcrumb (no page reload), and its row now showed the ✓ marker
+  and "1 regions" immediately.
+- ✓ Delete the last remaining region on a document → marker disappears — deleted the sole region
+  on `narrow-page.png`, returned to the document list (no reload); its marker was gone and the
+  count read "0 regions" again. Screenshot: `M9-marker-disappears-after-delete.png`.
+- ✓ Accessible name does not claim completion — the marker's accessible name (via `img alt`, as
+  read from the Playwright accessibility snapshot) is exactly **"Has regions"**. No occurrence of
+  "complete" or "done" anywhere on the marker.
+
+**M8 regression check (canvas components touched by M9)**
+
+Performed on the region on `wide-page.png` at 100% zoom:
+
+- ✓ Move — clicked to select, then dragged from the region's center by (+30,+20); the region's
+  rect moved from (755,503) to (785,523), an exact (+30,+20), confirming move still works.
+- ✓ Resize — dragged the bottom-right handle by (+30,+30); rect grew from 50×50 to 78×80 with the
+  top-left corner staying anchored at (785,523).
+- ✓ Arrow-key nudge — with the region selected, ArrowRight ×2 + ArrowDown ×1 moved its rect from
+  (785,523) to (789.8,524.6) — small, non-zero movement in the expected directions.
+- ✓ Esc deselect — pressing Escape changed the region's accessible label from "field_a ·
+  selected" to plain "field_a", confirming deselection without side effects.
+  Screenshot: `M9-m8-region-selected.png` (selection state, handles visible, shown pre-nudge).
+
+**Summary:** 13 of 14 M9 checklist items pass. One failure: **Ctrl/Cmd+scroll zoom-about-pointer
+does not anchor horizontally** — only the vertical axis tracks the cursor; the image's left edge
+never moves, so the content actually under the cursor's x-position drifts on every Ctrl-scroll
+zoom (reproduced on both a narrow page with no horizontal overflow and a wide page with clear
+horizontal overflow, so it is not a viewport-fit artifact). This needs a fix to whatever computes
+the new scroll/anchor position on Ctrl+wheel — it appears to only apply the vertical half of the
+anchor formula. All other zoom items, all document-progress-marker items, and the M8 regression
+spot-check pass.
+
+Observation (not a rubric item, noted for awareness): switching between documents with the
+in-canvas Previous/Next-document buttons carries the previous document's zoom level over to the
+next document, rather than recomputing that document's own open-time auto-fit — e.g. after
+viewing `wide-page.png` at 48%, clicking "Previous document" back to `narrow-page.png` showed 48%
+instead of 100%. A full reload + fresh navigation to the same document does correctly show 100%
+(its own auto-fit). This isn't covered by any VERIFICATION.md M9 item so it is not scored, but the
+implementer may want to check whether this is intended.
+
+Tool-call count for this run: approximately 115 (Bash + Read + Playwright combined).
+
+## M9 — Zoom controls and document progress markers (re-verified 2026-09-17, attempt 2 — verifying the single-scroller fix for Ctrl/Cmd+scroll x-anchoring)
+
+Context: attempt 1 found Ctrl/Cmd+scroll anchored on y but not on x, traced to two nested scroll
+containers. The fix collapsed `PageStage`'s root and `AnnotationCanvas`'s canvas area into a
+single `.ts-scroll` container (`width: max-content` / `min-width: 100%` on `PageStage`'s root).
+Re-checked the entire M9 rubric plus the M8 spot-check, since the change touched shared layout.
+Test documents: `wide-page.png` (2400×800, a green square marker at natural-image coords
+(1199,399), uploaded fresh into the sample project as doc 4) and `narrow-page.png` (300×900,
+uploaded as doc 5) — both created for this purpose, left in the project. Browser viewport was
+deliberately set to a real fixed 1280×720 (`browser_resize`) for the zoom/scroll tests, because
+the default MCP viewport auto-grows to fit page content and hides genuine vertical overflow,
+which would make the y-anchor check meaningless.
+
+**Zoom**
+
+- ✓ Fit and 100% buttons present in the toolbar, alongside `−`/`+`.
+- ✗ **Fit on a page wider than the viewport does not reliably zoom out enough to show the full
+  width.** On `wide-page.png` (2400px wide, `.ts-scroll` clientWidth 878px), clicking Fit set zoom
+  to 50% (image width 1200px) when the correct fit zoom is ~35% ((878−48)/2400): after Fit,
+  `scrollWidth` (1248) still exceeds `clientWidth` (888), i.e. ~360px of page width still requires
+  horizontal scrolling — Fit does not deliver "full page width visible". Reproduced twice
+  independently: once after a mid-session browser resize, and again on a **completely fresh**
+  document open at the same 1280×720 size (no resize during that session at all) — same 50%
+  result both times. Root cause (read, not just observed): `minZoom` React state in
+  `AnnotationCanvas.tsx` is computed once per `[currentPage]` via a `useEffect` and never
+  recomputed on resize; `handleFitZoom` does `setZoom(clamp(fitZoom, minZoom, ZOOM_MAX))`, so a
+  freshly-computed, correct, lower `fitZoom` still gets clamped up to a stale `minZoom` (0.5 here)
+  from an earlier, larger measurement of `container.clientWidth`. On the fresh-open repro, the
+  document even opened at 100% instead of auto-fitting down as the code comments say it should,
+  consistent with the very first `clientWidth` read (used to seed both `minZoom` and the initial
+  auto-fit) happening before layout had settled. Screenshots: `M9b-fit-wide-page-not-fully-fit.png`
+  (mid-session repro, horizontal scrollbar visible, page clipped at right) and
+  `M9b-fit-wide-page-fresh-open.png` (fresh-open repro, same numbers).
+- ✓ Fit on a page narrower than the viewport zooms in past 100% — `narrow-page.png` (300px wide)
+  went from 100% to **277%** on Fit, image width 830px = (878−48). Screenshot:
+  `M9b-fit-narrow-page-277pct.png`.
+- ✓ 100% button returns exactly to 100% — confirmed via toolbar readout after zooming elsewhere
+  and clicking "Zoom to 100%".
+- ✓ **Ctrl/Cmd+scroll zoom-about-pointer now anchors on both axes** — this is the item attempt 1
+  failed. On `wide-page.png` at a genuine 1280×720 viewport (confirmed real overflow: scroller
+  scrollHeight 1303 vs clientHeight 563 before the test), positioned the pointer exactly over the
+  green square's center (image-local (1199,399), located precisely via canvas pixel-scanning, not
+  eyeballing), did Ctrl+wheel (100%→157%), and recomputed where that same content point rendered
+  afterward: **x drift 0.40px, y drift 0.75px** — sub-pixel on both axes. (A first attempt at this
+  measurement, before I'd resized the browser to a fixed size, showed a large apparent y-drift;
+  that turned out to be an artifact of the MCP browser's viewport auto-growing to swallow all
+  vertical overflow, not a real bug — with a real fixed-size viewport the anchor is accurate on
+  both axes.) Screenshot: `M9b-ctrlscroll-both-axes-anchor.png`.
+- ✓ Plain wheel (no modifier) still scrolls, in both directions — confirmed the same wide page:
+  plain vertical wheel moved `scrollTop` 226→326, plain horizontal-delta wheel moved `scrollLeft`
+  1362→1462, with no zoom change.
+- ✓ `−`/`+` still step by 25% and clamp at the top — from 100%, repeated "Zoom in" clicks produced
+  125/150/175/200/225/250/275/300/300/300 — steps of exactly 25 and clamped at 300% (`ZOOM_MAX`).
+- ✓ Existing boxes stay aligned with the image after Fit and after Ctrl+scroll — drew a region on
+  `wide-page.png`, then measured its rect as a fraction of the image rect at three zoom states
+  (fresh 100%, after Fit, after a Ctrl+scroll zoom-in): normalized left/top/right/bottom were
+  `0.2/0.1975/0.4/0.3975` at all three, differing only in the 4th decimal place. No drift.
+  Screenshot: `M9b-region-alignment-after-fit-and-ctrlscroll.png`.
+- ✓ Layout regressions from `width: max-content` — checked at max scroll (scrollLeft/scrollTop set
+  to scrollWidth/scrollHeight): the 24px padding on the left survived at scrollLeft=0, and an
+  equivalent 24px gap survived at the right edge at max scroll (computed against the container's
+  visible content width, i.e. excluding the scrollbar gutter) — nothing clipped. `document
+  .scrollingElement.scrollWidth` (1280) exactly equalled `window.innerWidth` (1280): nothing
+  overflows the actual browser window.
+
+**Document progress markers** (re-checked; not touched by this fix but rubric says re-verify)
+
+- ✓ Rows with ≥1 region show the marker, rows with 0 do not — confirmed on the sample project's
+  original 3 docs (`northgate_energy_statement.pdf` 0 regions → no marker;
+  `multipage.pdf`/`m7-image.png`, 2/1 regions → both marked) and again on freshly-uploaded
+  `wide-page.png` (0 regions, no marker, before I drew on it).
+- ✓ Fixed column position — measured marker `<img alt="Has regions">`
+  `getBoundingClientRect().x` on `multipage.pdf` and `m7-image.png` (different filename lengths):
+  both **343.390625**, identical. Screenshot: `M9b-doclist-markers-fixed-column.png`.
+- ✓ Untouched rows render at visibly lower contrast — computed style on the filename text node:
+  touched rows `color: rgb(32, 30, 29)` opacity 1; untouched row
+  `color(srgb 0.125 0.118 0.114 / 0.55)` (same hue, 55% alpha).
+- ✓ "N regions" text present on every row in every snapshot taken.
+- ✓ Draw the first region on a previously-untouched document → marker appears without reload —
+  drew a region on `wide-page.png` (was 0 regions), returned to the project's document list via
+  the in-app breadcrumb (no `page.reload()`), row immediately showed the marker and "1 regions".
+- ✓ Delete the last remaining region → marker disappears — deleted that same region via the
+  region list's "Delete region for account_holder" button, returned to the document list (no
+  reload): marker gone, "0 regions" again. Screenshot:
+  `M9b-marker-disappears-after-delete.png`.
+- ✓ Accessible name — the marker's `img alt` is exactly **"Has regions"**, no "complete"/"done".
+
+**M8 regression spot-check** (same region on `wide-page.png`, at zoom ~78–100% through the
+sequence)
+
+- ✓ Move — dragged from the region's center by (+60,+40); rect moved by exactly (+60,+40).
+- ✓ Resize — dragged the bottom-right corner by (+50,+30); width/height grew by (+49,+30), matching.
+- ✓ Arrow-key nudge — with the region selected, ArrowRight moved its rect right by a small,
+  non-zero amount (+8.36px at that zoom), consistent with a normalized nudge step.
+- ✓ Esc deselect — after Escape, pressing ArrowRight again did **not** nudge the region by the
+  small selected-nudge amount; instead the visible position shifted by exactly the container's
+  native scroll response (`.ts-scroll.scrollLeft` became 245, confirming the arrow key fell through
+  to native scrolling because nothing was selected) — correct deselect behavior.
+  Screenshot: `M9b-m8-spotcheck-move-resize-nudge-esc.png`.
+
+**Summary:** 15 of 16 M9 checklist items pass on this run. The item attempt 1 flagged (Ctrl/Cmd+
+scroll x-anchoring) is now fixed and verified accurate on both axes to sub-pixel precision. One
+**new** failure surfaced by testing more thoroughly this round: the **Fit button does not
+reliably zoom out far enough to show the full width of a page wider than the viewport** — it
+under-zooms-out (clamped to a stale `minZoom` floor from an earlier/larger container-width
+reading that is never recomputed), leaving real horizontal scrolling still required after
+clicking Fit. This reproduced on a totally fresh document open, not just after a window resize,
+so it is not an artifact of my test sequence. All other zoom items, all document-progress-marker
+items, box-alignment-after-zoom, and the M8 spot-check pass.
+
+Tool-call count for this run: approximately 95 (Bash + Read + Playwright combined).
+
+## M9 — Zoom controls and document progress markers (re-verified 2026-09-17, attempt 3)
+
+Context: attempt 2 found Fit under-zooming a wide page because a correctly measured fit-zoom was
+clamped against a stale `minZoom`. Since then the measurement path was rebuilt around a
+`ResizeObserver` on the canvas container, and `handleFitZoom` now derives its own floor from a
+fresh measurement instead of the `minZoom` state. Re-ran the entire rubric, not just the item
+that failed last time, since the changed code feeds open-time zoom, the `−` floor, and Fit alike.
+
+**Cheap checks** — `pnpm run lint`: exit 0, clean. `pnpm run build`: exit 0 (tsc -b && vite build
+succeeded). `pnpm test`: 182/182 passed, exit 0.
+
+**Zoom**
+
+- ✓ Fit and 100% buttons present in the toolbar (`aria-label="Fit page to available width"`,
+  `aria-label="Zoom to 100%"`).
+- ✓ Fit on a page wider than the viewport zooms out to show the full width. On `wide-page.png`
+  (2400px intrinsic width) at a 1000px-wide viewport, after zooming to 100% (`scrollWidth`
+  2448 vs `clientWidth` 934 — real overflow), clicking Fit brought it to 37% with
+  `scrollWidth === clientWidth` (944/944), no sideways scrolling left. Re-checked at a 700px
+  viewport after a stale 300% zoom carried over from another document (see bug below): Fit
+  correctly re-measured and landed at 24%, again `scrollWidth === clientWidth` (644/644).
+  Screenshots: `M9c-fit-wide-page-no-overflow.png`, `M9c-resize-then-fit-wide-24pct.png`.
+- ✓ Fit on a page narrower than the viewport zooms in past 100%. On `narrow-page.png` at a
+  1000px viewport, Fit landed at 295% with no overflow (`scrollWidth === clientWidth`,
+  934/934). At a wider 1400px viewport the true fit-zoom exceeded the 300% max and was correctly
+  clamped to exactly 300% (`ZOOM_MAX`), still with no overflow. Screenshots:
+  `M9c-fit-narrow-page-295pct.png`, `M9c-resize-then-fit-narrow-300pct.png`.
+- ✓ **Fit on a fresh document open, no resizing beforehand.** Did a full app reload (not just an
+  in-app doc switch) at a 1000px viewport, navigated straight to `wide-page.png` and opened the
+  annotation canvas: it auto-fit to 37% with `scrollWidth === clientWidth` (944/944) with no
+  manual Fit click. Re-did this for `narrow-page.png` at 1400px: auto-fit landed at exactly 100%
+  (not past it — matches the documented one-shot auto-fit's cap), consistent with the code
+  comment that the auto-open fit only ever zooms out, never in past 100%; the Fit *button* is
+  what is allowed past 100%, and it was. Screenshot: `M9c-fit-wide-page-fresh-open.png`.
+- ✓ 100% button returns the readout to exactly "100%" (checked via `data-testid="zoom-readout"`
+  textContent after clicking it from both 295% and 300% states).
+- ✓ Ctrl+wheel zooms about the pointer, not the corner, on both axes. Positioned the pointer at
+  60%/40% across the rendered page, sent a Ctrl+wheel of -600, zoom moved 37% → 91%: the
+  normalized page point under the pointer before (0.6, 0.4) matched after (0.5996, 0.3994) —
+  drift under 0.001 normalized (sub-pixel). Screenshot:
+  `M9c-ctrlscroll-anchor-and-alignment.png`.
+- ✓ Plain scroll (no modifier) scrolls without zooming: a plain wheel(0,200) moved
+  `scrollTop` 172→372 while the zoom readout stayed at "91%".
+- ✓ `−`/`+` still step by 25% and clamp at the top of the range: repeated "Zoom in" clicks from
+  225% landed at exactly 300% and stayed there (`ZOOM_MAX`); repeated "Zoom out" clicks from
+  100% floored at the page's own fit-zoom rather than a fixed 50% (37% on the wide page at one
+  viewport, 24-25% at another after a resize) — confirmed by re-measuring `scrollWidth` /
+  `clientWidth` at the floor: still equal, i.e. the whole page width is visible at the floor, not
+  short of it.
+- ✓ Existing boxes stay aligned with the image after Fit and after Ctrl+scroll. Drew a region on
+  `wide-page.png` at (0.2,0.2)-(0.4,0.3) normalized (100% zoom), then measured its rect as a
+  fraction of the image's own rect: right after drawing 0.1999/0.1987/0.3999/0.2987; after
+  clicking Fit (100%→37%) 0.1999/0.1987/0.3999/0.2987 unchanged; after a further Ctrl+scroll zoom
+  (37%→91%) 0.1999/0.1987/0.3999/0.2987 unchanged. No drift on either axis at either transition.
+
+**New finding, not on the literal rubric but directly relevant to it — document-to-document
+navigation does not re-run the auto-fit.** `didAutoFitZoom` (the ref gating the one-shot
+auto-fit-on-open) is set once per mount of `AnnotationCanvas`, and `AnnotationCanvas` is never
+remounted when switching documents in-session (`App.tsx` renders it without a `key={docId}`, and
+`pageIndex`/zoom state is plain component state that outlives a `docId` change). Reproduced live:
+opened `wide-page.png` fresh (correct 37% fit), clicked "Next document" to `narrow-page.png` —
+the zoom stayed at 37%, i.e. the *narrow* page rendered tiny in the middle of the viewport
+instead of fitting or even reaching 100%, because the effect's one-shot guard had already fired
+for the previous document and never re-fires for the new one. Screenshot:
+`M9c-doc-switch-stale-zoom-bug.png`. The reverse direction is worse: after fitting the narrow
+page to 300% and clicking "Previous document" back to the wide page, the wide page opened at
+300% with heavy horizontal overflow, at a viewport where 24% was the correct fit. Clicking Fit
+manually always corrects it immediately (confirmed above), so this is not a re-measurement bug —
+it is that "opening a document" via in-app navigation (Next/Previous buttons, or the docs
+overlay) never triggers the fit that a true fresh load does. Every literal rubric bullet that
+says "Fit" or "the Fit button" still passes because I tested those via the button; I'm flagging
+this because the milestone's own code comments describe the intent as "opening a document always
+starts at [a fit] zoom" and that is visibly not true for the very common workflow of paging
+through a project's documents without reloading the tab.
+
+**Document progress markers**
+
+- ✓ Rows with ≥1 region show the marker, rows with 0 do not — on the original sample docs
+  (`northgate_energy_statement.pdf` 0 regions, no marker; `multipage.pdf`/`m7-image.png` with
+  2/1 regions, both marked) and on `wide-page.png` before/after drawing on it.
+- ✓ Fixed column position — marker `<img alt="Has regions">` `getBoundingClientRect()` x-offset
+  from its row's left edge measured identical (55.390625px) on `multipage.pdf` and
+  `m7-image.png`, different filename lengths. Screenshot:
+  `M9c-doclist-markers-fixed-column.png`.
+- ✓ Untouched rows render at visibly lower contrast — computed style: touched rows
+  `rgb(32, 30, 29)` opacity 1; untouched rows `color(srgb 0.125 0.118 0.114 / 0.55)` — same hue,
+  55% alpha.
+- ✓ "N regions" text present on every row.
+- ✓ Draw the first region on a previously untouched document → marker appears without reload.
+  Drew a region on `wide-page.png` (was 0 regions), returned to the project's document list via
+  the in-app breadcrumb only — no reload — row showed the marker and "1 regions" immediately.
+  Screenshot: `M9c-marker-appears-live.png`.
+- ✓ Delete the last remaining region → marker disappears. Deleted that same region via the
+  region list's Delete button, returned to the document list without reloading: marker gone,
+  back to "0 regions". Screenshot: `M9c-marker-disappears-after-delete.png`.
+- ✓ Accessible name is exactly "Has regions" — no "complete"/"done" language.
+
+**M8 regression spot-check** (drawn region on `wide-page.png`)
+
+- ✓ Move — dragged from the box's center by (+40,+20) in two steps with waits between; rect
+  moved by exactly (+40,+20).
+- ✓ Resize — dragged the SE handle by (+30,+15); width/height grew by (+29.6,+14.8) with the
+  top-left corner unchanged, matching a corner-anchored resize.
+- ✓ Arrow-key nudge — with the region selected, ArrowRight moved its rect right by +1.78px at
+  that zoom (a small, non-zero, consistent-with-normalized-step amount), and the tag text stayed
+  "account_holder · selected".
+- ✓ Esc deselect — after Escape, the tag text changed from "account_holder · selected" to plain
+  "account_holder".
+  Screenshot: `M9c-m8-spotcheck-move-resize-nudge-esc.png`.
+
+**Summary:** every literal M9 rubric item passes on this run, including the Fit-on-a-wide-page
+item that failed attempt 2 and the Ctrl+scroll x-anchoring item that failed attempt 1 — both
+fixes hold up under fresh-open, resized, and floor-reaching conditions. One new defect was found
+by testing document-to-document navigation (not itself a rubric bullet, but adjacent to it and
+worth fixing): switching documents without a full page reload leaves the previous document's
+zoom in place instead of re-running the fit-on-open, which can leave a freshly-opened document
+either minuscule or badly overflowing until the user notices and clicks Fit themselves.
+
+Tool-call count for this run: approximately 95 (Bash + Read + Playwright combined).

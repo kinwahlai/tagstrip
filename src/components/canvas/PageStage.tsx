@@ -24,7 +24,14 @@ type Point = { x: number; y: number }
 type DragState =
   | { mode: 'draw'; start: Point; current: Point }
   | { mode: 'move'; id: string; origin: NormalizedRect; start: Point; current: Point }
-  | { mode: 'resize'; id: string; corner: Corner; origin: NormalizedRect; start: Point; current: Point }
+  | {
+      mode: 'resize'
+      id: string
+      corner: Corner
+      origin: NormalizedRect
+      start: Point
+      current: Point
+    }
 
 // Exact equality is safe here (no epsilon needed): when a gesture ends
 // without moving the pointer, moveRect/resizeRect are fed the same numbers
@@ -70,6 +77,13 @@ interface PageStageProps {
   // that never moved the pointer produces neither a database write nor an
   // undo entry.
   onUpdateGeometry: (id: string, before: NormalizedRect, after: NormalizedRect) => void
+  // Reports the actual rendered page element up to AnnotationCanvas, once on
+  // mount and again (as null) on unmount. Ctrl/Cmd+wheel zoom needs this
+  // element's real getBoundingClientRect() to zoom about the pointer
+  // correctly — the page sits centred inside this stage's own padding, so
+  // its position can't be derived from the scroll container's rect and
+  // scrollLeft/scrollTop alone.
+  onPageElement?: (el: HTMLDivElement | null) => void
 }
 
 // Both the saved-region tags and the live drag readout render through this, so a
@@ -101,6 +115,7 @@ export function PageStage({
   onSelectAnnotation,
   onDeselect,
   onUpdateGeometry,
+  onPageElement,
 }: PageStageProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const [drag, setDrag] = useState<DragState | null>(null)
@@ -111,6 +126,15 @@ export function PageStage({
   // drag. Reading a ref instead keeps the side effect in the event handler,
   // where it only ever runs once.
   const dragRef = useRef<typeof drag>(null)
+
+  // Reported once per mount, not on every render: the element itself doesn't
+  // change across a zoom-driven resize, only its measurements do, and those
+  // are read fresh via getBoundingClientRect() whenever they're needed.
+  useEffect(() => {
+    onPageElement?.(containerRef.current)
+    return () => onPageElement?.(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function updateDrag(next: typeof drag) {
     dragRef.current = next
@@ -228,7 +252,17 @@ export function PageStage({
   const livePlacement: TagPlacement = liveRect ? tagPlacement(liveRect, [], height) : 'above'
 
   return (
-    <div className="ts-scroll" style={{ padding: 'var(--space-6)' }}>
+    // Deliberately not a scroll container itself. It used to carry .ts-scroll,
+    // which made it a second, nested scroller inside AnnotationCanvas's canvas
+    // area — and since this element is block-level it filled that area's width,
+    // so horizontal overflow was absorbed here while vertical overflow passed
+    // through to the outer one. Ctrl+wheel zoom-about-pointer adjusts the outer
+    // container, so it anchored correctly on y and not at all on x.
+    //
+    // width: max-content with min-width: 100% lets the wrapper grow past the
+    // viewport with its content, so the outer container is the only scroller on
+    // both axes and both edges of the padding survive the overflow.
+    <div style={{ padding: 'var(--space-6)', width: 'max-content', minWidth: '100%' }}>
       <div
         ref={containerRef}
         onMouseDown={handleMouseDown}

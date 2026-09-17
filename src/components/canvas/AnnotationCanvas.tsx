@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../../db/db'
 import {
@@ -10,8 +10,8 @@ import {
 } from '../../db/annotations'
 import { suggestText } from '../../lib/suggestText'
 import { isHotkey } from '../../lib/hotkeys'
-import { moveRect } from '../../lib/geometry'
-import { Toolbar, ZOOM_MIN } from './Toolbar'
+import { clamp, computeFitZoom, moveRect, pointToNormalized } from '../../lib/geometry'
+import { Toolbar, ZOOM_MAX, ZOOM_MIN } from './Toolbar'
 import { PageStageLoader } from './PageStageLoader'
 import { RegionList } from './RegionList'
 import { DocsOverlay } from './DocsOverlay'
@@ -89,7 +89,31 @@ export function AnnotationCanvas({
   const [undoStack, setUndoStack] = useState<AnnotationCommand[]>([])
   const [redoStack, setRedoStack] = useState<AnnotationCommand[]>([])
   const canvasAreaRef = useRef<HTMLDivElement>(null)
+  // Toggled true the first time the scroll container actually mounts. The
+  // container only renders once doc/project/schema/pages have all loaded
+  // (see the early `return null` below), which happens on a later render
+  // than the component's first — a wheel-attaching effect keyed on state that
+  // doesn't change in step with that (zoom, minZoom) would see a null
+  // container once and never look again, so this is what lets it retry.
+  const [canvasMounted, setCanvasMounted] = useState(false)
   const didAutoFitZoom = useRef(false)
+  // The actual page element (see PageStage's containerRef), reported up via
+  // onPageElement so Ctrl/Cmd+wheel zoom can measure its true rendered
+  // position with getBoundingClientRect() rather than assume where it sits
+  // inside the scroll container's padding — see the wheel handler below for
+  // why that assumption doesn't hold.
+  const pageElementRef = useRef<HTMLDivElement | null>(null)
+  // Set by the wheel handler just before a zoom change, read by the layout
+  // effect just after it: the pointer's client position and its normalized
+  // point on the page, so that effect can re-measure the (now resized) page
+  // and adjust scroll so the same page point ends up back under the pointer.
+  // Null whenever the zoom change came from somewhere else (a toolbar
+  // button), so those don't get scroll-adjusted at all.
+  const wheelZoomAnchorRef = useRef<{
+    clientX: number
+    clientY: number
+    point: { x: number; y: number }
+  } | null>(null)
 
   const currentPage = pages?.[pageIndex]
 
@@ -100,27 +124,122 @@ export function AnnotationCanvas({
   // page navigation, so it never fights a zoom level the user picked
   // themselves) and never zooms IN past 100%, only ever out to fit.
   //
-  // minZoom, on the other hand, is recomputed on every page change: a fixed
-  // 50% floor doesn't fit an oversized page any better than 100% does, so the
-  // floor itself drops (below the usual 50%) whenever a page's true fit-zoom
-  // is smaller than that — otherwise "zoom out" on a very large page hits a
-  // wall well before the whole page is visible.
+  // minZoom, on the other hand, is recomputed whenever the container's width
+  // changes: a fixed 50% floor doesn't fit an oversized page any better than
+  // 100% does, so the floor itself drops (below the usual 50%) whenever a
+  // page's true fit-zoom is smaller than that — otherwise "zoom out" on a very
+  // large page hits a wall well before the whole page is visible.
+  //
+  // Both measurements are driven by a ResizeObserver rather than by a render
+  // pass. An effect keyed only on the page runs while Dexie's live queries are
+  // still resolving, so it can measure a container that has not been laid out
+  // yet, take the `fitZoom === null` exit, and never run again — leaving the
+  // floor stuck at its 50% default and the fit-on-open never applied. That is
+  // not hypothetical: it left Fit unable to zoom a 2400px page out past 50%,
+  // because a correctly measured fit-zoom was being clamped back up against
+  // that stale floor. Observing the element also covers window resizes, which
+  // a page-keyed effect never did.
   useEffect(() => {
     const container = canvasAreaRef.current
     if (!currentPage || !container) return
 
-    const availableWidth = container.clientWidth - PAGE_STAGE_PADDING_X
-    if (availableWidth <= 0) return
-    const fitZoom = availableWidth / currentPage.width
-    const effectiveMinZoom = Math.min(ZOOM_MIN, fitZoom)
-    setMinZoom(effectiveMinZoom)
+    function measure() {
+      const el = canvasAreaRef.current
+      if (!el || !currentPage) return
+      const fitZoom = computeFitZoom(el.clientWidth, PAGE_STAGE_PADDING_X, currentPage.width)
+      if (fitZoom === null) return
+      const effectiveMinZoom = Math.min(ZOOM_MIN, fitZoom)
+      setMinZoom(effectiveMinZoom)
 
-    if (!didAutoFitZoom.current) {
-      didAutoFitZoom.current = true
-      const initialZoom = Math.min(1, fitZoom)
-      if (initialZoom < 1) setZoom(Math.max(effectiveMinZoom, initialZoom))
+      if (!didAutoFitZoom.current) {
+        didAutoFitZoom.current = true
+        const initialZoom = Math.min(1, fitZoom)
+        if (initialZoom < 1) setZoom(Math.max(effectiveMinZoom, initialZoom))
+      }
     }
-  }, [currentPage])
+
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [currentPage, canvasMounted])
+
+  // Ctrl/Cmd + wheel zooms about the pointer instead of the corner. Attached
+  // manually (not React's onWheel) so preventDefault can be called only when
+  // the modifier is held — { passive: false } is required for that to have
+  // any effect, and JSX's onWheel doesn't let you choose passivity. Plain
+  // scroll (no modifier) never calls preventDefault, so the page area keeps
+  // scrolling exactly as it always has.
+  //
+  // A trackpad pinch arrives as a wheel event with ctrlKey set, so this gets
+  // pinch-to-zoom for free — no separate gesture handling needed.
+  useEffect(() => {
+    const container = canvasAreaRef.current
+    if (!container) return
+
+    function handleWheel(e: WheelEvent) {
+      if (!(e.ctrlKey || e.metaKey)) return
+      e.preventDefault()
+
+      const pageEl = pageElementRef.current
+      if (pageEl) {
+        const pageRect = pageEl.getBoundingClientRect()
+        wheelZoomAnchorRef.current = {
+          clientX: e.clientX,
+          clientY: e.clientY,
+          point: pointToNormalized(e.clientX, e.clientY, pageRect),
+        }
+      }
+
+      // Multiplicative, not ZOOM_STEP: wheel deltas vary wildly between mice
+      // and trackpads, and a fixed step would make a trackpad pinch jump
+      // several zoom levels in one gesture.
+      setZoom((z) => clamp(z * Math.exp(-e.deltaY * 0.0015), minZoom, ZOOM_MAX))
+    }
+
+    container.addEventListener('wheel', handleWheel, { passive: false })
+    return () => container.removeEventListener('wheel', handleWheel)
+    // canvasMounted (unused in the body) is here so this re-runs once the
+    // container actually exists in the DOM — see its declaration above for
+    // why an effect keyed on minZoom alone would miss that.
+  }, [minZoom, canvasMounted])
+
+  // Runs after every zoom change (the page has already re-rendered at the new
+  // size) to fix up scroll so the point the wheel handler captured lands back
+  // under the same client coordinates. Skips entirely when the zoom change
+  // didn't come from the wheel handler (anchor is null) — a toolbar button
+  // press has no pointer position to preserve.
+  useLayoutEffect(() => {
+    const anchor = wheelZoomAnchorRef.current
+    wheelZoomAnchorRef.current = null
+    const container = canvasAreaRef.current
+    const pageEl = pageElementRef.current
+    if (!anchor || !container || !pageEl) return
+
+    const pageRect = pageEl.getBoundingClientRect()
+    const newClientX = pageRect.left + anchor.point.x * pageRect.width
+    const newClientY = pageRect.top + anchor.point.y * pageRect.height
+    container.scrollLeft += newClientX - anchor.clientX
+    container.scrollTop += newClientY - anchor.clientY
+  }, [zoom])
+
+  function handleFitZoom() {
+    const container = canvasAreaRef.current
+    if (!container || !currentPage) return
+    const fitZoom = computeFitZoom(container.clientWidth, PAGE_STAGE_PADDING_X, currentPage.width)
+    if (fitZoom === null) return
+    // The floor is derived from this same fresh measurement rather than read
+    // from the minZoom state, which is only ever as current as the last time
+    // something measured. Clamping a correct fit-zoom against a stale, larger
+    // floor is precisely how Fit came to leave a wide page still needing to be
+    // scrolled sideways.
+    const floor = Math.min(ZOOM_MIN, fitZoom)
+    setMinZoom(floor)
+    // Unlike the one-shot auto-fit on open, this is allowed to exceed 100% —
+    // that cap exists only to avoid surprising someone when a document first
+    // opens, and a button the user just pressed is not a surprise.
+    setZoom(clamp(fitZoom, floor, ZOOM_MAX))
+  }
 
   const annotations = useLiveQuery(
     () => db.annotations.where('[documentId+pageIndex]').equals([docId, pageIndex]).toArray(),
@@ -321,6 +440,7 @@ export function AnnotationCanvas({
           onSelectLabel={setSelectedLabelId}
           zoom={zoom}
           onZoomChange={setZoom}
+          onFitZoom={handleFitZoom}
           minZoom={minZoom}
           pageIndex={pageIndex}
           pageCount={pages.length}
@@ -333,7 +453,12 @@ export function AnnotationCanvas({
         />
 
         <div
-          ref={canvasAreaRef}
+          ref={(el) => {
+            canvasAreaRef.current = el
+            if (el && !canvasMounted) setCanvasMounted(true)
+          }}
+          data-testid="canvas-scroll-area"
+          className="ts-scroll"
           style={{
             flex: 1,
             minHeight: 0,
@@ -354,6 +479,9 @@ export function AnnotationCanvas({
               selectedAnnotationId={selectedAnnotationId}
               selectedLabelId={activeLabelId}
               sourceMissing={sourceMissing}
+              onPageElement={(el) => {
+                pageElementRef.current = el
+              }}
               onSelectAnnotation={setSelectedAnnotationId}
               onDeselect={() => setSelectedAnnotationId(null)}
               onUpdateGeometry={handleUpdateGeometry}

@@ -7,6 +7,7 @@ interface ToolbarProps {
   onSelectLabel: (labelId: string) => void
   zoom: number
   onZoomChange: (zoom: number) => void
+  onFitZoom: () => void
   minZoom: number
   pageIndex: number
   pageCount: number
@@ -36,6 +37,7 @@ export function Toolbar({
   onSelectLabel,
   zoom,
   onZoomChange,
+  onFitZoom,
   minZoom,
   pageIndex,
   pageCount,
@@ -125,7 +127,11 @@ export function Toolbar({
         >
           −
         </button>
-        <span className="mono" style={{ minWidth: 48, textAlign: 'center', fontSize: 12 }}>
+        <span
+          className="mono"
+          data-testid="zoom-readout"
+          style={{ minWidth: 48, textAlign: 'center', fontSize: 12 }}
+        >
           {Math.round(zoom * 100)}%
         </span>
         <button
@@ -135,6 +141,22 @@ export function Toolbar({
           aria-label="Zoom in"
         >
           +
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={onFitZoom}
+          aria-label="Fit page to available width"
+        >
+          Fit
+        </button>
+        <button
+          type="button"
+          className="btn btn-secondary btn-sm"
+          onClick={() => onZoomChange(1)}
+          aria-label="Zoom to 100%"
+        >
+          100%
         </button>
       </div>
 

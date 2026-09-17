@@ -178,73 +178,102 @@ export function ProjectDetail({ projectId, onOpenAnnotate }: ProjectDetailProps)
                 No documents yet. Upload a PDF or image to get started.
               </p>
             ) : (
-              docs.map((doc, i) => (
-                <button
-                  key={doc.id}
-                  type="button"
-                  className="ts-row-btn"
-                  aria-current={selectedDocId === doc.id}
-                  onClick={() => setSelectedDocId(doc.id)}
-                  style={{
-                    padding: 'var(--space-2) var(--space-4)',
-                    borderBottom: '1px solid var(--color-divider)',
-                    alignItems: 'flex-start',
-                  }}
-                >
-                  <span
-                    className="mono"
+              docs.map((doc, i) => {
+                const hasRegions = (stats.regionsByDoc.get(doc.id) ?? 0) > 0
+                return (
+                  <button
+                    key={doc.id}
+                    type="button"
+                    className="ts-row-btn"
+                    aria-current={selectedDocId === doc.id}
+                    onClick={() => setSelectedDocId(doc.id)}
                     style={{
-                      flex: 'none',
-                      width: 22,
-                      fontSize: 11,
-                      paddingTop: 2,
-                      color: 'color-mix(in srgb, var(--color-text) 55%, transparent)',
+                      padding: 'var(--space-2) var(--space-4)',
+                      borderBottom: '1px solid var(--color-divider)',
+                      alignItems: 'flex-start',
                     }}
                   >
-                    {i + 1}
-                  </span>
-                  <span style={{ flex: 1, minWidth: 0 }}>
                     <span
                       className="mono"
                       style={{
-                        display: 'block',
-                        fontSize: '12.5px',
-                        fontWeight: 600,
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
+                        flex: 'none',
+                        width: 22,
+                        fontSize: 11,
+                        paddingTop: 2,
+                        color: 'color-mix(in srgb, var(--color-text) 55%, transparent)',
                       }}
                     >
-                      {doc.filename}
+                      {i + 1}
                     </span>
+                    {/* Fixed-width slot on every row, filled or not, so the
+                      tick-or-blank column lines up regardless of filename
+                      length — a marker that trailed the filename would be
+                      nearly as slow to scan as the text it replaces. */}
                     <span
                       style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        marginTop: 3,
+                        flex: 'none',
+                        width: 14,
+                        paddingTop: 2,
+                        textAlign: 'center',
                       }}
                     >
-                      <ContentTypeBadge
-                        contentType={stats.contentTypeByDoc.get(doc.id) ?? 'unknown'}
-                      />
+                      {hasRegions && (
+                        <span
+                          role="img"
+                          aria-label="Has regions"
+                          title="Has regions"
+                          style={{ color: 'var(--color-accent)', fontSize: 11 }}
+                        >
+                          ✓
+                        </span>
+                      )}
+                    </span>
+                    <span style={{ flex: 1, minWidth: 0 }}>
                       <span
                         className="mono"
                         style={{
-                          fontSize: '10.5px',
+                          display: 'block',
+                          fontSize: '12.5px',
+                          fontWeight: 600,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
                           whiteSpace: 'nowrap',
-                          color: 'color-mix(in srgb, var(--color-text) 58%, transparent)',
+                          color: hasRegions
+                            ? undefined
+                            : 'color-mix(in srgb, var(--color-text) 55%, transparent)',
                         }}
                       >
-                        {doc.sourceType === 'image'
-                          ? 'image'
-                          : `${doc.pageCount} page${doc.pageCount === 1 ? '' : 's'}`}{' '}
-                        · {stats.regionsByDoc.get(doc.id) ?? 0} regions
+                        {doc.filename}
+                      </span>
+                      <span
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          marginTop: 3,
+                        }}
+                      >
+                        <ContentTypeBadge
+                          contentType={stats.contentTypeByDoc.get(doc.id) ?? 'unknown'}
+                        />
+                        <span
+                          className="mono"
+                          style={{
+                            fontSize: '10.5px',
+                            whiteSpace: 'nowrap',
+                            color: 'color-mix(in srgb, var(--color-text) 58%, transparent)',
+                          }}
+                        >
+                          {doc.sourceType === 'image'
+                            ? 'image'
+                            : `${doc.pageCount} page${doc.pageCount === 1 ? '' : 's'}`}{' '}
+                          · {stats.regionsByDoc.get(doc.id) ?? 0} regions
+                        </span>
                       </span>
                     </span>
-                  </span>
-                </button>
-              ))
+                  </button>
+                )
+              })
             )}
           </div>
         </section>

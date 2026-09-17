@@ -9,6 +9,24 @@ export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value))
 }
 
+// The zoom level at which a page's width exactly fills the horizontal space
+// available inside its scroll container, net of that container's own
+// horizontal padding. Shared by AnnotationCanvas's one-shot auto-fit effect
+// and its Fit button — same formula, wrapped in two different clamps at each
+// call site, since the two disagree about whether zooming in past 100% is a
+// surprise. Returns null when there is no usable width to fit into (the
+// container hasn't been measured yet, or a degenerate page width), which both
+// callers treat as "nothing to do".
+export function computeFitZoom(
+  containerWidth: number,
+  paddingX: number,
+  pageWidth: number,
+): number | null {
+  const availableWidth = containerWidth - paddingX
+  if (availableWidth <= 0 || pageWidth <= 0) return null
+  return availableWidth / pageWidth
+}
+
 // Converts a pointer's viewport (clientX/clientY) coordinates into a position
 // normalized to [0, 1] relative to `container`, clamping so a drag that ends
 // outside the element's bounds still resolves to a valid point on its edge.
