@@ -422,3 +422,151 @@ app code, and not ported.
 
 Checkpoints after R1 and R4 mirror section 8's reasoning: R1 because every later screen sits inside
 that shell, R4 because it is the most interactive surface in the app.
+
+## 10. Feature round (2026-09)
+
+Four features raised after the redesign shipped, plus one deliberately deferred. M7 is a defect
+fix and goes first; the rest are enhancements. Build in the order given.
+
+### M7 — Export without the source document
+
+**The problem.** `buildNativeExport` base64-encodes the whole original PDF (or the uploaded image)
+into a `sourceBase64` field on every document, unconditionally — `src/lib/nativeExport.ts:20-30`.
+`exportProjectToFile` takes no options, and if the blob is missing it throws rather than omitting
+the field. So there is no way to hand someone a project's annotations without also handing them
+every source document. Section 6's "No data leaves the browser" is true of the app and false of the
+file the app gives you, and the button that produces it says only "Export JSON".
+
+**This is not a matter of deleting the field.** The native export is the only restore path — `sourceBase64`
+exists so `src/lib/nativeImport.ts` can reconstitute the blob. Strip it unconditionally and
+backup/restore breaks. What is missing is a *choice*, made explicitly, with the consequence stated
+at the moment of export.
+
+**Decisions taken:**
+
+- `buildNativeExport(projectId, options)` takes `NativeExportOptions { includeSource: boolean }`.
+  `sourceBase64` and `sourceMimeType` become optional on `NativeExportDoc`.
+- **`NATIVE_EXPORT_VERSION` stays at 1.** Bumping it would make older builds reject *every* new
+  file, including full ones that they could read perfectly well. Left at 1, an older build meets
+  `parseNativeExport`'s existing "missing its source file data" check and fails with an accurate,
+  specific message — and only on the files it genuinely cannot use.
+- `parseNativeExport` accepts an absent `sourceBase64`, but still rejects one that is present and
+  empty or not a string. Absent means "deliberately excluded"; empty means "corrupt".
+- Importing a source-less file creates the project, schema, documents, pages, annotations,
+  transcriptions and notes as normal, with `sourceBlob` and `Page.image` left undefined, and a new
+  `Doc.sourceMissing?: boolean` set to `true`.
+- **Why a flag rather than inferring from the absent blob:** `Page.image` is already optional
+  because pages are rasterized lazily (section 6), so its absence cannot distinguish "not rendered
+  yet" from "never had pixels to render". Without the flag, opening such a document would call
+  `ensurePageRendered` and throw. `sourceMissing` is not indexed, so no Dexie version bump.
+- A source-missing document opens normally and shows its regions, transcriptions, notes and
+  per-page content types. In place of the page raster it shows a stated placeholder — this export
+  did not include the document. Existing regions can be selected, re-labelled, edited and deleted;
+  drawing a new region and Suggest text are unavailable, because both need pixels.
+- "Export JSON" opens a dialog patterned on `LabelStudioExportDialog`, offering the two modes with
+  what each one contains named plainly.
+- **The default stays "include source document".** That is today's behaviour and the restore
+  promise; silently flipping it would break round-trips for anyone relying on the current file. The
+  dialog is the fix — after this you cannot export the source document without having been told.
+- The excluded variant is named `<project>-tagstrip-annotations-only.json`, so the two artefacts
+  are distinguishable on disk without opening them. The full export keeps its current name.
+- `FORMATS.md` documents the annotations-only variant and states that it does not round-trip pixels.
+
+### M8 — Move and resize regions
+
+**The problem.** Regions are draw-once-only. The four corner handles rendered at
+`src/components/canvas/PageStage.tsx:196-202` are cosmetic `<span>`s with no pointer handlers on
+them at all. A misdrawn box has to be deleted and drawn again.
+
+**Decisions taken:**
+
+- Dragging a region's body moves it; dragging any of its four corners resizes it. The handles
+  become real.
+- Reuse `pointToNormalized` from `src/lib/geometry.ts`. Clamp to the 0–1 page bounds, enforce the
+  existing `MIN_BOX_SIZE`, and let a corner dragged past its opposite edge flip the box rather than
+  produce a negative width or height.
+- Persist once per gesture, on pointer-up — not per `mousemove`. One `updateAnnotation` call means
+  one undo entry and no IndexedDB write per frame.
+- Hook the existing undo/redo command stack from M5, so a move or resize undoes like any other action.
+- Starting a drag on a region must not also start drawing a new one. The existing
+  `e.target !== e.currentTarget` guard in `handleMouseDown` already separates a background hit from
+  a region hit; keep that boundary rather than adding a second mechanism.
+- Arrow keys nudge the selected region by a small step, Shift+arrow by a larger one — section 6's
+  keyboard-operable requirement, and more precise than a mouse at low zoom.
+- **No rotation and no skew.** `Annotation` stays axis-aligned. Every downstream format TagStrip
+  documents a route to — COCO, Pascal VOC and YOLO via `label-studio-converter`, see `FORMATS.md` —
+  is axis-aligned only, so a rotation field would be silently dropped by the very path we tell
+  people to use. It would also require rotated cropping in `src/lib/ocrCrop.ts`. The cost lands in
+  the export contract; the benefit does not.
+
+### M9 — Zoom controls and document progress markers
+
+Two small, independent changes to the same journey.
+
+**Zoom.** Today the toolbar exposes only `−` / percentage / `+`, stepping by `ZOOM_STEP = 0.25`
+between `ZOOM_MIN = 0.5` and `ZOOM_MAX = 3` (`src/components/canvas/Toolbar.tsx:25-27`). A
+fit-to-width calculation already exists at `src/components/canvas/AnnotationCanvas.tsx:92-107` but
+is invisible: it runs once per document open, and is capped at `min(1, fitZoom)` so it will zoom
+out to fit a large page but never zoom in to fill the space on a small one.
+
+- Add a **Fit** button and a **100%** button to the toolbar, reusing that existing `fitZoom` math.
+- Fit is allowed to exceed 100% on small pages. The one-shot cap exists to avoid surprising someone
+  on open; a button the user pressed is not a surprise.
+- Add Ctrl/Cmd + scroll wheel to zoom about the pointer.
+- **No bare-key zoom shortcuts.** Label hotkeys already claim every letter a–z and every digit
+  0–9 (M1), so there is no unallocated key left to give zoom, and a modifier combination that
+  avoids the browser's own Ctrl+`+`/`−`/`0` would be obscure enough that nobody would find it. The
+  buttons and Ctrl+scroll are the whole keyboard story here, deliberately.
+
+**Document progress markers.** Working through a project's documents out of order, there is
+currently no way to see which ones have not been touched except by reading the "N regions" text on
+every row in turn — `src/components/ProjectDetail.tsx:250`. At sixteen documents that is sixteen
+small acts of reading to answer a question the eye should answer at a glance.
+
+- Mark each document row that has at least one region. The count is already computed and already
+  read by that component, via `stats.regionsByDoc` — this is a display change, not new plumbing.
+- **The marker sits in a fixed column position**, so the tick-or-blank slots line up vertically down
+  the list and the gaps can be found by scanning rather than reading. A marker trailing a
+  variable-length filename would be nearly as slow to scan as the text it replaces, which would
+  miss the entire point of the change.
+- Untouched rows additionally mute their filename contrast, so absence-of-tick and dimness
+  reinforce each other.
+- Keep the existing region count text. It is the detail you want *after* the marker has pointed you
+  at a row.
+- **This is not a completion state.** `regions > 0` means the document has been touched, and nothing
+  more — a document with one of twelve fields tagged is marked the same as a finished one. There is
+  no notion of "done" in the data model and this does not add one.
+
+### Deferred — table-aware extraction (not buildable yet)
+
+Recorded so it is not lost, and deliberately left without a `VERIFICATION.md` rubric. Under the
+working policy in `CLAUDE.md` a milestone the verifier has no rubric for cannot be reported done,
+which is the intended effect: **do not build this yet.**
+
+**The idea.** Draw a box over a table and get its cells back as structured rows and columns, rather
+than one flattened string.
+
+**What already exists.** For PDFs with a text layer, `Page.textLayer` stores one normalized,
+page-relative bounding box per text run, and `src/lib/textLayerExtraction.ts:28-39` already clusters
+those runs into rows by sorting on `y` within a tolerance band. That clustering is not
+column-aware; adding column clustering over the same geometry is the bulk of the feature.
+
+**What is currently discarded and would be needed.** `pdfjs`'s `TextItem` exposes `fontName`, which
+`src/lib/pdfTextItemGeometry.ts` does not read — font and size are a strong header-versus-body
+signal. That same file computes the text run's true rotation as an intermediate step and then
+collapses it to an axis-aligned box (lines 58-72), so any skewed table would need the angle
+re-derived rather than read back.
+
+**Scanned pages are a much larger job.** The `OcrEngine` interface in section 2 returns
+`{ text, confidence }` and nothing else. Word-level boxes from Tesseract would mean widening the one
+abstraction that section deliberately froze to stop the engine choice being relitigated.
+
+**The open question, not decided.** Two different features are hiding in one sentence:
+
+1. *Extraction into a box the user drew* — a smarter "Suggest text" that returns structure instead
+   of a flat string. This sits inside the existing M4.5 concept and inside v1 scope.
+2. *Auto-detecting tables and drawing the boxes* — which is model-assisted pre-labeling, explicitly
+   out of scope in section 2.
+
+These have different costs, different risks and different answers to "is this still TagStrip".
+Settle that before writing a rubric.

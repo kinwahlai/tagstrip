@@ -280,3 +280,102 @@ not by reading the code and reasoning that it should work. Reading code tells yo
       section 9. Report what happens at 375px, but a phone-width shortcoming is not a ✗. The
       no-overflow checks above stay binding at every width, since an overflow at 375 usually means
       something is also wrong at 1440.)*
+
+## M7 — Export without the source document
+
+*(Changes the import/export contract and the data model — **checkpoint, stop for human review**
+once all items pass.)*
+
+- [ ] "Export JSON" opens a dialog rather than downloading immediately, and the dialog names in
+      plain words what each of the two modes puts in the file
+- [ ] The dialog's default selection is **include source document** — confirm by opening it fresh
+      and reading the pre-selected option, not by reading the code
+- [ ] Export with source included — the downloaded file's filename ends `-tagstrip-export.json`,
+      and every document object in it has a non-empty `sourceBase64` and a `sourceMimeType`
+- [ ] Export annotations-only — the filename ends `-tagstrip-annotations-only.json`, and the file
+      contains **zero** occurrences of `sourceBase64` or `sourceMimeType`. Check by searching the
+      whole file text, not by inspecting the first document object
+- [ ] The annotations-only file still contains what it promises: `labelSchema` with its labels,
+      every annotation with its coordinates and `text`, each document's `notes`, and each page's
+      `contentType`, `width`, `height` and `textLayer`
+- [ ] The annotations-only file is dramatically smaller than the full export of the same project —
+      report both byte sizes
+- [ ] Import the full export into a fresh state — the project, its documents and its regions come
+      back, and the page image actually renders in the canvas
+- [ ] Import the annotations-only export — the project, documents, regions, transcriptions and
+      notes come back, and the canvas shows a stated placeholder explaining the source was not
+      included. Not a blank area, not a spinner that never resolves, not a thrown error
+- [ ] On an imported source-missing document, confirm drawing a new region and "Suggest text" are
+      unavailable (disabled or absent, with a reason given), while selecting, editing the
+      transcription of, and deleting an existing region all still work. *(This item originally also
+      said "re-labelling". It does not belong here: `src/db/annotations.ts` exposes
+      `updateAnnotationGeometry` and `updateAnnotationText` but nothing that changes an existing
+      region's `labelId` — the label chips and hotkeys only set the active label for the next box
+      drawn. Re-labelling an existing region has never existed in the app. That is a real gap, but
+      it is not M7's, and leaving it in this rubric would have failed M7 for something M7 did not
+      touch.)*
+- [ ] Reload the page with a source-missing document open — it still shows the placeholder, and the
+      browser console shows no uncaught error (the lazy-render path must not be attempted)
+- [ ] Hand-craft a file with `"sourceBase64": ""` and import it — it is rejected with a specific
+      message about the source data, not silently accepted as if it were annotations-only. (Absent
+      means deliberately excluded; present-but-empty means corrupt, and the two must not be conflated)
+- [ ] The Label Studio export is unchanged — still references page images by filename and still
+      carries no document bytes
+
+## M8 — Move and resize regions
+
+*(Highest-risk of this round, same reasoning as M3 and R4 — the most interactive surface.
+**Checkpoint, stop for human review** once all items pass.)*
+
+- [ ] Draw a box, then drag its body — it moves, and the new position survives a full page reload
+- [ ] Drag a corner handle — the box resizes and the diagonally opposite corner stays anchored
+- [ ] Drag a corner past the opposite edge — the box flips cleanly; inspect the stored annotation
+      and confirm `width` and `height` are positive and `x`/`y` are within 0–1
+- [ ] Try to resize a box below the minimum size — it clamps rather than collapsing to a zero-area
+      or invisible box
+- [ ] Drag a box hard against each page edge — stored coordinates stay within 0–1, never negative
+      and never past 1
+- [ ] Move a box at 50% zoom, then view it at 200% — and separately, move one at 200% and view at
+      50%. The box must sit over the same part of the image at both zooms (the normalized-coordinate
+      bug class that M3 already had to catch once)
+- [ ] Undo after a move restores the previous position; undo after a resize restores the previous
+      size; redo reapplies each
+- [ ] **One undo per gesture:** after a single long drag across the page, one press of undo returns
+      the box fully to where it started — not a partial step back, which would mean an undo entry
+      was recorded per pointer-move frame
+- [ ] Dragging an existing region does not also create a new region underneath it
+- [ ] With a region selected, arrow keys nudge it and Shift+arrow nudges it further; both persist
+- [ ] With the caret in the transcription text field, arrow keys move the caret and do **not** move
+      the selected region
+- [ ] No rotation or skew affordance exists anywhere on a region — this was explicitly ruled out,
+      so its presence would be the defect
+
+## M9 — Zoom controls and document progress markers
+
+**Zoom**
+
+- [ ] A **Fit** button and a **100%** button are present in the annotation toolbar
+- [ ] Fit on a page wider than the viewport zooms out so the full page width is visible
+- [ ] Fit on a page narrower than the viewport zooms **in past 100%** to fill the available width —
+      this is the behaviour change from the old open-time auto-fit, which capped at 100%
+- [ ] 100% returns the readout to exactly 100%
+- [ ] Ctrl/Cmd + scroll wheel zooms, and zooms about the pointer position rather than the corner;
+      plain scroll still scrolls the page area without zooming
+- [ ] The existing `−`/`+` buttons still step by 25% and still clamp at the top of the range
+- [ ] Existing boxes stay aligned with the underlying image after Fit and after Ctrl+scroll — not
+      drifted
+
+**Document progress markers**
+
+- [ ] In a project with both annotated and untouched documents, every row with at least one region
+      shows the marker and every row with zero regions does not
+- [ ] The markers occupy a **fixed column position**: measure the marker's x-coordinate on several
+      rows with different filename lengths and confirm they are identical. A marker that shifts
+      with filename length fails this item even if it is otherwise correct
+- [ ] Untouched rows render their filename at visibly lower contrast than touched rows
+- [ ] The "N regions" count text is still present on every row
+- [ ] Draw the first region on a previously untouched document — its marker appears without needing
+      a reload
+- [ ] Delete the last remaining region on a document — its marker disappears
+- [ ] The marker's accessible name describes it as having regions / having been started, **not** as
+      "complete" or "done" — it deliberately carries no completion meaning
