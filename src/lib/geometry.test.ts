@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { clamp, pointToNormalized, rectFromPoints, tagPlacement } from './geometry'
+import {
+  MIN_BOX_SIZE,
+  clamp,
+  moveRect,
+  pointToNormalized,
+  rectFromPoints,
+  resizeRect,
+  tagPlacement,
+} from './geometry'
 
 describe('clamp', () => {
   it('clamps values within the given range', () => {
@@ -110,5 +118,135 @@ describe('tagPlacement', () => {
 
   it('falls back to above rather than dividing by a zero page height', () => {
     expect(tagPlacement(box(0.5), [], 0)).toBe('above')
+  })
+})
+
+describe('moveRect', () => {
+  const rect = { x: 0.4, y: 0.4, width: 0.2, height: 0.1 }
+
+  it('moves by the given delta when the result stays on the page', () => {
+    const moved = moveRect(rect, 0.1, -0.1)
+    expect(moved.x).toBeCloseTo(0.5)
+    expect(moved.y).toBeCloseTo(0.3)
+    expect(moved.width).toBe(rect.width)
+    expect(moved.height).toBe(rect.height)
+  })
+
+  it('clamps against the left edge without shrinking the box', () => {
+    const moved = moveRect(rect, -10, 0)
+    expect(moved.x).toBe(0)
+    expect(moved.width).toBe(rect.width)
+  })
+
+  it('clamps against the right edge without shrinking the box', () => {
+    const moved = moveRect(rect, 10, 0)
+    expect(moved.x).toBeCloseTo(1 - rect.width)
+    expect(moved.width).toBe(rect.width)
+  })
+
+  it('clamps against the top edge without shrinking the box', () => {
+    const moved = moveRect(rect, 0, -10)
+    expect(moved.y).toBe(0)
+    expect(moved.height).toBe(rect.height)
+  })
+
+  it('clamps against the bottom edge without shrinking the box', () => {
+    const moved = moveRect(rect, 0, 10)
+    expect(moved.y).toBeCloseTo(1 - rect.height)
+    expect(moved.height).toBe(rect.height)
+  })
+
+  it('leaves the rect unchanged for a zero delta', () => {
+    expect(moveRect(rect, 0, 0)).toEqual(rect)
+  })
+})
+
+describe('resizeRect', () => {
+  // x 0.2-0.6, y 0.3-0.5 — corners at (0.2,0.3) nw, (0.6,0.3) ne, (0.2,0.5) sw,
+  // (0.6,0.5) se.
+  const rect = { x: 0.2, y: 0.3, width: 0.4, height: 0.2 }
+
+  it('resizes from the se corner while anchoring the opposite (nw) corner', () => {
+    const resized = resizeRect(rect, 'se', { x: 0.8, y: 0.7 })
+    expect(resized.x).toBeCloseTo(0.2)
+    expect(resized.y).toBeCloseTo(0.3)
+    expect(resized.width).toBeCloseTo(0.6)
+    expect(resized.height).toBeCloseTo(0.4)
+  })
+
+  it('resizes from the nw corner while anchoring the opposite (se) corner', () => {
+    const resized = resizeRect(rect, 'nw', { x: 0.1, y: 0.25 })
+    expect(resized.x).toBeCloseTo(0.1)
+    expect(resized.y).toBeCloseTo(0.25)
+    expect(resized.width).toBeCloseTo(0.5)
+    expect(resized.height).toBeCloseTo(0.25)
+    // The se corner (the anchor) stays put.
+    expect(resized.x + resized.width).toBeCloseTo(0.6)
+    expect(resized.y + resized.height).toBeCloseTo(0.5)
+  })
+
+  it('resizes from the ne corner while anchoring the opposite (sw) corner', () => {
+    const resized = resizeRect(rect, 'ne', { x: 0.9, y: 0.1 })
+    expect(resized.x).toBeCloseTo(0.2)
+    expect(resized.y).toBeCloseTo(0.1)
+    expect(resized.width).toBeCloseTo(0.7)
+    expect(resized.height).toBeCloseTo(0.4)
+    // The sw corner (the anchor) stays put.
+    expect(resized.x).toBeCloseTo(0.2)
+    expect(resized.y + resized.height).toBeCloseTo(0.5)
+  })
+
+  it('resizes from the sw corner while anchoring the opposite (ne) corner', () => {
+    const resized = resizeRect(rect, 'sw', { x: 0.1, y: 0.6 })
+    expect(resized.x).toBeCloseTo(0.1)
+    expect(resized.y).toBeCloseTo(0.3)
+    expect(resized.width).toBeCloseTo(0.5)
+    expect(resized.height).toBeCloseTo(0.3)
+  })
+
+  it('flips into a positive-size box when a corner is dragged past its opposite edge', () => {
+    // Dragging se up and to the left of the nw anchor (0.2, 0.3).
+    const resized = resizeRect(rect, 'se', { x: 0.05, y: 0.1 })
+    expect(resized.width).toBeGreaterThan(0)
+    expect(resized.height).toBeGreaterThan(0)
+    expect(resized.x).toBeCloseTo(0.05)
+    expect(resized.y).toBeCloseTo(0.1)
+    expect(resized.width).toBeCloseTo(0.15)
+    expect(resized.height).toBeCloseTo(0.2)
+  })
+
+  it('clamps to MIN_BOX_SIZE instead of collapsing to zero when the pointer reaches the anchor', () => {
+    const resized = resizeRect(rect, 'se', { x: 0.2, y: 0.3 })
+    expect(resized.width).toBe(MIN_BOX_SIZE)
+    expect(resized.height).toBe(MIN_BOX_SIZE)
+    // The nw anchor is still exactly where it was.
+    expect(resized.x).toBeCloseTo(0.2)
+    expect(resized.y).toBeCloseTo(0.3)
+  })
+
+  it('keeps the anchor corner fixed even when clamped to the minimum', () => {
+    // se dragged just barely past the anchor on both axes — under MIN_BOX_SIZE.
+    const resized = resizeRect(rect, 'se', { x: 0.199, y: 0.299 })
+    expect(resized.width).toBe(MIN_BOX_SIZE)
+    expect(resized.height).toBe(MIN_BOX_SIZE)
+    // Anchor (nw, 0.2/0.3) side stays put; the box extends the other way.
+    expect(resized.x + resized.width).toBeCloseTo(0.2)
+    expect(resized.y + resized.height).toBeCloseTo(0.3)
+  })
+
+  it('never produces a box that spills past the page edge when clamped to the minimum', () => {
+    // A box pinned to the bottom-right corner of the page (se anchor at (1,1)
+    // when nw is dragged). Collapsing nw onto that anchor would, pre-clamp,
+    // put the box's origin at exactly 1 with a positive width — pushing its
+    // far edge past the page — so this exercises the page-bounds clamp
+    // rather than the anchor-side one.
+    const edgeRect = { x: 0.6, y: 0.8, width: 0.4, height: 0.2 }
+    const resized = resizeRect(edgeRect, 'nw', { x: 1, y: 1 })
+    expect(resized.width).toBe(MIN_BOX_SIZE)
+    expect(resized.height).toBe(MIN_BOX_SIZE)
+    expect(resized.x).toBeGreaterThanOrEqual(0)
+    expect(resized.y).toBeGreaterThanOrEqual(0)
+    expect(resized.x + resized.width).toBeLessThanOrEqual(1)
+    expect(resized.y + resized.height).toBeLessThanOrEqual(1)
   })
 })

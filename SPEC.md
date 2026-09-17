@@ -493,6 +493,15 @@ them at all. A misdrawn box has to be deleted and drawn again.
   a region hit; keep that boundary rather than adding a second mechanism.
 - Arrow keys nudge the selected region by a small step, Shift+arrow by a larger one — section 6's
   keyboard-operable requirement, and more precise than a mouse at low zoom.
+- **A selected region claims all four arrow keys**, so the arrow-key page navigation listed in
+  section 2 applies only when nothing is selected. Otherwise an arrow meant to nudge a field by two
+  pixels would flip the page out from under it. This changes an existing M3 behaviour, so it is
+  written down here rather than left as an implementation detail.
+- **Esc therefore deselects before it leaves the canvas.** It already unwound one layer at a time —
+  an open document overlay swallows it first — and a selected region becomes the innermost layer.
+  This is load-bearing rather than tidy: once a selection claims the arrow keys, deselecting is the
+  only keyboard route back to page navigation, and without it a keyboard-only user who selected a
+  region could not page through the document again.
 - **No rotation and no skew.** `Annotation` stays axis-aligned. Every downstream format TagStrip
   documents a route to — COCO, Pascal VOC and YOLO via `label-studio-converter`, see `FORMATS.md` —
   is axis-aligned only, so a rotation field would be silently dropped by the very path we tell

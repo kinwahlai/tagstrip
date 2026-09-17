@@ -347,6 +347,12 @@ once all items pass.)*
 - [ ] With a region selected, arrow keys nudge it and Shift+arrow nudges it further; both persist
 - [ ] With the caret in the transcription text field, arrow keys move the caret and do **not** move
       the selected region
+- [ ] With **nothing** selected, ArrowLeft/ArrowRight still navigate pages as they did before M8
+- [ ] With a region selected, ArrowLeft/ArrowRight nudge it and do **not** flip the page
+- [ ] Press Esc with a region selected — it deselects and stays on the canvas; press Esc again and
+      it leaves the canvas. Then confirm arrow keys navigate pages again. *(Added during M8: a
+      selected region claims the arrow keys, so without a keyboard deselect there is no keyboard
+      route back to page navigation at all. Esc previously left the canvas immediately.)*
 - [ ] No rotation or skew affordance exists anywhere on a region — this was explicitly ruled out,
       so its presence would be the defect
 

@@ -6,15 +6,26 @@ import {
   createAnnotation,
   deleteAnnotation,
   restoreAnnotation,
+  updateAnnotationGeometry,
 } from '../../db/annotations'
 import { suggestText } from '../../lib/suggestText'
 import { isHotkey } from '../../lib/hotkeys'
+import { moveRect } from '../../lib/geometry'
 import { Toolbar, ZOOM_MIN } from './Toolbar'
 import { PageStageLoader } from './PageStageLoader'
 import { RegionList } from './RegionList'
 import { DocsOverlay } from './DocsOverlay'
 import type { NormalizedRect } from '../../lib/geometry'
 import type { Annotation, Doc } from '../../db/types'
+import type { AnnotationGeometry } from '../../db/annotations'
+
+// With a region selected, arrow keys nudge it by this many normalized units,
+// Shift+arrow by the larger step. Normalized rather than pixels, because the
+// model itself is normalized — a pixel-sized step would cover a different
+// fraction of the page at every zoom level, so the same keypress would move
+// the box by a different visual amount depending on how far in you'd zoomed.
+const NUDGE_STEP = 0.002
+const NUDGE_STEP_LARGE = 0.02
 
 // Horizontal padding inside the page stage's scroll container (p-6 = 24px each
 // side — see PageStage.tsx) that isn't available for the page image itself.
@@ -35,12 +46,17 @@ function isTypingTarget(target: EventTarget | null): boolean {
   return ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable
 }
 
-// A simple undo/redo command stack for the two annotation actions this
-// canvas supports: draw (create) and delete. Each command carries a full
-// snapshot of the affected annotation, so undoing a delete (or redoing a
-// create) can re-insert the exact original row — same id, same geometry —
-// rather than fabricating a new one.
-type AnnotationCommand = { type: 'create' | 'delete'; annotation: Annotation }
+// A simple undo/redo command stack for the three annotation actions this
+// canvas supports: draw (create), delete, and move/resize (geometry). The
+// create/delete commands carry a full snapshot of the affected annotation, so
+// undoing a delete (or redoing a create) can re-insert the exact original row
+// — same id, same geometry — rather than fabricating a new one. A geometry
+// command instead carries just the before/after rect, since the annotation
+// itself never stops existing across a move or resize — there is nothing to
+// re-insert, only a position to put back.
+type AnnotationCommand =
+  | { type: 'create' | 'delete'; annotation: Annotation }
+  | { type: 'geometry'; id: string; before: AnnotationGeometry; after: AnnotationGeometry }
 
 export function AnnotationCanvas({
   docId,
@@ -137,13 +153,27 @@ export function AnnotationCanvas({
     await applySuggestedText(id, result.text, result.ocrSuggested)
   }
 
+  // Shared by a mouse move/resize (from PageStage) and an arrow-key nudge:
+  // both are a single gesture that changes an annotation's geometry once, so
+  // both persist the same way and produce exactly one undo entry.
+  function handleUpdateGeometry(id: string, before: AnnotationGeometry, after: AnnotationGeometry) {
+    updateAnnotationGeometry(id, after)
+    pushCommand({ type: 'geometry', id, before, after })
+  }
+
   function handleUndo() {
     const command = undoStack[undoStack.length - 1]
     if (!command) return
-    if (command.type === 'create') {
-      deleteAnnotation(command.annotation.id)
-    } else {
-      restoreAnnotation(command.annotation)
+    switch (command.type) {
+      case 'create':
+        deleteAnnotation(command.annotation.id)
+        break
+      case 'delete':
+        restoreAnnotation(command.annotation)
+        break
+      case 'geometry':
+        updateAnnotationGeometry(command.id, command.before)
+        break
     }
     setUndoStack(undoStack.slice(0, -1))
     setRedoStack([...redoStack, command])
@@ -152,10 +182,16 @@ export function AnnotationCanvas({
   function handleRedo() {
     const command = redoStack[redoStack.length - 1]
     if (!command) return
-    if (command.type === 'create') {
-      restoreAnnotation(command.annotation)
-    } else {
-      deleteAnnotation(command.annotation.id)
+    switch (command.type) {
+      case 'create':
+        restoreAnnotation(command.annotation)
+        break
+      case 'delete':
+        deleteAnnotation(command.annotation.id)
+        break
+      case 'geometry':
+        updateAnnotationGeometry(command.id, command.after)
+        break
     }
     setRedoStack(redoStack.slice(0, -1))
     setUndoStack([...undoStack, command])
@@ -184,6 +220,28 @@ export function AnnotationCanvas({
         if (label) setSelectedLabelId(label.id)
         return
       }
+      // A selected region claims the arrow keys for nudging; page navigation
+      // on ArrowLeft/ArrowRight only applies once nothing is selected, or an
+      // arrow meant to nudge a field a couple of pixels would flip the page
+      // out from under it instead.
+      const isArrowKey = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)
+      if (isArrowKey && selectedAnnotationId) {
+        const annotation = annotations?.find((a) => a.id === selectedAnnotationId)
+        if (annotation) {
+          e.preventDefault()
+          const step = e.shiftKey ? NUDGE_STEP_LARGE : NUDGE_STEP
+          const dx = e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0
+          const dy = e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0
+          const before: AnnotationGeometry = {
+            x: annotation.x,
+            y: annotation.y,
+            width: annotation.width,
+            height: annotation.height,
+          }
+          handleUpdateGeometry(annotation.id, before, moveRect(before, dx, dy))
+        }
+        return
+      }
       if (e.key === 'ArrowLeft') {
         goToPage(pageIndex - 1)
         return
@@ -197,11 +255,16 @@ export function AnnotationCanvas({
         handleDeleteAnnotation(selectedAnnotationId)
         return
       }
-      // Esc is the keyboard route out, matching the breadcrumb. An open document
-      // overlay swallows it first, so Esc never skips two steps at once.
+      // Esc is the keyboard route out, matching the breadcrumb, and it unwinds
+      // one layer at a time so it never skips two steps at once. A selected
+      // region is the innermost of those layers, and it has to be: a selection
+      // claims the arrow keys for nudging, so deselecting is also the only
+      // keyboard route back to page navigation. Without this, a keyboard-only
+      // user who selected a region could never page through the document again.
       if (e.key === 'Escape') {
         e.preventDefault()
         if (overlayOpen) onCloseOverlay()
+        else if (selectedAnnotationId) setSelectedAnnotationId(null)
         else onBack()
       }
     }
@@ -293,6 +356,7 @@ export function AnnotationCanvas({
               sourceMissing={sourceMissing}
               onSelectAnnotation={setSelectedAnnotationId}
               onDeselect={() => setSelectedAnnotationId(null)}
+              onUpdateGeometry={handleUpdateGeometry}
               onCreateAnnotation={(rect: NormalizedRect) => {
                 if (!activeLabelId || sourceMissing) return
                 createAnnotation(docId, pageIndex, activeLabelId, rect).then((annotation) => {

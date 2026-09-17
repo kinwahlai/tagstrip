@@ -20,6 +20,7 @@ interface PageStageLoaderProps {
   onCreateAnnotation: (rect: NormalizedRect) => void
   onSelectAnnotation: (id: string) => void
   onDeselect: () => void
+  onUpdateGeometry: (id: string, before: NormalizedRect, after: NormalizedRect) => void
 }
 
 // Mount this keyed by page.id (see AnnotationCanvas) so navigating to a

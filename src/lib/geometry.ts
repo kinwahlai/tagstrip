@@ -37,6 +37,54 @@ export function rectFromPoints(
 // treated as an accidental click rather than an intentional annotation.
 export const MIN_BOX_SIZE = 0.004
 
+// Moving a region has to keep it whole on the page rather than letting it
+// wander off the edge or, worse, get silently cropped to fit. Clamping x into
+// [0, 1 - width] and y into [0, 1 - height] means dragging against an edge
+// simply stops the box there — the same width and height it had before, just
+// pinned to the boundary.
+export function moveRect(rect: NormalizedRect, dx: number, dy: number): NormalizedRect {
+  return {
+    x: clamp(rect.x + dx, 0, 1 - rect.width),
+    y: clamp(rect.y + dy, 0, 1 - rect.height),
+    width: rect.width,
+    height: rect.height,
+  }
+}
+
+export type Corner = 'nw' | 'ne' | 'sw' | 'se'
+
+// Resizing anchors the corner diagonally opposite the one being dragged, then
+// treats that anchor and the pointer as the two corners of a brand new box.
+// Handing them to rectFromPoints gets the flip behaviour for free — it
+// already takes the min and the abs of its two points, so a corner dragged
+// past the anchor swaps which side is which instead of producing a negative
+// width or height.
+//
+// rectFromPoints alone can return a width or height under MIN_BOX_SIZE, when
+// the pointer sits at (or is clamped to) the anchor itself. The fix-up below
+// clamps each axis up to the minimum without collapsing to zero, and keeps
+// the anchor corner fixed while doing it — the box grows away from the
+// anchor on whichever side the pointer was already on, rather than growing
+// symmetrically off both edges. The final clamp into the page bounds only
+// bites when the anchor sits right at 0 or 1 and the minimum would otherwise
+// push the far edge past it.
+export function resizeRect(
+  rect: NormalizedRect,
+  corner: Corner,
+  point: { x: number; y: number },
+): NormalizedRect {
+  const anchor = {
+    x: corner === 'ne' || corner === 'se' ? rect.x : rect.x + rect.width,
+    y: corner === 'sw' || corner === 'se' ? rect.y : rect.y + rect.height,
+  }
+  const next = rectFromPoints(anchor, point)
+  const width = Math.max(next.width, MIN_BOX_SIZE)
+  const height = Math.max(next.height, MIN_BOX_SIZE)
+  const x = clamp(point.x >= anchor.x ? anchor.x : anchor.x - width, 0, 1 - width)
+  const y = clamp(point.y >= anchor.y ? anchor.y : anchor.y - height, 0, 1 - height)
+  return { x, y, width, height }
+}
+
 // A region's name tag sits above its box, which is right until there is
 // something there. Two ways that goes wrong: a box near the top of the page has
 // its tag clipped off the edge, and on a tightly-set document — an invoice, a

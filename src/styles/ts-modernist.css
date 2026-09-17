@@ -883,10 +883,13 @@ textarea.input {
   padding: 0 4px;
   line-height: 13px;
 }
+/* Sized (and offset, in PageStage.tsx) so the box-sizing: border-box hit target
+   is ~10px square — big enough to grab reliably without the handle itself
+   dwarfing a small region. */
 .ts-handle {
   position: absolute;
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   background: var(--color-neutral-100);
   border: 2px solid var(--color-text);
 }

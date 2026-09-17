@@ -3530,3 +3530,96 @@ wants tracked separately (e.g. as future work), since VERIFICATION.md's phrasing
 persistence that does not exist anywhere in the app today.
 
 Tool-call count for this run: approximately 60 (Bash + Read + Playwright combined).
+
+## M8 — Move and resize regions (verified 2026-09-17)
+
+Environment: `pnpm run dev` on port 5174 (5173 already occupied by a stale process). Static checks
+per the task brief were pre-confirmed clean (`pnpm run lint`, `pnpm run build`, `pnpm test`
+171/171) and not re-run here. Used the sample document plus a synthetic 3-page `multipage.pdf`
+(uploaded into the existing "Sample — proof of address" project) to get real page navigation and
+distinguishable page content ("Page One M7 Test") for the zoom-alignment check. All gestures were
+driven via synthetic `mousedown`/`mousemove`/`mouseup` DOM events dispatched with real delays
+(so React's `useEffect`-attached window listeners actually fire), reading ground truth back from
+IndexedDB (`tagstrip.annotations`) after each step rather than trusting on-screen position alone.
+
+- ✓ Draw a box, drag its body, survives reload — moved a drawn "postcode" region by drag, read
+  the new `x`/`y` from IndexedDB (exact expected delta), then did a hard full-page navigate/reload
+  and re-opened the document: IndexedDB and the on-screen canvas both showed the moved position.
+  Screenshot: `M8-move-persist-reload.png`.
+- ✓ Drag a corner handle — resized via the SE handle; NW corner (`x`,`y`) stayed byte-for-byte
+  unchanged while width/height grew by the dragged delta. Screenshot: `M8-resize-anchor.png`.
+- ✓ Drag a corner past the opposite edge flips cleanly — dragged the NW handle past the box's SE
+  corner; stored annotation came back with `x`/`y` equal to the old SE corner and positive
+  `width`/`height` (0.1307, 0.1098), both `x`/`y` well within [0,1]. Screenshot:
+  `M8-flip-corner.png`.
+- ✓ Resize below minimum clamps — dragged SE handle onto the NW anchor point (full collapse
+  attempt); stored `width`/`height` clamped to exactly `MIN_BOX_SIZE` (0.004), never zero.
+- ✓ Drag hard against each page edge — tested both directions: dragging a region far past the
+  top-left clamped to `x:0, y:0`; dragging far past bottom-right clamped to `x+width = 1.0` and
+  `y+height = 1.0` exactly, never negative or past 1. (Also incidentally covered by the original
+  draw-off-edge test below, which clamped to exactly 1.0 on both axes.)
+- ✓ Zoom — moved a region onto the "Page One M7 Test" text landmark at 50% zoom, screenshotted,
+  then zoomed to 200% and screenshotted again: box sat over the same word (immediately after
+  "Page", trailing right) at both zooms, pixel math on the container rect confirmed the same
+  normalized position (x≈0.297,y≈0.198 both times). Repeated in the other direction — moved the
+  box at 200% zoom onto a different landmark ("Test"), screenshotted, zoomed out to 50%,
+  screenshotted again: box remained aligned under the same word both times. No drift found;
+  this is the bug class M3 already had to catch once, and it did not recur here. Screenshots:
+  `M8-zoom-move-at-50pct.png`, `M8-zoom-move-at-200pct.png`,
+  `M8-zoom-moved-at-200pct-view200-scrolled.png`, `M8-zoom-moved-at-200pct-view50.png`.
+- ✓ Undo/redo for move — undo after a move restored the exact pre-move `x`/`y`; redo reapplied
+  the exact post-move value. Verified via direct IndexedDB reads before/after each action.
+- ✓ Undo/redo for resize — separately verified (not just inferred from move): resized a region
+  (width 0.303→0.384, height 0.061→0.107), then one Undo restored width/height to the exact
+  pre-resize values via IndexedDB read.
+- ✓ One undo per gesture — did a single drag with 40 intermediate `mousemove` frames across the
+  page (position sampled mid-flight would have shown many partial states), then pressed Undo
+  exactly once: stored position returned to the exact pre-drag value (0.996, 0.996), not a
+  partial step back. Screenshot: `M8-one-undo-per-gesture.png`.
+- ✓ Dragging an existing region does not create a new region underneath — after 6+ move/resize/
+  flip gestures on the same region, `annotations` count in IndexedDB stayed at exactly 1 throughout.
+- ✓ Arrow keys nudge a selected region and persist — ArrowRight on a selected region moved `x`
+  by exactly `NUDGE_STEP` (0.002), confirmed via IndexedDB read (not just on-screen).
+- ✓ Shift+arrow nudges further and persists — Shift+ArrowRight moved `x` by exactly
+  `NUDGE_STEP_LARGE` (0.02), confirmed via IndexedDB read.
+- ✓ Caret in the transcription field: arrows move the caret, not the region — focused the
+  transcription textbox, pressed ArrowLeft; `document.activeElement` was the `<input>` with
+  `selectionStart` moved back by one, and the region's stored `x` was unchanged.
+- ✓ With nothing selected, ArrowLeft/ArrowRight still navigate pages — after leaving the canvas
+  and reopening (nothing selected), ArrowRight moved from "Page 1 / 3" to "Page 2 / 3"; ArrowLeft
+  moved back. Screenshot: `M8-arrowkey-page-nav-nothing-selected.png`.
+- ✓ With a region selected, arrows nudge and do not flip the page — with the postcode region
+  selected, ArrowRight/Shift+ArrowRight nudged it (see above) while the page indicator stayed at
+  "Page 1 / 3" throughout.
+- ✓ Esc sequence — with a region selected (focus moved off the text field back onto the region
+  button first), one Esc deselected it (tag text changed from "postcode · selected" to
+  "postcode", still on the same document/canvas) without leaving the canvas; a second Esc left
+  the canvas entirely (returned to the project's document list). Reopening the canvas and
+  pressing ArrowRight then navigated pages again, confirming the keyboard route back to page
+  navigation exists after deselecting.
+- ✓ No rotation or skew affordance — inspected all four `.ts-handle` elements on a selected
+  region via `getComputedStyle`/inline style: cursors are exclusively `nwse-resize`/`nesw-resize`
+  at the four corners, no fifth handle, no rotate icon, no skew cursor anywhere. Source review of
+  `PageStage.tsx` and `geometry.ts` confirms no rotation/skew field or transform exists at all.
+  Screenshot: `M8-no-rotate-skew-affordance.png`.
+
+### M3 regression check (same pointer/keyboard handlers touched by M8)
+
+- ✓ Draw a new box — dragged from background on an empty page with a label selected; region was
+  created, selected, and appeared in the regions panel. Screenshot: `M8-draw-new-box.png`.
+- ✓ Drag off the page edge to finalize — started a draw inside the page and dragged the pointer
+  past the container's right/bottom edge before releasing; the created annotation clamped to
+  `x+width = 1.0` and `y+height = 1.0` exactly rather than erroring or extending past the page.
+- ✓ Page isolation — a region drawn on page 1 was absent from page 2's "Regions on this page"
+  list (0 regions), and reappeared correctly when navigating back to page 1.
+- ✓ Delete by key — selected a region, pressed Delete; it was removed and the regions count
+  dropped by one.
+- ✓ Delete by button — clicked "Delete region for account_holder" in the side panel; removed
+  correctly.
+- ✓ Label hotkeys — pressed `p`; the "postcode" label button became the pressed/selected one.
+
+No ✗ items this run. All fifteen M8 checklist items and all six M3 regression items pass. This
+milestone is a **checkpoint per CLAUDE.md/SPEC.md section 8** — flag for human review before
+proceeding to M9 even though the verifier found nothing wrong.
+
+Tool-call count for this run: approximately 95 (Bash + Read + Playwright combined).
