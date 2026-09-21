@@ -13,6 +13,21 @@ function isTextRunItem(item: object): item is PdfTextRunLike {
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
 
+// pdf.js ships its decoders (OpenJPEG for JPEG 2000, JBIG2, qcms for colour
+// profiles), CJK cmaps and standard fonts as separate files it fetches at
+// runtime. None of them have a default location, so without these URLs a page
+// whose images are JPEG 2000 silently fails to decode and renders blank.
+// The files live in public/pdfjs/ — refresh them with `pnpm run update-pdfjs-assets`.
+// Absolute so the worker resolves them the same way the main thread does.
+const pdfAssetBase = new URL(`${import.meta.env.BASE_URL}pdfjs/`, window.location.href).href
+
+const PDF_ASSET_OPTIONS = {
+  wasmUrl: `${pdfAssetBase}wasm/`,
+  cMapUrl: `${pdfAssetBase}cmaps/`,
+  standardFontDataUrl: `${pdfAssetBase}standard_fonts/`,
+  iccUrl: `${pdfAssetBase}iccs/`,
+} as const
+
 // Target resolution for rasterized pages: ~144 DPI (PDF points are 72/inch).
 // Good enough to read fine print when annotating, without ballooning Blob sizes.
 export const RENDER_SCALE = 2
@@ -26,7 +41,7 @@ export interface PdfPageMetadata {
 
 export async function loadPdfDocument(source: Blob): Promise<PDFDocumentProxy> {
   const data = await source.arrayBuffer()
-  return pdfjsLib.getDocument({ data }).promise
+  return pdfjsLib.getDocument({ data, ...PDF_ASSET_OPTIONS }).promise
 }
 
 // Extracts per-page geometry and text-layer content without rasterizing the page,

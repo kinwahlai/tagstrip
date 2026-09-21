@@ -6,3 +6,8 @@ SPEC.md
 VERIFICATION.md
 CLAUDE.md
 pnpm-lock.yaml
+
+# Vendored pdf.js runtime assets, copied verbatim from pdfjs-dist by
+# `pnpm run update-pdfjs-assets` — never hand-format these.
+public/pdfjs
+

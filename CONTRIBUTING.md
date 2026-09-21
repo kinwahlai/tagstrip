@@ -77,6 +77,19 @@ src/
 - `VERIFICATION_REPORT.md` / `verification-screenshots/` — the record of those checks actually
   being run, kept in the repo as an audit trail
 
+## Updating pdf.js runtime assets
+
+`public/pdfjs/` is a checked-in copy of four directories from the `pdfjs-dist` package: `wasm/`
+(the OpenJPEG, JBIG2 and qcms decoders), `cmaps/` (CJK character maps), `standard_fonts/` and
+`iccs/`. pdf.js fetches all of these at runtime and has no default location for them, so
+`src/lib/pdf.ts` points `wasmUrl`, `cMapUrl`, `standardFontDataUrl` and `iccUrl` at this folder.
+
+This is not optional polish. Without `wasmUrl`, a PDF whose page images are JPEG 2000
+(`/JPXDecode` — common in scanned documents from some notary and government scanners) fails to
+decode with `JpxError: OpenJPEG failed to initialize` and renders as a completely blank page, with
+no user-visible error. Run `pnpm run update-pdfjs-assets` after bumping `pdfjs-dist`; a stale copy
+against a new pdf.js brings that failure straight back.
+
 ## Updating OCR language data
 
 `public/tessdata/eng.traineddata.gz` is a static copy of Tesseract's English model, checked in so

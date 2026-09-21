@@ -19,9 +19,12 @@ packets, identity documents, medical records, anything under NDA. The usual bloc
 annotation tool is not whether it works, it's whether you're allowed to put the documents in it.
 
 **You can verify this rather than take our word for it.** Load the page once, disconnect from the
-network, and keep working — including OCR. pdf.js's worker, the Tesseract worker, its WASM core,
-and the English model weights are all served from this app's own origin; tesseract.js normally
-pulls those from a CDN and TagStrip deliberately overrides it (see `src/lib/ocr/tesseract.ts`).
+network, and keep working — including OCR. pdf.js's worker, its image decoders (OpenJPEG for
+JPEG 2000, JBIG2) along with its CJK cmaps, standard fonts and ICC profiles, the Tesseract worker,
+its WASM core, and the English model weights are all served from this app's own origin; both
+pdf.js and tesseract.js normally expect some of those to come from elsewhere, and TagStrip
+deliberately points them at bundled copies instead (see `src/lib/pdf.ts` and
+`src/lib/ocr/tesseract.ts`).
 Watch the network tab if you'd rather see it directly.
 
 To be exact about the limit: that holds for as long as the tab stays open. There is no service

@@ -86,6 +86,17 @@ not by reading the code and reasoning that it should work. Reading code tells yo
       confirm the override persists after reload
 - [ ] Upload a large-ish PDF (15+ pages if you can find or generate one) — confirm the UI doesn't
       freeze/hang during upload and page navigation stays responsive
+- [ ] **Scanned pages actually render, not just classify.** For a scanned PDF, confirm the page
+      image is really there — sample the rendered canvas pixels rather than trusting a glance at
+      a screenshot, since a failed image decode produces a uniformly white page that looks like a
+      plausible blank document. Cover more than one image codec: a plain JPEG (`/DCTDecode`)
+      source, a JPEG 2000 (`/JPXDecode`) source, and a fax/bitonal (`/CCITTFaxDecode`) source.
+      Check a later page as well as page 1 — a document can mix codecs across its pages, so
+      page 1 rendering proves nothing about the rest. Also confirm the browser console shows no
+      decode errors (e.g. `JpxError`) and no 404s for anything under `/pdfjs/`.
+      *(Added after a real bug: JPEG 2000 scans rendered blank because pdf.js could not locate
+      its OpenJPEG decoder. Every pre-existing item above passed the whole time — classification
+      was correct, page counts were correct, nothing errored visibly.)*
 
 ## M3 — Annotation canvas
 
