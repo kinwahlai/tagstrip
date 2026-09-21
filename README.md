@@ -132,8 +132,15 @@ pnpm run build   # outputs to dist/
 pnpm run preview # sanity-check the build locally before deploying
 ```
 
-Deploy the contents of `dist/` to any static host (GitHub Pages, Netlify, Vercel, S3, or just
-open `dist/index.html` directly for fully offline use). `vite.config.ts` sets a relative
+Deploy the contents of `dist/` to any static host (GitHub Pages, Netlify, Vercel, S3). For
+fully offline use on a machine with no network, copy `dist/` across and serve it locally — e.g.
+`python3 -m http.server` from inside `dist/`, then open the address it prints. It does have to
+be served: double-clicking `dist/index.html` to open it straight off the filesystem does _not_
+work, because browsers refuse to load ES module scripts and stylesheets from a `file://` origin
+(Chromium reports `blocked by CORS policy` and the page stays blank). A local server is the
+only extra requirement — nothing is fetched over the network either way.
+
+`vite.config.ts` sets a relative
 (`./`) build base specifically so the same build works unmodified whether it's served from a
 domain root or a GitHub Pages project subpath (`https://<user>.github.io/<repo>/`).
 
