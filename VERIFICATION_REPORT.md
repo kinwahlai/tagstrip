@@ -4009,3 +4009,47 @@ Fresh run against HEAD of main with the Fit/100% zoom buttons present. Existing 
 Minor observation, not a failure: the Page 12 click at 1024 was followed by "Zoom to 100%" in the same step; I did not screenshot after, only read aria-current/readout (12, 100%).
 
 Dev server started by me and stopped at end. Tool-call count: 38 (incl. this report and cleanup).
+
+## M9 — Zoom controls (whole-page zoom floor and undo/redo icons, 2026-10-10)
+
+Run at 1440x900 against uncommitted working tree, dev server on :5173. Fixtures uploaded into "R4 Test Project". Device scale factor was 1 (not 2) for icon screenshots.
+
+- New: `−` on tall page goes below 50% and stops where whole page is visible, no scrollbars; one more `−` does nothing — ✓ M9-floor-tall-900.png — floor 16%; page 747px tall in 795px container (24px above/below), scrollHeight 795 = clientHeight, scrollWidth 1048 = clientWidth; extra clicks stayed 16%.
+- New: page fully visible at 50%+ (small-300x200) — `−` still stops at 50% — ✓ M9-floor-small-300x200.png — 8 clicks from 167% ended at 50%, page 300x200.
+- New: Undo/Redo drawn arrow icon, text weight, vertically centred — ✓ M9-floor-icons-undo-enabled.png, M9-floor-icons-redo-enabled.png — each button has a 14x14 svg before the word; svg centre y 80.29 vs text centre 80.09 (0.2px); arrows read as clear undo/redo, stroke weight comparable to bold text; disabled shown at opacity 0.45, enabled at 1 (both states captured).
+- Regression: Fit on wide page — ✓ M9-floor-pages-12.png — pages-12 at 100% (1224px, scrollWidth 1272) -> Fit gives 82%, imgW 1000, scrollWidth 1048 = clientWidth (no horizontal overflow).
+- Regression: Fit on narrow page zooms in past 100% — ✓ — small-300x200 Fit -> 167% (imgW 1000).
+- Regression: 100% returns readout to exactly 100% — ✓ — "100%" after Fit on tall, small and pages-12 each read 100%.
+- Regression: boxes stay aligned after Fit and at new floor — ✓ M9-floor-box-after-fit.png — box drawn at 16% floor on tall page: fractions of image l=0.096 t=0.049 w=0.600 h=0.031; after Fit (83%) identical fractions. (Ctrl+scroll alignment not rechecked.)
+- R-a: Ctrl+wheel zoom-out stops at same floor as `−` — ✓ M9-floor-wheel.png — from 100%, 25 Ctrl+wheel notches ended at 16%, page 747px, whole page visible, same as button.
+- R-b: viewport 900->600 at floor: new lower floor reached with whole page visible — ✓ M9-floor-tall-600.png — after resize still 16% but page overflowed (bot -276, ch 495); `−` reached 9%, page 447px in 495px container, no scroll; extra click stayed 9%.
+- R-c: open-time zoom of tall doc — ✓ — opened at 83% (fit-width, 1000px wide; page 4000px tall, scrollHeight 4048), not the floor.
+
+Notes: pages-12 (ordinary portrait) floor measured 45% (page 705px in 753px container, no scrollbars). Nothing blocked. Tool calls: 21.
+
+## R4 — Annotate (layer tag moved to the header, 2026-10-10)
+
+Scope: first two R4 items plus R-a..R-e. Browser at 1440x900 against dev server on :5173. Uploaded mixed-text-scanned-text.pdf and the long-filename PDF into "R4 Test Project". Detected page types for the mixed doc: p1 text, p2 scanned, p3 text (as expected).
+
+- R4 item 1 (toolbar single row at 1440): ✗ — on pages-12.pdf the toolbar is 88.99 px tall, wrapped to two rows (button tops 66/67 and 111; flex-wrap: wrap). The Pages group (337 px wide) drops under Labels/Undo-Redo/Zoom. Children widths sum 1314 px against a 1048 px toolbar. Screenshot R4-layertag-toolbar-pages12.png. Schema has 2 labels (name_field, zero_field), so this is not a label-count outlier.
+- R4 item 2 (tag in header, boxed, follows page, absent elsewhere, long name truncates): ✓ — mixed doc p1/p2/p3/p2 gave text/scanned/text/scanned; tag absent on project, projects list, schema, about. Truncation: at 1024 the filename ellipsises (scrollWidth 817 > clientWidth 483), tag 654-700 inside header and left of claim (716). At 1440 the 817 px name fits whole (no truncation needed), tag 988-1035, claim at 1132, no overlap. Screenshots R4-layertag-longname-1440.png, R4-layertag-longname-1024.png.
+- R-a (stale on document change): ✓ — mixed p2 (scanned) -> pages-12 via overlay: tag text; mutation observer history was scanned -> text only (no text->scanned->text flicker, though pre-switch scanned is indistinguishable from stale at the first mutation); Next document arrow to pages-3 gave text. Went back and forth, no leftover scanned in final state.
+- R-b (stale on leaving): ✓ — Esc from canvas (mixed p2, scanned) -> header "Project / R4 Test Project", 0 tags; breadcrumb back link from canvas (mixed p2) -> 0 tags; Projects list, Schema, About -> 0 tags. Screenshots R4-layertag-project-screen.png, R4-layertag-about-screen.png.
+- R-c (highlight): ✓ — all 2px solid, weight 700. Light: text border/color rgb(68,65,65), bg rgb(248,244,244); scanned border/color rgb(124,20,5), bg rgb(255,242,239); header bg rgb(243,242,242). Dark: text border/color rgb(234,231,231), bg rgb(45,43,43); scanned border/color rgb(255,224,217), bg rgb(77,23,14); header bg rgb(25,24,23). Borders clearly distinct from header in both themes. Screenshots R4-layertag-header-{light,dark}-{text,scanned}.png. `unknown` style not checked.
+- R-d (tag gone from toolbar): ✓ — toolbar.querySelectorAll('.tag').length = 0 on pages-12 (only page checked in the toolbar query).
+- R-e (zoom regression): ✓ — pages-12 at 1440x900: repeated Zoom out settled at 45% (below 50%), whole page visible, no scrolling element overflowing; Undo and Redo both contain svg. Note: Zoom out button was not disabled at the floor (clicks just clamp). Screenshot R4-layertag-toolbar-pages12.png.
+
+Tool-call count: about 24.
+
+## R4 — Annotate (toolbar single row, attempt 2, 2026-10-10)
+
+Dev server on :5173 serving working tree (Undo has svg, empty textContent). Schema has 2 labels (name_field, zero_field). R4 Test Project, pages-12.pdf.
+
+- A (single row at 1440, 2 labels): ✓ — R4-onerow-fullwindow-1440.png. Toolbar clientWidth 1048 (inner 1024), height 46.59 px; button tops 66 / 66.3 / 67.1 (one row). Free space on row ~64.7 px (a flex-grow spacer child absorbs it; measured by zeroing its grow). Paging 1..12 via Next: height constant 46.59 px. Not tested with >2 labels.
+- B (Undo/Redo icon-only): ✓ — Undo/Redo contain 16x16 svg, textContent empty, found by aria-label; Undo title="Undo (Ctrl+Z)". Redo title and real hover not checked.
+- R-a (undo/redo work): ✓ — real mouse clicks; panel "Regions on this page" 1 -> 0 after Undo -> 1 after Redo, box visible after Redo (R4-onerow-redo-box.png, R4-onerow-undone.png). Note: the label chip count (name_field "1") is doc-wide and did not change (it already counted a region on another page), so I used the page panel count.
+- R-b (icon legibility): ✓ with note — R4-onerow-icons-undo-enabled.png, R4-onerow-icons-redo-enabled.png. Both read as curved undo / redo arrows, dimmed when disabled, clear when enabled (small, 16px). Icon centred: dx 0, dy 0 px in both. Buttons 36x28 px. NOT the same height as "−" zoom button (26.4 px tall, 27.8 wide): Undo/Redo are 1.6 px taller (visible as slightly taller boxes in the crop).
+- R-c (1024x768 wrap): ✓ — R4-onerow-1024x768.png. Toolbar 88.99 px, 2 rows (tops 66/67 and 111). All 16 buttons inside viewport, elementFromPoint at centre hits each (0 bad). Real clicks Page 1 -> Page 12 changed aria-current correctly.
+- R-d (header layer tag): ✓ — .tag-boxed exists, text "text", inside header, border 2px solid.
+
+Tool-call count: 21.
