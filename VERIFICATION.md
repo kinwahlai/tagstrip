@@ -127,6 +127,14 @@ not by reading the code and reasoning that it should work. Reading code tells yo
       pressing the key is the only way to catch that.)
 - [ ] Do the same with a letter hotkey (e.g. `d`) — confirm it selects the label, and that holding
       Ctrl while pressing it does NOT (bare letters would otherwise swallow browser shortcuts)
+- [ ] In a multi-page document, click a page number in the toolbar — confirm the canvas shows that
+      page, that number becomes the filled (current) button, and ← / → still step from there
+- [ ] In a document with more than 7 pages, step from the first page to the last with → — confirm
+      the strip always shows the first page, the last page, the current page and its neighbours,
+      with `…` for the gaps, and never more than 7 slots. Measure the strip's width at
+      every page: it must be the same throughout, and the toolbar must not re-wrap (slots are
+      equal-width so neither the page buttons nor the controls beside them slide under the cursor)
+- [ ] In a document with 7 pages or fewer, confirm every page number is listed and no `…` appears
 
 ## M4 — Import / export
 

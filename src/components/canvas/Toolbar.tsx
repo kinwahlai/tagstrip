@@ -1,4 +1,5 @@
 import { ContentTypeBadge } from '../ContentTypeBadge'
+import { pageWindow } from '../../lib/pageWindow'
 import type { Label, Page } from '../../db/types'
 
 interface ToolbarProps {
@@ -48,6 +49,14 @@ export function Toolbar({
   onUndo,
   onRedo,
 }: ToolbarProps) {
+  // Every slot in the page strip, gap or number, is as wide as the widest page
+  // number: 20px is .btn-sm's padding plus border. Otherwise a gap is narrower
+  // than a button and the strip, and everything left of it, shifts as you page.
+  const pageSlotStyle = {
+    width: `calc(${String(pageCount).length}ch + 20px)`,
+    paddingInline: 0,
+    fontSize: 12,
+  }
   return (
     <div
       style={{
@@ -160,7 +169,11 @@ export function Toolbar({
         </button>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+      <div
+        role="group"
+        aria-label="Pages"
+        style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}
+      >
         <button
           type="button"
           className="btn btn-secondary btn-sm"
@@ -170,9 +183,30 @@ export function Toolbar({
         >
           ←
         </button>
-        <span className="mono" style={{ minWidth: 84, textAlign: 'center', fontSize: 12 }}>
-          Page {pageIndex + 1} / {pageCount}
-        </span>
+        {pageWindow(pageIndex, pageCount).map((index, slot) =>
+          index === null ? (
+            <span
+              key={`gap-${slot}`}
+              className="mono"
+              aria-hidden="true"
+              style={{ ...pageSlotStyle, textAlign: 'center' }}
+            >
+              …
+            </span>
+          ) : (
+            <button
+              key={`page-${index}`}
+              type="button"
+              className={`btn ${index === pageIndex ? 'btn-primary' : 'btn-secondary'} btn-sm mono`}
+              aria-label={`Page ${index + 1}`}
+              aria-current={index === pageIndex ? 'page' : undefined}
+              style={pageSlotStyle}
+              onClick={() => onPageChange(index)}
+            >
+              {index + 1}
+            </button>
+          ),
+        )}
         <button
           type="button"
           className="btn btn-secondary btn-sm"
