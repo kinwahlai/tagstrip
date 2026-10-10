@@ -7,7 +7,7 @@ document-understanding pipelines (KYC field extraction, ID parsing, invoice pars
 Renders PDFs directly via [pdf.js](https://mozilla.github.io/pdf.js/); no server-side
 pre-processing step, and no server at all.
 
-![The TagStrip annotation canvas: the bundled sample document with five labeled regions, the label toolbar along the top, and the region list on the right showing each region's transcription](docs/screenshot.png)
+![The TagStrip annotation canvas: the bundled sample document with five labeled regions, undo, zoom and page controls along the top, and on the right the label list above the region list showing each region's transcription](docs/screenshot.png)
 
 ## Everything stays on your machine
 
