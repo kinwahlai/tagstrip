@@ -3994,3 +3994,18 @@ Scope: reworded ">7 pages" item + R-a/R-b/R-c; uncommitted working tree, 1440x90
 - ✓ R-c — M3-pagenum2-3pages.png; pages-3.pdf group children "← 1 2 3 →", 0 span elements, no button overflow (group width 161.66 px).
 
 Dev server started by me and stopped at end. Tool-call count: 33.
+
+## M3 — Annotation canvas (page-number strip after rebase onto M7–M9, re-verified 2026-10-10)
+
+Fresh run against HEAD of main with the Fit/100% zoom buttons present. Existing "R4 Test Project" data (pages-12.pdf, pages-3.pdf) loaded fine from IndexedDB; no re-upload needed. Playwright, Chromium.
+
+- ✓ Click a page number — M3-pagenum3-click5.png, M3-pagenum3-click12.png; real clicks on "Page 5" and "Page 12" showed the PAGE 5 canvas (and its page-5 region) with Page 5 filled/aria-current; Next from 5 went to 6, Previous from 12 went to 11.
+- ✓ >7 pages strip — 12 steps via Next: windows were exactly 1 2 3 4 5 … 12 (p1-4), 1 … 4 5 6 … 12 (p5), 1…5 6 7…12, 1…6 7 8…12, 1…7 8 9…12 (p8), 1 … 8 9 10 11 12 (p9-12); always 7 slots, gaps aria-hidden spans; group width 337.12 px at every page (spread 0), toolbar height 84.87 px constant (spread 0), slot width spread 0.00 px.
+- ✓ <=7 pages — M3-pagenum3-3pages.png; pages-3.pdf group = ← 1 2 3 →, 0 spans, no "…".
+- ✓ R-a — M3-pagenum3-coexist-1440.png; at 1440x900 all controls (labels, Undo/Redo, − 82% + Fit 100%, strip) sit on one row at y=66-95; toolbar element is 84.87 px tall only because the "text" doc-type badge wraps to a second line beneath, no overlap/clipping. Fit (aria-label "Fit page to available width", readout stayed 82%) and "Zoom to 100%" (readout 100%) left the strip identical (same 9 children, width 337.12, current page 1). Note: Fit/100% invoked via DOM .click() in one evaluate; zoom-in and the 1024 clicks were real Playwright clicks.
+- ✓ R-b — M3-pagenum3-zoom-p5.png, M3-pagenum3-zoom-p5-scrolled.png; reached page 5 by clicking "Page 1" then "Page 5"; Zoom in changed readout 100% -> 125%, page 5 stayed current, canvas still shows page 5 (region visible; scrolled to read "PAGE 5").
+- ✓ R-c — M3-pagenum3-vp1024.png; observation: at 1024x768 the toolbar wraps, height 127.27 px: row 1 labels + Undo/Redo (y=66), row 2 zoom controls + strip (y=111), row 3 "text" badge. All 15 toolbar buttons are within the viewport, no pairwise overlaps, elementFromPoint at each button centre hits that button, scrollWidth == clientWidth. Real clicks on "Page 12" and "Zoom to 100%" worked (readout 100%).
+
+Minor observation, not a failure: the Page 12 click at 1024 was followed by "Zoom to 100%" in the same step; I did not screenshot after, only read aria-current/readout (12, 100%).
+
+Dev server started by me and stopped at end. Tool-call count: 38 (incl. this report and cleanup).
