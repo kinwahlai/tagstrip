@@ -4310,3 +4310,13 @@ Desktop only (1440x900, 1280x720, 1024x768). Data: "Many Labels" schema temporar
 
 Observations (desktop only): names wrap mid-word in 2-col mode (orphan "r" in "invoice_numbe/r"); 15 region overlays each take a Tab stop before the label buttons (16 Tabs to reach labels from the canvas); zoom stays 82% on resize (no refit). Region area is narrow at 1280x720/1024x768 (1 row visible) but meets the rubric.
 Data final state: Many Labels schema restored identical (12 labels), no qa-* annotations, annotations total 11 (as at start), localStorage helper keys removed. Tool calls: ~33.
+
+## R4 — narrow re-check after header/inspector alignment change (re-verified 2026-10-10)
+Headless Playwright, fresh storage, sample document (5 labels). Screenshots: verification-screenshots/R4b-*.png
+- 1. Dividers meet across top-right corner: ✓ (R4b-canvas-1440/1280/1024.png) .ts-header-end left vs aside.ts-inspector left: 1440: 1104/1104; 1280: 944/944; 1024: 688/688. Toolbar bottom vs Labels header bottom: 104/104 at all three sizes (both 46px tall).
+- 2. Toolbar single row at 1440 and 1024: ✓ height 46px at both, no wrap (1024 screenshot viewed: one row; 1440 judged by height only).
+- 3. Claim text not clipped, opens about, theme toggles: ✓ text "Nothing leaves your browser" scrollWidth<=clientWidth, button 280px wide; click opened the "Your documents never leave this browser" screen (R4b-about.png; not a role=dialog, a full page view); toggle switched data-theme light->dark (aria-label "Switch to dark theme").
+- 4. Breadcrumb at 1024: ✓ filename (x 163-374) and "text" tag (382-428) visible, no overlap with claim block (starts 730) (R4b-canvas-1024.png).
+- 5. Home and project header at 1280x720: ✓ claim block (x 944-1222) and theme toggle at right edge, nothing overlapping (R4b-home-1280.png light; R4b-project-1280.png dark, theme had been toggled in item 3).
+- 6. Close-up top-right corner 1280x720: ✓ R4b-corner-1280.png: header bottom line and toolbar/Labels-header bottom line read as continuous; vertical divider at inspector edge continues from header down; lines visibly meet.
+Notes: item 3 about view replaces the canvas screen (navigation), not an overlay. Tool calls: ~8.
