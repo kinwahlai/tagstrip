@@ -4053,3 +4053,100 @@ Dev server on :5173 serving working tree (Undo has svg, empty textContent). Sche
 - R-d (header layer tag): ✓ — .tag-boxed exists, text "text", inside header, border 2px solid.
 
 Tool-call count: 21.
+
+## R4 — Annotate (toolbar with 3–12 labels, 2026-10-10)
+
+Server :5173 (Undo has svg, empty textContent). Schema "Many Labels" extended 3 -> 5 -> 8 -> 12 (project "Many Labels Project", pages-12.pdf); canvas re-opened after each change, chip count confirmed (3/5/8/12). Separate schema "Five Labels" + project "Five Labels Project" for the paging check. All labels got auto-assigned single-letter hotkeys, so every chip has a key cap. Toolbar inner width is 1048 px at 1440 (632 px at 1024; a 68 px rail + 336 px right panel eat the rest).
+
+- Line 1 (no control clipped/overlapped/unreachable + real-click sequence): ✓ — 0 failures across all 6 configs (inside viewport, inside toolbar box, elementFromPoint hits each); 12-label 1440x900 real clicks: last chip "notes" aria-pressed=true, drag drew a box (regions 0->1), Undo (->0), Redo (->1), Page 12 (aria-current=page), Zoom in (82% -> 107%) all worked. Screenshots R4-labels-12-click-draw.png, R4-labels-12-click-end.png.
+- Line 2 (paging 5 labels): ✓ — Next 1..12, toolbar height 88.99 px on every page, 0 failures each page.
+- Line 3 (header tag): ✓ — header .tag-boxed text "text"; tag rect l=257.33 t=27.11 r=303.46 b=49.38 (46.1x22.3); filename span rect l=163.13 t=26.40 r=249.33 b=48.09; tag starts 8 px right of the filename, same line. R4-header-tag.png.
+
+### Measurements (toolbar = parent of Pages group)
+| Labels | Viewport | Toolbar h px | Rows | Row layout | Label chip rows (group h) | Button failures | H-overflow | Canvas scroll clientHeight | Screenshot |
+|---|---|---|---|---|---|---|---|---|---|
+| 3 | 1440x900 | 88.99 | 2 | R1: labels, undo/redo, zoom. R2: pages (alone, left) | 1 (28.6) | 0 of 17 | no (1048/1048) | 753 | R4-labels-3-1440x900.png |
+| 5 | 1440x900 | 88.99 | 2 | R1: labels, undo/redo, zoom. R2: pages (alone, left) | 1 (28.6; group 596 px wide) | 0 of 19 | no | 753 | R4-labels-5-1440x900.png |
+| 5 | 1024x768 | 132.99 | 3 | R1: labels. R2: undo/redo, zoom. R3: pages | 1 (596 px of 632) | 0 of 19 | no (632/632) | 577 | R4-labels-5-1024x768.png |
+| 8 | 1440x900 | 90.59 | 2 | R1: labels (978 px). R2: undo/redo, zoom, pages | 1 (28.6) | 0 of 22 | no | 751 | R4-labels-8-1440x900.png |
+| 12 | 1440x900 | 125.19 | 3 | R1-2: labels (2 chip rows, 1024 px wide). R3: undo/redo, zoom, pages | 2 (63.2) | 0 of 26 | no | 717 | R4-labels-12-1440x900.png |
+| 12 | 1024x768 | 202.18 | 5 | R1-3: labels (3 chip rows, 608 px). R4: undo/redo, zoom. R5: pages | 3 (97.8) | 0 of 26 | no (632/632) | 508 | R4-labels-12-1024x768.png |
+
+Reference (2 labels): 46.59 px one row at 1440, 88.99 px two rows at 1024. No chip text truncated in any config (scrollWidth<=clientWidth). The labels group wraps internally only at 12 labels (1440) and 12 labels (1024); at 5 labels 1024 it fills a row alone (596 of 632 px).
+
+### Observations
+- The 2-label "one row with 65 px spare" does not survive a 3rd label: at 3 labels / 1440 the toolbar already goes to two rows (46.6 -> 89.0 px), and the Pages strip sits alone on row 2, left-aligned, while undo/redo/zoom are right-aligned on row 1. Same at 5 labels. Looks stranded; row 2 is ~70% empty.
+- 8 labels is nicer than 5: the chips fill row 1 and all other controls share row 2. Toolbar there (90.6 px) is no taller than at 3 or 5.
+- 12 labels: toolbar 125 px at 1440 (canvas 717 px, -36 px vs 2 labels); at 1024x768 it is 202 px (23% of viewport height... 26% of 768) leaving 508 px canvas, with controls spread over 5 rows (undo/redo+zoom on one row, pages on another, each partly empty).
+- Grid of chips wraps ragged (row 1 ends at x~1046 of 1116, second row 4 chips, whole right side of row 2 empty at 1440); at 12/1440 the Undo/Redo/Zoom/Pages row is the 3rd row far below the chips.
+- Chips are never truncated or clipped; wrapping keeps everything reachable. Fails only on aesthetics/space, not function. The empty 0-height spacer div (flex gap element) between groups is invisible and harmless.
+- Not tested: 3 and 8 labels at 1024x768, 3/8 real-click sequences (not requested). The undo-redo/zoom group at 12 labels was exercised only with the mouse at 1440.
+- Caveat: Line 1 "no controls overlapped" was judged by elementFromPoint at centres plus box containment, and visually in screenshots, not by pairwise rect-intersection.
+
+Left in place: schemas "Many Labels" (12 labels), "Five Labels" (5); projects "Many Labels Project", "Five Labels Project" (both with pages-12.pdf); 1 region drawn on page 1 of Many Labels Project (label notes).
+
+Tool-call count: about 31 of 90.
+
+## R4 — Annotate (two-row toolbar by design, 2026-10-10)
+
+Server :5173; confirmed working tree (parent of Pages group does not contain Labels group, labelsInCtl=false in every config). Toolbar = grandparent of Pages group. Label counts 3/8/12 made by editing schemas (see final state); chip count confirmed on canvas each time. Clustering of rows by button `top` within 4 px. Button checks: inside viewport + toolbar box, elementFromPoint at centre.
+
+- Line 1 (same height 2/3/5/8 at 1440, within 2 px): ✓ — 82.59 / 82.59 / 82.59 / 82.59 px (2/3/5/8 labels).
+- Line 2 (2-8 labels at 1440: two rows, all three groups on row 2, nothing alone): ✓ — 2 rows in all four; undo/redo, zoom (4 btns), pages all on row 2; labels alone on row 1 (that is the design).
+- Line 3 (12 labels at 1440: two chip rows, controls on one row beneath): ✓ — 117.19 px, 3 visual rows, 2 chip rows, undo/redo+zoom+pages all on row 3.
+- Line 4 (nothing clipped/overlapped/unreachable in every config): ✓ — 0 failures in all 8 configs (0/16, 0/17, 0/19, 0/22, 0/26 at 1440; 0/16, 0/19, 0/26 at 1024); no horizontal overflow. Caveat: judged by containment + elementFromPoint + screenshots, not pairwise rect intersection. NOTE at 1024 the control row itself wraps (see table) so pages sits alone on its own row there in all three label counts.
+- Line 5 (real mouse clicks, 5 labels @1440 and 12 labels @1024): ✓ — both: last chip aria-pressed=true; drag drew a box (5-label: "Regions on this page" 0->1; 12-label: Undo enabled, box visible in screenshot); Undo (->0 / undo disabled, redo enabled); Redo (->1); Page 12 (aria-current=12); Zoom in (82% -> 107%) on both. Screenshots R4-tworow-5-1440x900-click-draw/-click-end.png, R4-tworow-12-1024x768-click-draw/-click-end.png.
+- Line 6 (paging 1..12 on 5 labels @1440): ✓ — toolbar height 82.59 on every page (max-min 0); x of Undo, Zoom in, Previous page: range 0, 0, 0 px; 0 button failures on all 12 pages (button count varies 18/19 with page strip, no failures).
+- Line 7 (visual judgement): ✓ with reservations — at 2, 5 and 12 labels @1440 it reads deliberate and tidy: labels on top, one compact controls row, 8 px gap between rows, consistent regardless of count 2-8. Row 2 is left-aligned with 381 px empty at its right (controls end x=722.8, toolbar right=1104; 36% of 1048 px row). That empty space is noticeable but not wrong. 12 labels: chip rows are ragged (row 1 of 8 chips, row 2 of 4 chips, right ~half of row 2 empty). At 1024x768 it is less pretty: 5 rows at 12 labels (194.18 px, 25% of viewport, canvas 516 px) and even 2 and 5 labels take 3 rows (124.99 px) because the controls row wraps and Pages sits alone on row 3 — a control group alone on a row, contrary to the design intent, though VERIFICATION.md allows control-row wrap at narrower widths.
+- Line 8 (regression): ✓ for what was asked, with a deviation from the prediction — (a) header `.tag-boxed` present, text "text", left=257.3 vs filename right=249.3, same line. (b) pages-12 @1440, 2 labels: Zoom out clicked 30 times ends at 45%, page fully visible (img 164.6..875.6 inside scroll area to 900), no vertical or horizontal scrollbar (scrollHeight 759 = clientHeight 759); Zoom out button never became disabled. Floor is 45%, NOT slightly lower than the earlier 45% despite the 2-label toolbar being 36 px taller (46.59 -> 82.59 px); I did not investigate why (likely stepped zoom ladder). Screenshot R4-tworow-2-1440x900-zoomfloor.png.
+
+### Measurements
+| Labels | Viewport | Toolbar h px | Rows | Row layout | Chip rows | Failures | H-overflow | Canvas clientH | Screenshot |
+|---|---|---|---|---|---|---|---|---|---|
+| 2 | 1440x900 | 82.59 | 2 | R1 labels; R2 undo/redo, zoom, pages | 1 | 0/16 | no | 759 | R4-tworow-2-1440x900.png |
+| 3 | 1440x900 | 82.59 | 2 | same | 1 | 0/17 | no | 759 | R4-tworow-3-1440x900.png |
+| 5 | 1440x900 | 82.59 | 2 | same | 1 | 0/19 | no | 759 | R4-tworow-5-1440x900.png |
+| 8 | 1440x900 | 82.59 | 2 | same | 1 | 0/22 | no | 759 | R4-tworow-8-1440x900.png |
+| 12 | 1440x900 | 117.19 | 3 | R1-2 labels; R3 undo/redo, zoom, pages | 2 | 0/26 | no | 725 | R4-tworow-12-1440x900.png |
+| 2 | 1024x768 | 124.99 | 3 | R1 labels; R2 undo/redo+zoom; R3 pages (alone) | 1 | 0/16 | no | 585 | R4-tworow-2-1024x768.png |
+| 5 | 1024x768 | 124.99 | 3 | same as 2 | 1 | 0/19 | no | 585 | R4-tworow-5-1024x768.png |
+| 12 | 1024x768 | 194.18 | 5 | R1-3 labels (3 chip rows); R4 undo/redo+zoom; R5 pages (alone) | 3 | 0/26 | no | 516 | R4-tworow-12-1024x768.png |
+
+Controls-row width 1440: groups span x 68..722.8; controls row 1092 right edge; toolbar inner width 1048 (632 at 1024). Gap between label row and control row 8 px in all configs. Old-layout comparison: 3/5 labels 88.99 -> 82.59 px; 12 labels 125.19 -> 117.19 (1440), 202.18 -> 194.18 (1024); 5 labels 132.99 -> 124.99 (1024); 2 labels 46.59 -> 82.59 (1440, +36 px, one row became two).
+
+### Observations
+- Height is now count-independent for 2-8 labels at 1440 (82.59), fixing the earlier stranded-pages issue; cost is +36 px for a 2-label schema (canvas 759 vs ~795 before).
+- At 1024 the control row wraps for every count tested; Pages is then alone on its own row. Controls groups total ~655 px vs 632 available, so it wraps by ~23 px.
+- Side effect of my setup (not a product bug): I deleted the label "notes" from Many Labels by accident (my loop removed the wrong row), so the one existing region on page 1 of Many Labels Project now shows as "Unknown label". Appears to be handled gracefully (grey "Unknown" tag).
+- Zoom-out ladder floor unchanged at 45% (line 8).
+
+### Final state of touched data
+- Schema "Many Labels": 12 labels = invoice_number, date, total, vendor_name, tax, currency, po_number, due_date, extra_a, extra_b, extra_c, extra_d (removed: line_item, billing_address, subtotal, notes). Project's page-1 region (formerly notes) is now "Unknown label"; plus I drew one extra region (extra_d, page 1) then Undo/Redo left it present -> page 1 has 2 regions.
+- Schema "Five Labels": reduced to 3 labels (invoice_number, date, total); NOT restored to 5. Five Labels Project has 1 region on page 1 (drawn in the line-5 test, label vendor/tax-class "tax"... the last of 5 chips, which since deleted shows as Unknown label) — a box drawn with the 5th label (tax) then tax was deleted.
+- "R4 Test Project" (2 labels) untouched.
+- Dev servers untouched; no source or git changes made by me.
+
+Tool-call count: about 27 of 90.
+
+## R4 — Annotate (controls row trimmed to fit 1024, 2026-10-10)
+
+Server :5173 served the working tree (page button inline style `width: calc(2ch + 12px)`). Screenshots: verification-screenshots/R4-trim-*.png.
+
+- 1 ✓ 1024x768, 2 labels, pages-12.pdf: controls row is one line (row height 28, all buttons within it), toolbar 82.59 px = two rows. Row inner width 608 px, content uses 582.8 px, spare 25.2 px. Stepped Next 1..12: toolbar stayed 82.59, no wrap, no clipped/unreachable buttons; later pages show "1 8 9 10 11 12" (R4-trim-1024-2labels-p1.png, R4-trim-1024x768-p12.png).
+- 2 ✓ 1024x768, 12 labels: labels wrap to 3 rows, controls stay together on one 28 px line; toolbar 151.78 px (also at page 12, unchanged). At 1440x900: labels 2 rows, toolbar 117.19 (R4-trim-1024x768-12lab.png, ...-12lab-p12.png, R4-trim-1440x900-12lab.png). Note: a naive "distinct rounded button tops" check reported 2 because Undo/Redo (28 px) top is 171.78 and others 172.58; same row.
+- 3 ✓ 1440x900: 2 labels toolbar 82.59 px, 3 labels 82.59 px, identical, two rows each (R4-trim-1440x900-2labels.png, ...-3lab.png).
+- 4 ✓ (see numbers; judged ✓ on measurements, subjective call below) page 12 strip "1 … 8 9 10 11 12": every page button 26.45 x 26.4 px. Text advance box to button outer edge: 1-digit buttons (1, 8, 9) 9.61 px each side; 2-digit buttons (10, 11, 12) 5.99 / 6.00 px each side (includes 1 px border, so about 5 px inside border; glyph side bearings add a little). No clipping (scrollWidth 24 = clientWidth 24). Heights equal to "−"/"+" zoom buttons (26.4) and prev/next arrows (26.4); Undo/Redo are 28 tall (pre-existing). Widths: zoom +/- 27.8, arrows 32. (R4-trim-controls-row-p12.png, 1x DPR; browser tool did not give 2x.)
+- 5 ✓ Readout box 40 px wide at "48%" (text 21.7), "100%" and 125%..250% (text 28.9, scrollWidth 40 = clientWidth 40, not clipped). "Zoom in" x = 231.79 at 48% (2-digit), 100% and 250% (3-digit): no shift. (R4-trim-zoom100.png, R4-trim-zoom-3digit.png)
+- 6 ✓ Real mouse clicks at 1024x768, 2 labels: Page 12 -> page 12; Page 1 -> page 1; Next -> page 2; Zoom in 48%->73%; Zoom out 73%->48%; drew a box by mouse drag (0->1 region input, Undo enabled), Undo -> 0 (Redo enabled), Redo -> 1 (R4-trim-click-redo.png). I then clicked Undo once more to remove the test box.
+- 7 ✓ In all configs tested (1024 and 1440 with 2/3/12 labels, pages 1-12 at 1024/2 labels): every toolbar button passes elementFromPoint at its centre, none outside viewport, toolbar scrollWidth == clientWidth (632/632 at 1024, 1048/1048 at 1440), document scrollWidth == viewport.
+- 8 ✓ Header has `<span class="tag mono tag-neutral tag-boxed" title="This page: text">text</span>`, present. NOT strictly checked its position relative to the filename text in this run (only that the element exists); original R4 item 2 was verified in earlier runs.
+
+### Numbers
+1024x768: toolbar 82.59 (2 labels, 3 labels), 151.78 (12 labels, 3 label rows). Controls row inner 608, used 582.8, spare 25.2. 1440x900: 82.59 (2, 3 labels), 117.19 (12 labels). Page button 26.45 x 26.4; side clearance 9.61 (1-digit) / ~6.0 (2-digit) outer, including 1 px border.
+
+### Observations
+- 2-digit numbers have ~5 px of clearance inside the border per side vs ~8.6 for 1-digit; in the 1x screenshot the 10/11/12 buttons look snug but not touching, still readable and about 26 px square, usable click targets. Slightly small compared with 32 px arrows; Undo/Redo are 28 px tall vs 26.4 for the rest (pre-existing).
+- Only 25 px of slack at 1024: a 3-digit document (slot width grows) would wrap, as the rubric allows.
+- Item 8 caveat: position after filename not re-measured here.
+
+Tool-call count: about 19 of 60.
