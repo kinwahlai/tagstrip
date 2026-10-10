@@ -784,43 +784,49 @@ textarea.input {
   opacity: 1;
 }
 
-/* Annotate toolbar label chip — labels live in the toolbar, per canvas/Toolbar.tsx. */
-.ts-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 4px 8px;
-  border: 1px solid var(--color-divider);
-  background: transparent;
-  color: var(--color-text);
-  font: inherit;
-  cursor: pointer;
+/* Annotate label picker — a list in the inspector, per canvas/LabelList.tsx. */
+.ts-label-list {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2px;
+  padding: var(--space-2);
 }
-.ts-chip:hover {
-  background: color-mix(in srgb, var(--color-text) 6%, transparent);
-}
-.ts-chip[aria-pressed='true'] {
-  border-color: var(--color-text);
-  border-width: 2px;
-  padding: 3px 7px;
-  background: color-mix(in srgb, var(--color-text) 9%, transparent);
-}
-.ts-chip:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
+.ts-label-list[data-columns='2'] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 .ts-label-btn {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  padding: 7px var(--space-2);
+  min-width: 0;
+  /* A label picked by hotkey is scrolled into view; this keeps it off the edge. */
+  scroll-margin: 4px;
+  padding: 4px var(--space-2);
   border: 1px solid transparent;
   background: transparent;
   color: var(--color-text);
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+.ts-label-name {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Two-up, a name gets a second line before it is cut: twelve characters is
+   not enough to tell shipping_address_line_1 from _2. */
+.ts-label-list[data-columns='2'] .ts-label-name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
 }
 .ts-label-btn:hover {
   background: color-mix(in srgb, var(--color-text) 6%, transparent);

@@ -86,6 +86,23 @@ describe('AnnotationCanvas content type', () => {
   })
 })
 
+describe('AnnotationCanvas inspector', () => {
+  it('keeps labels and regions in separate inspector sections', async () => {
+    renderCanvas()
+    await screen.findByTestId('zoom-readout')
+
+    const labels = screen.getByRole('group', { name: 'Labels' })
+    const regionsHeading = screen.getByRole('heading', { name: /^Regions on this page/ })
+    const labelsSection = labels.closest('.ts-inspector-labels') as HTMLElement | null
+    const regionsSection = regionsHeading.closest('.ts-inspector-regions') as HTMLElement | null
+
+    expect(labelsSection).not.toBeNull()
+    expect(regionsSection).not.toBeNull()
+    expect(labelsSection).not.toContainElement(regionsSection)
+    expect(regionsSection).not.toContainElement(labelsSection)
+  })
+})
+
 // Ctrl/Cmd + wheel is the only way to zoom by wheel — a plain scroll has to
 // keep scrolling the page area exactly as before, or every ordinary scroll
 // over the canvas would start zooming it instead.

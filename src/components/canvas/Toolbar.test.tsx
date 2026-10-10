@@ -6,9 +6,6 @@ function renderToolbar(pageIndex = 0, pageCount = 10) {
   const onPageChange = vi.fn()
   render(
     <Toolbar
-      labels={[]}
-      selectedLabelId={null}
-      onSelectLabel={() => {}}
       zoom={1}
       onZoomChange={() => {}}
       onFitZoom={() => {}}
@@ -68,13 +65,13 @@ describe('Toolbar page navigation', () => {
     expect(new Set(slots.map((slot) => slot.style.width))).toEqual(new Set(['calc(3ch + 12px)']))
   })
 
-  it('keeps labels on their own row, apart from the row of controls', () => {
+  it('keeps labels out of the toolbar and controls on one row', () => {
     renderToolbar()
 
+    expect(screen.queryByRole('group', { name: 'Labels' })).not.toBeInTheDocument()
     const controls = screen.getByRole('group', { name: 'Pages' }).parentElement!
     expect(controls).toContainElement(screen.getByRole('button', { name: 'Undo' }))
     expect(controls).toContainElement(screen.getByRole('button', { name: 'Zoom in' }))
-    expect(controls).not.toContainElement(screen.getByRole('group', { name: 'Labels' }))
   })
 
   it('draws undo and redo as icon-only buttons that still carry their names', () => {

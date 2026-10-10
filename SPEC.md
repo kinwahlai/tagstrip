@@ -337,7 +337,7 @@ app code, and not ported.
 ### Decisions taken before starting
 
 - **CSS.** `ts-modernist.css` is vendored as-is into `src/styles/` and its classes (`.btn`,
-  `.table`, `.ts-shell`, `.ts-chip`, …) are used directly. Tailwind stays for one-off layout only.
+  `.table`, `.ts-shell`, `.ts-label-btn`, …) are used directly. Tailwind stays for one-off layout only.
   Not re-expressed as Tailwind theme tokens — the designed dark theme comes free this way.
 - **Label palette.** The five hues that fail 4.5:1 against a white region tag are darkened in
   `src/lib/labelColors.ts`: Orange `#F58231`→`#B35C13`, Olive `#808000`→`#757500`, Green

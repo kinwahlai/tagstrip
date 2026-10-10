@@ -255,14 +255,22 @@ not by reading the code and reasoning that it should work. Reading code tells yo
 
 *(Checkpoint milestone — highest-risk screen. Stop for human review after it passes.)*
 
-- [ ] Labels, undo/redo, zoom and page navigation all sit in the toolbar and work. The toolbar is
-      two rows by design: labels on the first, and undo/redo, zoom and page navigation together
-      on the second. At 1440px wide that holds for any schema whose labels fit one line — the
-      toolbar is the same height with 2 labels as with 8, and no control sits alone on a row.
-      With more labels than fit one line the label row wraps. At 1024px wide the control row
-      still fits one line for a document of up to 99 pages; narrower than that, or with
-      three-digit page numbers, it may wrap. In every case nothing may be clipped, overlapped or
-      unreachable
+- [ ] Undo/redo, zoom and page navigation sit in the toolbar and work, on a single row at 1440px
+      and at 1024px wide (for a document of up to 99 pages) whatever the schema — the toolbar is
+      the same height with 2 labels as with 18
+- [ ] Labels are a list at the top of the right-hand panel, above "Regions on this page", each
+      with its colour, name and hotkey. Clicking one selects it (and it alone shows as selected);
+      pressing a label's hotkey selects it there too. Up to 9 labels are one column with names in
+      full; 10 or more are two columns, where a name too long for one line wraps to a second, so
+      that names sharing a long prefix (`shipping_address_line_1` / `_2`) can still be told
+      apart; only a name too long for two lines ends in `…`, and it shows in full on hover
+- [ ] Desktop sizes only (SPEC: desktop only — do not extend this item to tablet or phone widths
+      or to windows under 700px tall). At 1440x900 an 18-label list fits without scrolling and
+      leaves at least three regions visible. At 1280x720 and 1024x768 the label list may scroll;
+      at least two whole label rows and one whole region row stay visible. At all three sizes
+      this still holds with 15 regions on the page: the regions list scrolls and the label list
+      keeps its height — a long regions list must never squeeze the labels out. A label
+      selected by hotkey is scrolled into view
 - [ ] The layer tag (`text` / `scanned` / `unknown`) sits in the header beside the filename, in a
       visible box, and follows the page: on a document mixing text and scanned pages it changes as
       you page through. It is gone from the header on every screen other than the canvas, and a

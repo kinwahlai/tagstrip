@@ -18,6 +18,7 @@ import {
   pointToNormalized,
 } from '../../lib/geometry'
 import { Toolbar, ZOOM_MAX, ZOOM_MIN } from './Toolbar'
+import { LabelList } from './LabelList'
 import { PageStageLoader } from './PageStageLoader'
 import { RegionList } from './RegionList'
 import { DocsOverlay } from './DocsOverlay'
@@ -467,9 +468,6 @@ export function AnnotationCanvas({
         }}
       >
         <Toolbar
-          labels={schema.labels}
-          selectedLabelId={activeLabelId}
-          onSelectLabel={setSelectedLabelId}
           zoom={zoom}
           onZoomChange={setZoom}
           onFitZoom={handleFitZoom}
@@ -540,65 +538,94 @@ export function AnnotationCanvas({
       </main>
 
       <aside className="ts-inspector" aria-label="Regions on this page">
-        <div
-          style={{
-            flex: 'none',
-            display: 'flex',
-            alignItems: 'baseline',
-            gap: 'var(--space-2)',
-            padding: 'var(--space-3) var(--space-4)',
-            borderBottom: '2px solid var(--color-divider)',
-          }}
-        >
-          <h2 className="ts-eyebrow" style={{ margin: 0 }}>
-            Regions on this page · {annotations?.length ?? 0}
-          </h2>
-          <span
-            className="mono"
+        <div className="ts-inspector-labels">
+          <div
             style={{
-              marginLeft: 'auto',
-              fontSize: 11,
-              color: 'color-mix(in srgb, var(--color-text) 60%, transparent)',
+              flex: 'none',
+              display: 'flex',
+              alignItems: 'baseline',
+              gap: 'var(--space-2)',
+              padding: 'var(--space-3) var(--space-4)',
+              borderBottom: '2px solid var(--color-divider)',
             }}
           >
-            {schema.name}
-          </span>
+            <h2 className="ts-eyebrow" style={{ margin: 0 }}>
+              Labels · {schema.labels.length}
+            </h2>
+            <span
+              className="mono"
+              style={{
+                marginLeft: 'auto',
+                fontSize: 11,
+                color: 'color-mix(in srgb, var(--color-text) 60%, transparent)',
+              }}
+            >
+              {schema.name}
+            </span>
+          </div>
+          <div
+            className="ts-scroll"
+            data-testid="label-list-scroll"
+            style={{ flex: '1 1 auto', minHeight: 0 }}
+          >
+            <LabelList
+              labels={schema.labels}
+              selectedLabelId={activeLabelId}
+              onSelectLabel={setSelectedLabelId}
+            />
+          </div>
         </div>
-
-        <div className="ts-scroll" style={{ flex: 1, minHeight: 0 }}>
-          <RegionList
-            annotations={annotations ?? []}
-            labelsById={labelsById}
-            selectedId={selectedAnnotationId}
-            onSelect={setSelectedAnnotationId}
-            onDelete={handleDeleteAnnotation}
-            onSuggestText={handleSuggestText}
-            suggestUnavailableReason={suggestUnavailableReason}
-          />
-        </div>
-
-        <div
-          style={{
-            flex: 'none',
-            padding: 'var(--space-3) var(--space-4)',
-            borderTop: '2px solid var(--color-divider)',
-            background: 'var(--color-surface)',
-          }}
-        >
-          <span className="ts-eyebrow" style={{ display: 'block', marginBottom: 4 }}>
-            Suggest text
-          </span>
-          <p
-            className="mono"
+        <div className="ts-inspector-regions">
+          <div
             style={{
-              margin: 0,
-              fontSize: 11,
-              lineHeight: 1.55,
-              color: 'color-mix(in srgb, var(--color-text) 72%, transparent)',
+              flex: 'none',
+              display: 'flex',
+              alignItems: 'baseline',
+              gap: 'var(--space-2)',
+              padding: 'var(--space-3) var(--space-4)',
+              borderBottom: '2px solid var(--color-divider)',
             }}
           >
-            {suggestHint}
-          </p>
+            <h2 className="ts-eyebrow" style={{ margin: 0 }}>
+              Regions on this page · {annotations?.length ?? 0}
+            </h2>
+          </div>
+
+          <div className="ts-scroll ts-region-scroll">
+            <RegionList
+              annotations={annotations ?? []}
+              labelsById={labelsById}
+              selectedId={selectedAnnotationId}
+              onSelect={setSelectedAnnotationId}
+              onDelete={handleDeleteAnnotation}
+              onSuggestText={handleSuggestText}
+              suggestUnavailableReason={suggestUnavailableReason}
+            />
+          </div>
+
+          <div
+            style={{
+              flex: 'none',
+              padding: 'var(--space-3) var(--space-4)',
+              borderTop: '2px solid var(--color-divider)',
+              background: 'var(--color-surface)',
+            }}
+          >
+            <span className="ts-eyebrow" style={{ display: 'block', marginBottom: 4 }}>
+              Suggest text
+            </span>
+            <p
+              className="mono"
+              style={{
+                margin: 0,
+                fontSize: 11,
+                lineHeight: 1.55,
+                color: 'color-mix(in srgb, var(--color-text) 72%, transparent)',
+              }}
+            >
+              {suggestHint}
+            </p>
+          </div>
         </div>
       </aside>
     </div>
