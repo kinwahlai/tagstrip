@@ -71,6 +71,18 @@
   min-height: 0;
   display: flex;
 }
+/* The header's right-hand block is the inspector's width wherever the
+   inspector is a column, so its left rule carries straight down into the
+   inspector's. */
+.ts-header-end {
+  flex: none;
+  display: flex;
+}
+@media (min-width: 1024px) {
+  .ts-header-end {
+    width: var(--ts-inspector);
+  }
+}
 .ts-inspector {
   flex: none;
   width: var(--ts-inspector);

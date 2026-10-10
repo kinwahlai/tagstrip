@@ -223,8 +223,10 @@ export function AppShell({
             </div>
           </div>
 
-          {!stackClaim && <LocalOnlyBadge onClick={onOpenAbout} />}
-          <ThemeToggle />
+          <div className="ts-header-end">
+            {!stackClaim && <LocalOnlyBadge onClick={onOpenAbout} fill />}
+            <ThemeToggle />
+          </div>
         </div>
         {stackClaim && (
           <div style={{ borderTop: '2px solid var(--color-divider)', display: 'flex' }}>

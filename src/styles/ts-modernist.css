@@ -660,6 +660,9 @@ textarea.input {
   --ts-rail-collapsed: 56px;
   --ts-mid: 316px;
   --ts-inspector: 336px;
+  /* The canvas toolbar and the inspector's section headers share one height,
+     so the rule under each meets its neighbour's across the column divider. */
+  --ts-bar: 46px;
 }
 
 .mono {

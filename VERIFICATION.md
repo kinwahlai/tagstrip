@@ -258,6 +258,11 @@ not by reading the code and reasoning that it should work. Reading code tells yo
 - [ ] Undo/redo, zoom and page navigation sit in the toolbar and work, on a single row at 1440px
       and at 1024px wide (for a document of up to 99 pages) whatever the schema — the toolbar is
       the same height with 2 labels as with 18
+- [ ] The divider lines meet across the top right corner at 1440x900, 1280x720 and 1024x768
+      (measure with `getBoundingClientRect`, tolerance 0.5px): the left edge of the header's
+      "Nothing leaves your browser" block is at the same x as the left edge of the right-hand
+      panel, and the bottom edge of the toolbar is at the same y as the bottom edge of the
+      "Labels · N" header
 - [ ] Labels are a list at the top of the right-hand panel, above "Regions on this page", each
       with its colour, name and hotkey. Clicking one selects it (and it alone shows as selected);
       pressing a label's hotkey selects it there too. Up to 9 labels are one column with names in

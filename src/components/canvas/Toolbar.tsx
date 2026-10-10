@@ -78,6 +78,8 @@ export function Toolbar({
         flexWrap: 'wrap',
         alignItems: 'center',
         gap: 'var(--space-3)',
+        boxSizing: 'border-box',
+        minHeight: 'var(--ts-bar)',
         padding: 'var(--space-2) var(--space-3)',
         borderBottom: '2px solid var(--color-divider)',
       }}

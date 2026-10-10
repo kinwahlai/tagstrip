@@ -543,9 +543,11 @@ export function AnnotationCanvas({
             style={{
               flex: 'none',
               display: 'flex',
-              alignItems: 'baseline',
+              alignItems: 'center',
               gap: 'var(--space-2)',
-              padding: 'var(--space-3) var(--space-4)',
+              boxSizing: 'border-box',
+              minHeight: 'var(--ts-bar)',
+              padding: '0 var(--space-4)',
               borderBottom: '2px solid var(--color-divider)',
             }}
           >
@@ -580,9 +582,11 @@ export function AnnotationCanvas({
             style={{
               flex: 'none',
               display: 'flex',
-              alignItems: 'baseline',
+              alignItems: 'center',
               gap: 'var(--space-2)',
-              padding: 'var(--space-3) var(--space-4)',
+              boxSizing: 'border-box',
+              minHeight: 'var(--ts-bar)',
+              padding: '0 var(--space-4)',
               borderBottom: '2px solid var(--color-divider)',
             }}
           >

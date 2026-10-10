@@ -14,7 +14,10 @@
 // the header's narrow-width branch quietly rendered an inert variant: at 375px
 // the strip looked identical and did nothing. Requiring it makes that a compile
 // error rather than something a browser check has to catch.
-export function LocalOnlyBadge({ onClick }: { onClick: () => void }) {
+//
+// `fill` stretches it across the header's right-hand block, which is as wide as
+// the inspector below it.
+export function LocalOnlyBadge({ onClick, fill }: { onClick: () => void; fill?: boolean }) {
   return (
     <button
       type="button"
@@ -35,7 +38,7 @@ export function LocalOnlyBadge({ onClick }: { onClick: () => void }) {
         background: 'transparent',
         color: 'inherit',
         minHeight: 34,
-        flex: 'none',
+        flex: fill ? 1 : 'none',
       }}
     >
       <svg
