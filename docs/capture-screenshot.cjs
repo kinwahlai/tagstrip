@@ -3,14 +3,12 @@
 // and transcribed. Run it whenever that screen's layout changes.
 //
 //   pnpm run dev                        # in another terminal, leave it running
-//   PLAYWRIGHT_CORE=<dir> node docs/capture-screenshot.cjs
+//   pnpm run screenshot
 //
-// Playwright is not a dependency of this project, so say where a copy lives:
-// PLAYWRIGHT_CORE is the path to an installed `playwright-core` package (any
-// `npx playwright` run leaves one under ~/.npm/_npx/*/node_modules/). If that
-// copy's own browser download is missing, CHROMIUM can name a Chromium or
-// chrome-headless-shell binary to use instead. APP_URL (default
-// http://localhost:5173/) and OUT (default docs/screenshot.png) do the obvious.
+// The first time, Playwright needs its browser: `pnpm exec playwright install
+// chromium`. CHROMIUM can instead name a Chromium or chrome-headless-shell
+// binary to use. APP_URL (default http://localhost:5173/) and OUT (default
+// docs/screenshot.png) do the obvious.
 //
 // It starts from empty browser storage every time, so it never touches or
 // depends on projects in your own browser.
@@ -18,7 +16,7 @@
 // Two runs are the same picture but not the same bytes: the regions list on
 // the right comes out in a different order each time.
 const path = require('node:path')
-const { chromium } = require(process.env.PLAYWRIGHT_CORE || 'playwright-core')
+const { chromium } = require('playwright')
 
 const APP_URL = process.env.APP_URL || 'http://localhost:5173/'
 const OUT = process.env.OUT || path.join(__dirname, 'screenshot.png')
