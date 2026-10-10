@@ -47,10 +47,13 @@ function UndoRedoIcon({ d }: { d: string }) {
   )
 }
 
-// Everything that acts on the page lives in one row: labels, undo/redo, zoom
-// and page navigation. The page's text-layer tag used to end the row; it only
-// describes the page, and it was what tipped the row onto a second line, so
-// it sits beside the filename in the header now. Undo and redo used to sit in
+// Two rows, always: labels above, then undo/redo, zoom and page navigation
+// together. It was one wrapping row, which held on one line only for a
+// two-label schema; a third label pushed whichever control came last onto a
+// line of its own, and which one that was changed with the schema. Any real
+// schema was paying for the second row already. The page's text-layer tag
+// used to end the row; it only describes the page, so it sits beside the
+// filename in the header now. Undo and redo used to sit in
 // a separate strip above, whose only other content was a "← filename" back link;
 // the breadcrumb is the back link now, so that strip had nothing left in it.
 export function Toolbar({
@@ -70,10 +73,13 @@ export function Toolbar({
   onRedo,
 }: ToolbarProps) {
   // Every slot in the page strip, gap or number, is as wide as the widest page
-  // number: 20px is .btn-sm's padding plus border. Otherwise a gap is narrower
-  // than a button and the strip, and everything left of it, shifts as you page.
+  // number plus 12px. Otherwise a gap is narrower than a button and the strip,
+  // and everything left of it, shifts as you page. 12px is tighter than
+  // .btn-sm's own padding and border (20px), about the width of the − and +
+  // beside it: with that, the 12px between groups and the narrow zoom readout,
+  // the control row fits one line in a 1024px-wide window.
   const pageSlotStyle = {
-    width: `calc(${String(pageCount).length}ch + 20px)`,
+    width: `calc(${String(pageCount).length}ch + 12px)`,
     paddingInline: 0,
     fontSize: 12,
   }
@@ -82,9 +88,8 @@ export function Toolbar({
       style={{
         flex: 'none',
         display: 'flex',
-        flexWrap: 'wrap',
-        alignItems: 'center',
-        gap: 'var(--space-4)',
+        flexDirection: 'column',
+        gap: 'var(--space-2)',
         padding: 'var(--space-2) var(--space-3)',
         borderBottom: '2px solid var(--color-divider)',
       }}
@@ -122,120 +127,122 @@ export function Toolbar({
         })}
       </div>
 
-      <div style={{ flex: 1 }} />
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          onClick={onUndo}
-          disabled={!canUndo}
-          aria-label="Undo"
-          title="Undo (Ctrl+Z)"
-        >
-          <UndoRedoIcon d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3" />
-        </button>
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          onClick={onRedo}
-          disabled={!canRedo}
-          aria-label="Redo"
-          title="Redo (Ctrl+Shift+Z)"
-        >
-          <UndoRedoIcon d="m15 14 5-5-5-5M20 9H10a6 6 0 0 0 0 12h3" />
-        </button>
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          onClick={() => onZoomChange(Math.max(minZoom, zoom - ZOOM_STEP))}
-          aria-label="Zoom out"
-        >
-          −
-        </button>
-        <span
-          className="mono"
-          data-testid="zoom-readout"
-          style={{ minWidth: 48, textAlign: 'center', fontSize: 12 }}
-        >
-          {Math.round(zoom * 100)}%
-        </span>
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          onClick={() => onZoomChange(Math.min(ZOOM_MAX, zoom + ZOOM_STEP))}
-          aria-label="Zoom in"
-        >
-          +
-        </button>
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          onClick={onFitZoom}
-          aria-label="Fit page to available width"
-        >
-          Fit
-        </button>
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          onClick={() => onZoomChange(1)}
-          aria-label="Zoom to 100%"
-        >
-          100%
-        </button>
-      </div>
-
       <div
-        role="group"
-        aria-label="Pages"
-        style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}
+        style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 'var(--space-3)' }}
       >
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          onClick={() => onPageChange(pageIndex - 1)}
-          disabled={pageIndex <= 0}
-          aria-label="Previous page"
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={onUndo}
+            disabled={!canUndo}
+            aria-label="Undo"
+            title="Undo (Ctrl+Z)"
+          >
+            <UndoRedoIcon d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3" />
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={onRedo}
+            disabled={!canRedo}
+            aria-label="Redo"
+            title="Redo (Ctrl+Shift+Z)"
+          >
+            <UndoRedoIcon d="m15 14 5-5-5-5M20 9H10a6 6 0 0 0 0 12h3" />
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => onZoomChange(Math.max(minZoom, zoom - ZOOM_STEP))}
+            aria-label="Zoom out"
+          >
+            −
+          </button>
+          <span
+            className="mono"
+            data-testid="zoom-readout"
+            style={{ minWidth: 40, textAlign: 'center', fontSize: 12 }}
+          >
+            {Math.round(zoom * 100)}%
+          </span>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => onZoomChange(Math.min(ZOOM_MAX, zoom + ZOOM_STEP))}
+            aria-label="Zoom in"
+          >
+            +
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={onFitZoom}
+            aria-label="Fit page to available width"
+          >
+            Fit
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => onZoomChange(1)}
+            aria-label="Zoom to 100%"
+          >
+            100%
+          </button>
+        </div>
+
+        <div
+          role="group"
+          aria-label="Pages"
+          style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}
         >
-          ←
-        </button>
-        {pageWindow(pageIndex, pageCount).map((index, slot) =>
-          index === null ? (
-            <span
-              key={`gap-${slot}`}
-              className="mono"
-              aria-hidden="true"
-              style={{ ...pageSlotStyle, textAlign: 'center' }}
-            >
-              …
-            </span>
-          ) : (
-            <button
-              key={`page-${index}`}
-              type="button"
-              className={`btn ${index === pageIndex ? 'btn-primary' : 'btn-secondary'} btn-sm mono`}
-              aria-label={`Page ${index + 1}`}
-              aria-current={index === pageIndex ? 'page' : undefined}
-              style={pageSlotStyle}
-              onClick={() => onPageChange(index)}
-            >
-              {index + 1}
-            </button>
-          ),
-        )}
-        <button
-          type="button"
-          className="btn btn-secondary btn-sm"
-          onClick={() => onPageChange(pageIndex + 1)}
-          disabled={pageIndex >= pageCount - 1}
-          aria-label="Next page"
-        >
-          →
-        </button>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => onPageChange(pageIndex - 1)}
+            disabled={pageIndex <= 0}
+            aria-label="Previous page"
+          >
+            ←
+          </button>
+          {pageWindow(pageIndex, pageCount).map((index, slot) =>
+            index === null ? (
+              <span
+                key={`gap-${slot}`}
+                className="mono"
+                aria-hidden="true"
+                style={{ ...pageSlotStyle, textAlign: 'center' }}
+              >
+                …
+              </span>
+            ) : (
+              <button
+                key={`page-${index}`}
+                type="button"
+                className={`btn ${index === pageIndex ? 'btn-primary' : 'btn-secondary'} btn-sm mono`}
+                aria-label={`Page ${index + 1}`}
+                aria-current={index === pageIndex ? 'page' : undefined}
+                style={pageSlotStyle}
+                onClick={() => onPageChange(index)}
+              >
+                {index + 1}
+              </button>
+            ),
+          )}
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => onPageChange(pageIndex + 1)}
+            disabled={pageIndex >= pageCount - 1}
+            aria-label="Next page"
+          >
+            →
+          </button>
+        </div>
       </div>
     </div>
   )

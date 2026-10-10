@@ -255,9 +255,14 @@ not by reading the code and reasoning that it should work. Reading code tells yo
 
 *(Checkpoint milestone — highest-risk screen. Stop for human review after it passes.)*
 
-- [ ] Labels, undo/redo, zoom and page navigation all sit in the toolbar and work. At 1440px wide
-      with a two-label schema they share a single row. With more labels the row is allowed to
-      wrap (it is flex-wrap by design) — then nothing may be clipped, overlapped or unreachable
+- [ ] Labels, undo/redo, zoom and page navigation all sit in the toolbar and work. The toolbar is
+      two rows by design: labels on the first, and undo/redo, zoom and page navigation together
+      on the second. At 1440px wide that holds for any schema whose labels fit one line — the
+      toolbar is the same height with 2 labels as with 8, and no control sits alone on a row.
+      With more labels than fit one line the label row wraps. At 1024px wide the control row
+      still fits one line for a document of up to 99 pages; narrower than that, or with
+      three-digit page numbers, it may wrap. In every case nothing may be clipped, overlapped or
+      unreachable
 - [ ] The layer tag (`text` / `scanned` / `unknown`) sits in the header beside the filename, in a
       visible box, and follows the page: on a document mixing text and scanned pages it changes as
       you page through. It is gone from the header on every screen other than the canvas, and a

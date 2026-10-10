@@ -65,7 +65,16 @@ describe('Toolbar page navigation', () => {
 
     const slots = [...pageButtons(), ...screen.getAllByText('…')]
     expect(slots).toHaveLength(7)
-    expect(new Set(slots.map((slot) => slot.style.width))).toEqual(new Set(['calc(3ch + 20px)']))
+    expect(new Set(slots.map((slot) => slot.style.width))).toEqual(new Set(['calc(3ch + 12px)']))
+  })
+
+  it('keeps labels on their own row, apart from the row of controls', () => {
+    renderToolbar()
+
+    const controls = screen.getByRole('group', { name: 'Pages' }).parentElement!
+    expect(controls).toContainElement(screen.getByRole('button', { name: 'Undo' }))
+    expect(controls).toContainElement(screen.getByRole('button', { name: 'Zoom in' }))
+    expect(controls).not.toContainElement(screen.getByRole('group', { name: 'Labels' }))
   })
 
   it('draws undo and redo as icon-only buttons that still carry their names', () => {
