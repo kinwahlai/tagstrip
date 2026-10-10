@@ -3971,3 +3971,26 @@ zoom in place instead of re-running the fit-on-open, which can leave a freshly-o
 either minuscule or badly overflowing until the user notices and clicks Fit themselves.
 
 Tool-call count for this run: approximately 95 (Bash + Read + Playwright combined).
+
+## M3 — Annotation canvas (page-number navigation, 2026-10-10)
+
+Scope: last 3 M3 checklist items + 2 regressions, uncommitted working tree, 1440x900, fixtures pages-12.pdf / pages-3.pdf uploaded into existing "R4 Test Project" (existing schema; no new project created).
+
+- ✓ Click a page number -> canvas shows that page, filled button, arrows step from there — M3-pagenum-3pages-click3.png; on pages-3.pdf clicking "3" made it the aria-current/btn-primary button and canvas showed "PAGE 3"; Previous -> current 2, Next -> current 3. On 12 pages, clicking 5 showed "PAGE 5" (M3-pagenum-box-p5-back.png). Arrows stepping verified via buttons and in the 12-page loop.
+- ✓ >7 pages: step 1 -> 12 with Next — M3-pagenum-12p-1/6/12.png; window always exactly 7 slots; sequence matched the expected table at every page (e.g. p1 "1 2 3 4 5 … 12", p5 "1 … 4 5 6 … 12", p9 "1 … 8 9 10 11 12"). Pages-group width min 264.69 / max 293.70 px (279.25 on p1-4, 264.69 on p5-8, 293.70 on p9-12); toolbar (group's parent) height constant 46.59 px at all 12 pages, no re-wrap. Observation, not a fail: because the width changes, the Undo/Redo/zoom controls to the left of the strip shift horizontally by up to ~29 px as you cross p4/5 and p8/9 (strip appears right-aligned). Strip buttons themselves stay in place only within a window family.
+- ✓ <=7 pages lists every page, no gap — M3-pagenum-3pages.png; pages-3.pdf group = "← 1 2 3 →", 0 span/… elements.
+- ✓ R-a keyboard nav — src/components/canvas/AnnotationCanvas.tsx uses ArrowLeft/ArrowRight; from page 12: Left -> 11, Left -> 10, Right -> 11, canvas showed "PAGE 11" (M3-pagenum-keys.png).
+- ✓ R-b box persistence — clicked 1 then 5 (page 5 not in strip when on 11/12, window rules), drew box on page 5 (panel "REGIONS ON THIS PAGE · 1"), clicked 12 -> "· 0" (M3-pagenum-box-p12.png), clicked 1 then 5 again -> "· 1" and box visible over "PAGE 5" (M3-pagenum-box-p5-back.png). Note: return to 5 was via 1 -> 5 (two clicks) because 5 is not in the window from page 12; reload/IndexedDB persistence not tested here.
+
+Tool-call count: ~16. Dev server started by me and stopped at the end.
+
+## M3 — Annotation canvas (page-number strip fixed width, re-verified 2026-10-10)
+
+Scope: reworded ">7 pages" item + R-a/R-b/R-c; uncommitted working tree, 1440x900, pages-12.pdf / pages-3.pdf already in "R4 Test Project" storage.
+
+- ✓ >7 pages, strip width identical at every page — M3-pagenum2-p1/p6/p12.png; one evaluate loop over pages 1..12 via Next: group width min 337.117 / max 337.117 px (spread 0), toolbar height 46.594 / 46.594, "Zoom in" x 648.961 / 648.961, always 7 slots, all slots 34.45 px wide (spread 0); windows matched expected sequences (p1 "1 2 3 4 5 … 12", p6 "1 … 5 6 7 … 12", p12 "1 … 8 9 10 11 12"). Earlier run's 264.69-293.70 width swing is gone.
+- ✓ R-a — M3-pagenum2-click5.png, M3-pagenum2-p12.png, M3-pagenum2-click1.png; clicking Page 5, Page 12, Page 1 (from page 1 start) each showed canvas "PAGE n" and that button had aria-current="page" (5 was clicked from page 1 since it is not in the window from 12).
+- ✓ R-b — p1/p6/p12 screenshots; Range-measured text centre vs slot centre on p6: dx 0.00, dy -0.20/-0.30 px for all 7 slots, no scrollWidth overflow; "10","11","12" fit inside buttons with visible margin, nothing overlapping. Minor: the "…" glyph ink sits near the baseline (naturally low in the font) though its box is centred.
+- ✓ R-c — M3-pagenum2-3pages.png; pages-3.pdf group children "← 1 2 3 →", 0 span elements, no button overflow (group width 161.66 px).
+
+Dev server started by me and stopped at end. Tool-call count: 33.
