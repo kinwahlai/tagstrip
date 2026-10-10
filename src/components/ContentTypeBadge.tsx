@@ -10,9 +10,22 @@ const TAG_CLASS: Record<Page['contentType'], string> = {
   unknown: 'tag-outline',
 }
 
-export function ContentTypeBadge({ contentType }: { contentType: Page['contentType'] }) {
+// `boxed` is for the header, where the tag sits beside the filename: there it
+// has to stand apart from the name and say that it describes the page on
+// screen, not the file. In a list of pages neither is in doubt.
+export function ContentTypeBadge({
+  contentType,
+  boxed = false,
+}: {
+  contentType: Page['contentType']
+  boxed?: boolean
+}) {
   return (
-    <span className={`tag mono ${TAG_CLASS[contentType]}`} style={{ fontSize: '10.5px' }}>
+    <span
+      className={`tag mono ${TAG_CLASS[contentType]}${boxed ? ' tag-boxed' : ''}`}
+      style={{ fontSize: '10.5px' }}
+      title={boxed ? `This page: ${contentType}` : undefined}
+    >
       {contentType}
     </span>
   )

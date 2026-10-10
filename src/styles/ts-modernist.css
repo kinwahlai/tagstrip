@@ -563,6 +563,11 @@ textarea.input {
 [data-theme='dark'] .tag-outline {
   color: var(--color-accent);
 }
+.tag-boxed {
+  border: 2px solid currentColor;
+  padding: 1px 8px;
+  font-weight: 700;
+}
 
 /* — navigation — */
 .nav {

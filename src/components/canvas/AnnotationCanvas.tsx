@@ -10,13 +10,19 @@ import {
 } from '../../db/annotations'
 import { suggestText } from '../../lib/suggestText'
 import { isHotkey } from '../../lib/hotkeys'
-import { clamp, computeFitZoom, moveRect, pointToNormalized } from '../../lib/geometry'
+import {
+  clamp,
+  computeFitZoom,
+  computeWholePageZoom,
+  moveRect,
+  pointToNormalized,
+} from '../../lib/geometry'
 import { Toolbar, ZOOM_MAX, ZOOM_MIN } from './Toolbar'
 import { PageStageLoader } from './PageStageLoader'
 import { RegionList } from './RegionList'
 import { DocsOverlay } from './DocsOverlay'
 import type { NormalizedRect } from '../../lib/geometry'
-import type { Annotation, Doc } from '../../db/types'
+import type { Annotation, Doc, Page } from '../../db/types'
 import type { AnnotationGeometry } from '../../db/annotations'
 
 // With a region selected, arrow keys nudge it by this many normalized units,
@@ -27,9 +33,25 @@ import type { AnnotationGeometry } from '../../db/annotations'
 const NUDGE_STEP = 0.002
 const NUDGE_STEP_LARGE = 0.02
 
-// Horizontal padding inside the page stage's scroll container (p-6 = 24px each
-// side — see PageStage.tsx) that isn't available for the page image itself.
+// Padding inside the page stage's scroll container (p-6 = 24px each side — see
+// PageStage.tsx) that isn't available for the page image itself.
 const PAGE_STAGE_PADDING_X = 48
+const PAGE_STAGE_PADDING_Y = 48
+
+// How far out zoom may go: the usual 50%, or further when it takes less than
+// that to see the whole page at once. Falls back to the width-only fit while
+// the container has no measurable height.
+function zoomFloor(container: HTMLElement, page: Page, fitZoom: number): number {
+  const wholePageZoom = computeWholePageZoom(
+    container.clientWidth,
+    container.clientHeight,
+    PAGE_STAGE_PADDING_X,
+    PAGE_STAGE_PADDING_Y,
+    page.width,
+    page.height,
+  )
+  return Math.min(ZOOM_MIN, wholePageZoom ?? fitZoom)
+}
 
 interface AnnotationCanvasProps {
   docId: string
@@ -39,6 +61,8 @@ interface AnnotationCanvasProps {
   overlayOpen: boolean
   onCloseOverlay: () => void
   onSelectDoc: (docId: string) => void
+  // The header shows this beside the filename; null while no page is loaded.
+  onContentTypeChange: (contentType: Page['contentType'] | null) => void
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -66,6 +90,7 @@ export function AnnotationCanvas({
   overlayOpen,
   onCloseOverlay,
   onSelectDoc,
+  onContentTypeChange,
 }: AnnotationCanvasProps) {
   const doc = useLiveQuery(() => db.docs.get(docId), [docId])
   const project = useLiveQuery(
@@ -117,6 +142,12 @@ export function AnnotationCanvas({
 
   const currentPage = pages?.[pageIndex]
 
+  const currentContentType = currentPage?.contentType ?? null
+  useEffect(() => {
+    onContentTypeChange(currentContentType)
+    return () => onContentTypeChange(null)
+  }, [currentContentType, onContentTypeChange])
+
   // Opening a document always starts at 100% zoom otherwise, which is wider
   // than the viewport for most real page sizes — most noticeably on narrow
   // screens, where that meant scrolling sideways just to see the whole page.
@@ -124,11 +155,12 @@ export function AnnotationCanvas({
   // page navigation, so it never fights a zoom level the user picked
   // themselves) and never zooms IN past 100%, only ever out to fit.
   //
-  // minZoom, on the other hand, is recomputed whenever the container's width
+  // minZoom, on the other hand, is recomputed whenever the container's size
   // changes: a fixed 50% floor doesn't fit an oversized page any better than
-  // 100% does, so the floor itself drops (below the usual 50%) whenever a
-  // page's true fit-zoom is smaller than that — otherwise "zoom out" on a very
-  // large page hits a wall well before the whole page is visible.
+  // 100% does, so the floor itself drops (below the usual 50%) whenever it
+  // takes less than that to show the whole page, height included — otherwise
+  // "zoom out" hits a wall well before the whole page is visible, which an
+  // ordinary portrait page on a short window is enough to trigger.
   //
   // Both measurements are driven by a ResizeObserver rather than by a render
   // pass. An effect keyed only on the page runs while Dexie's live queries are
@@ -148,7 +180,7 @@ export function AnnotationCanvas({
       if (!el || !currentPage) return
       const fitZoom = computeFitZoom(el.clientWidth, PAGE_STAGE_PADDING_X, currentPage.width)
       if (fitZoom === null) return
-      const effectiveMinZoom = Math.min(ZOOM_MIN, fitZoom)
+      const effectiveMinZoom = zoomFloor(el, currentPage, fitZoom)
       setMinZoom(effectiveMinZoom)
 
       if (!didAutoFitZoom.current) {
@@ -233,7 +265,7 @@ export function AnnotationCanvas({
     // something measured. Clamping a correct fit-zoom against a stale, larger
     // floor is precisely how Fit came to leave a wide page still needing to be
     // scrolled sideways.
-    const floor = Math.min(ZOOM_MIN, fitZoom)
+    const floor = zoomFloor(container, currentPage, fitZoom)
     setMinZoom(floor)
     // Unlike the one-shot auto-fit on open, this is allowed to exceed 100% —
     // that cap exists only to avoid surprising someone when a document first
@@ -445,7 +477,6 @@ export function AnnotationCanvas({
           pageIndex={pageIndex}
           pageCount={pages.length}
           onPageChange={goToPage}
-          contentType={currentPage?.contentType ?? null}
           canUndo={undoStack.length > 0}
           canRedo={redoStack.length > 0}
           onUndo={handleUndo}

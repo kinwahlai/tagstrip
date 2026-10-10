@@ -16,7 +16,6 @@ function renderToolbar(pageIndex = 0, pageCount = 10) {
       pageIndex={pageIndex}
       pageCount={pageCount}
       onPageChange={onPageChange}
-      contentType={null}
       canUndo={false}
       canRedo={false}
       onUndo={() => {}}
@@ -67,6 +66,17 @@ describe('Toolbar page navigation', () => {
     const slots = [...pageButtons(), ...screen.getAllByText('…')]
     expect(slots).toHaveLength(7)
     expect(new Set(slots.map((slot) => slot.style.width))).toEqual(new Set(['calc(3ch + 20px)']))
+  })
+
+  it('draws undo and redo as icon-only buttons that still carry their names', () => {
+    renderToolbar()
+
+    for (const name of ['Undo', 'Redo']) {
+      const button = screen.getByRole('button', { name })
+      expect(button.querySelector('svg')).not.toBeNull()
+      expect(button.textContent).toBe('')
+      expect(button.title).toContain(name)
+    }
   })
 
   it('disables Previous on the first page and Next on the last page', () => {

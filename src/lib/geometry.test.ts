@@ -3,6 +3,7 @@ import {
   MIN_BOX_SIZE,
   clamp,
   computeFitZoom,
+  computeWholePageZoom,
   moveRect,
   pointToNormalized,
   rectFromPoints,
@@ -41,6 +42,30 @@ describe('computeFitZoom', () => {
   it('returns null for a degenerate page width', () => {
     expect(computeFitZoom(1000, 48, 0)).toBeNull()
     expect(computeFitZoom(1000, 48, -10)).toBeNull()
+  })
+})
+
+describe('computeWholePageZoom', () => {
+  it('is limited by height for a page taller than the space is', () => {
+    // 1048x648 container, 48px padding each way: 1000x600 usable. A 500x1200
+    // page fits its width at 200% but its height only at 50%.
+    expect(computeWholePageZoom(1048, 648, 48, 48, 500, 1200)).toBeCloseTo(0.5)
+  })
+
+  it('is limited by width for a page wider than the space is', () => {
+    expect(computeWholePageZoom(1048, 648, 48, 48, 4000, 600)).toBeCloseTo(0.25)
+  })
+
+  it('never exceeds the width-only fit', () => {
+    const whole = computeWholePageZoom(1048, 648, 48, 48, 800, 2400) as number
+    expect(whole).toBeLessThanOrEqual(computeFitZoom(1048, 48, 800) as number)
+  })
+
+  it('returns null when there is no usable space or the page is degenerate', () => {
+    expect(computeWholePageZoom(48, 648, 48, 48, 500, 1200)).toBeNull()
+    expect(computeWholePageZoom(1048, 40, 48, 48, 500, 1200)).toBeNull()
+    expect(computeWholePageZoom(1048, 648, 48, 48, 0, 1200)).toBeNull()
+    expect(computeWholePageZoom(1048, 648, 48, 48, 500, 0)).toBeNull()
   })
 })
 

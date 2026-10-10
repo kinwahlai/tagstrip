@@ -1,6 +1,5 @@
-import { ContentTypeBadge } from '../ContentTypeBadge'
 import { pageWindow } from '../../lib/pageWindow'
-import type { Label, Page } from '../../db/types'
+import type { Label } from '../../db/types'
 
 interface ToolbarProps {
   labels: Label[]
@@ -13,7 +12,6 @@ interface ToolbarProps {
   pageIndex: number
   pageCount: number
   onPageChange: (pageIndex: number) => void
-  contentType: Page['contentType'] | null
   canUndo: boolean
   canRedo: boolean
   onUndo: () => void
@@ -23,13 +21,36 @@ interface ToolbarProps {
 // Default zoom bounds. minZoom is only the floor for a "normal"-sized page —
 // AnnotationCanvas passes a smaller value (via the minZoom prop) for pages
 // too large to fit the viewport at 50%, so "zoom out" can always reach a
-// level that actually shows the whole page width.
+// level that actually shows the whole page.
 export const ZOOM_MIN = 0.5
 export const ZOOM_MAX = 3
 export const ZOOM_STEP = 0.25
 
-// Everything that acts on the page lives in one row: labels, undo/redo, zoom,
-// page navigation, and the page's text-layer state. Undo and redo used to sit in
+// Drawn, not typed: ↶ and ↷ are not in Archivo, so they fell back to whatever
+// system font had them and came out thin, small and off the baseline. The
+// buttons carry no word beside the icon: with the words the row was a few
+// pixels too wide for one line at 1440px. aria-label and title name them.
+function UndoRedoIcon({ d }: { d: string }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="square"
+      aria-hidden="true"
+    >
+      <path d={d} />
+    </svg>
+  )
+}
+
+// Everything that acts on the page lives in one row: labels, undo/redo, zoom
+// and page navigation. The page's text-layer tag used to end the row; it only
+// describes the page, and it was what tipped the row onto a second line, so
+// it sits beside the filename in the header now. Undo and redo used to sit in
 // a separate strip above, whose only other content was a "← filename" back link;
 // the breadcrumb is the back link now, so that strip had nothing left in it.
 export function Toolbar({
@@ -43,7 +64,6 @@ export function Toolbar({
   pageIndex,
   pageCount,
   onPageChange,
-  contentType,
   canUndo,
   canRedo,
   onUndo,
@@ -113,7 +133,7 @@ export function Toolbar({
           aria-label="Undo"
           title="Undo (Ctrl+Z)"
         >
-          ↶ Undo
+          <UndoRedoIcon d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3" />
         </button>
         <button
           type="button"
@@ -123,7 +143,7 @@ export function Toolbar({
           aria-label="Redo"
           title="Redo (Ctrl+Shift+Z)"
         >
-          ↷ Redo
+          <UndoRedoIcon d="m15 14 5-5-5-5M20 9H10a6 6 0 0 0 0 12h3" />
         </button>
       </div>
 
@@ -217,8 +237,6 @@ export function Toolbar({
           →
         </button>
       </div>
-
-      {contentType && <ContentTypeBadge contentType={contentType} />}
     </div>
   )
 }

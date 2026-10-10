@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { db } from '../../db/db'
 import { AnnotationCanvas } from './AnnotationCanvas'
 import type { Doc, LabelSchema, Page, Project } from '../../db/types'
@@ -55,7 +55,10 @@ beforeEach(async () => {
   await db.pages.add(page())
 })
 
+const onContentTypeChange = vi.fn()
+
 function renderCanvas() {
+  onContentTypeChange.mockClear()
   render(
     <AnnotationCanvas
       docId="d1"
@@ -65,9 +68,23 @@ function renderCanvas() {
       overlayOpen={false}
       onCloseOverlay={() => {}}
       onSelectDoc={() => {}}
+      onContentTypeChange={onContentTypeChange}
     />,
   )
 }
+
+// The tag lives in the header beside the filename, which this component does
+// not render, so the page's content type has to be handed up.
+describe('AnnotationCanvas content type', () => {
+  it('reports the current page’s content type, and clears it on unmount', async () => {
+    renderCanvas()
+    await screen.findByTestId('zoom-readout')
+
+    await waitFor(() => expect(onContentTypeChange).toHaveBeenLastCalledWith('text'))
+    cleanup()
+    expect(onContentTypeChange).toHaveBeenLastCalledWith(null)
+  })
+})
 
 // Ctrl/Cmd + wheel is the only way to zoom by wheel — a plain scroll has to
 // keep scrolling the page area exactly as before, or every ordinary scroll

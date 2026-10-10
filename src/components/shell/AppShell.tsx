@@ -7,6 +7,8 @@ import { LocalOnlyBadge } from '../LocalOnlyBadge'
 interface AppShellProps {
   crumbTop: string
   crumbMain: string
+  // Shown boxed beside crumbMain. Only the annotation canvas has one.
+  crumbTag?: ReactNode
   // Set only on the annotation canvas, where the breadcrumb's upper line is the
   // way back to the project rather than dead text.
   onCrumbBack?: () => void
@@ -65,6 +67,7 @@ function ThemeToggle() {
 export function AppShell({
   crumbTop,
   crumbMain,
+  crumbTag,
   onCrumbBack,
   rail,
   onOpenNav,
@@ -201,17 +204,23 @@ export function AppShell({
             ) : (
               <span className="ts-eyebrow">{crumbTop}</span>
             )}
-            <span
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', minWidth: 0 }}
             >
-              {crumbMain}
-            </span>
+              <span
+                style={{
+                  minWidth: 0,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {crumbMain}
+              </span>
+              {crumbTag && <span style={{ flex: 'none' }}>{crumbTag}</span>}
+            </div>
           </div>
 
           {!stackClaim && <LocalOnlyBadge onClick={onOpenAbout} />}

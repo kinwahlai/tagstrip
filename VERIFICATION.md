@@ -255,7 +255,13 @@ not by reading the code and reasoning that it should work. Reading code tells yo
 
 *(Checkpoint milestone — highest-risk screen. Stop for human review after it passes.)*
 
-- [ ] Labels, undo/redo, zoom, page navigation and the layer tag all sit in the toolbar and work
+- [ ] Labels, undo/redo, zoom and page navigation all sit in the toolbar and work. At 1440px wide
+      with a two-label schema they share a single row. With more labels the row is allowed to
+      wrap (it is flex-wrap by design) — then nothing may be clipped, overlapped or unreachable
+- [ ] The layer tag (`text` / `scanned` / `unknown`) sits in the header beside the filename, in a
+      visible box, and follows the page: on a document mixing text and scanned pages it changes as
+      you page through. It is gone from the header on every screen other than the canvas, and a
+      long filename truncates with an ellipsis rather than pushing the tag out of view
 - [ ] Rail is collapsed to 56px; the document overlay opens, picks a document without leaving the
       canvas, and closes
 - [ ] The breadcrumb returns to the project, and Esc does the same
@@ -387,6 +393,14 @@ once all items pass.)*
 - [ ] Ctrl/Cmd + scroll wheel zooms, and zooms about the pointer position rather than the corner;
       plain scroll still scrolls the page area without zooming
 - [ ] The existing `−`/`+` buttons still step by 25% and still clamp at the top of the range
+- [ ] On an ordinary portrait page that is taller than the canvas area at 50%, `−` goes below 50%
+      and stops exactly where the whole page, top to bottom, is visible with no scrollbar on
+      either axis. One more `−` does nothing. (The floor used to consider width only, so a tall
+      page stopped at 50% with its lower part still off screen.)
+- [ ] On a page that is fully visible at 50% or above, `−` still stops at 50%
+- [ ] Undo and Redo are icon-only buttons showing a drawn arrow, clear at normal size — not a thin
+      or undersized font glyph. Hovering shows "Undo (Ctrl+Z)" / "Redo (Ctrl+Shift+Z)", and each
+      is still found by its accessible name
 - [ ] Existing boxes stay aligned with the underlying image after Fit and after Ctrl+scroll — not
       drifted
 
