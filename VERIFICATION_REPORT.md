@@ -4150,3 +4150,163 @@ Server :5173 served the working tree (page button inline style `width: calc(2ch 
 - Item 8 caveat: position after filename not re-measured here.
 
 Tool-call count: about 19 of 60.
+
+## R4 — Annotate (labels moved to the inspector, 2026-10-10)
+
+Dev server :5173, working tree confirmed (`.ts-label-list` present). Dark theme. Fixture: "Five Labels" schema rewritten via IndexedDB to 2/7/9/10/12/18 labels (long snake_case names, hotkey on every label); 12-page pages-12.pdf; regions drawn on page 2. Two earlier fixture slips of mine (a 9/10-label run with duplicate label ids, and "billing"/"shipping_address_line_2" regions showing as Unknown after ids were renumbered) were discarded and re-measured; numbers below are from the clean runs.
+
+Rubric (R4 first three, then M3 items)
+- R4-1 toolbar single row: ✓ (one clause not checked) — toolbar 46px, one row, no overflow, no Labels group inside it, identical for 2/7/9/10/12/18 labels at 1440x900 and 7/18 at 1024x768; 99-page clause NOT CHECKED (only a 12-page doc). R4-labellist-18-1440x900.png
+- R4-2 labels list in right panel: ✓ — colour+name+hotkey per label above "Regions on this page"; click selects alone (1 true / N-1 false); hotkey selects; <=9 = 1 column, no truncation; >=10 = 2 columns, long names end in `…` with title=full name; 18 fit unscrolled at 1440x900 (scrollHeight 289 = clientHeight 289) and regions list (357px) shows 3 regions; at 1440x500 list scrolls and hotkey target is scrolled into view. R4-labellist-18-1440x900.png
+- R4-3 below breakpoint (1023px; 1024x768 still side-by-side): ✗ — inspector is under the canvas at 800 and 640, nothing overlaps and both lists are reachable by scrolling, but the regions list is a 47px window (a full region row is 92px): zero complete rows visible, the first row's transcription input is cut off, 4 regions need nested scrolling inside a 47px strip; labels list also nested-scrolls (168px of 289). Even with 7 labels the same 47px. When scrolled to the bottom the last region row is still partly clipped (top 45px hidden). R4-labellist-narrow-18-640x900.png, R4-labellist-narrow-7-640-scrolled.png
+- M3 select label, draw box: ✓ — clicked "currency" in list, drew; region named currency, swatch rgb(67,99,216) = label colour. R4-labellist-a-draw-18.png
+- M3 other-label regions dim, still clickable: ✓ — after selecting "date": date=1, others 0.28 (after 300ms transition; an immediate read mid-transition still showed 0.28 for all); a dimmed region was clicked with the mouse and became selected.
+- M3 non-selected-label region doesn't dim while selected: ✓ — clicked currency region while label=date: currency opacity 1 ("· selected"), Unknown/bank 0.28. R4-labellist-m3-dim.png (taken mid-transition; DOM values are the evidence)
+- M3 digit 0 hotkey: ✓ — set notes=0, pressed `0`, notes became aria-pressed.
+- M3 letter hotkey / Ctrl+letter: ✓ — `d` selects date; Control+d, Control+0, Meta+d left "currency" selected.
+
+Behaviour (18 labels, 1440x900)
+- a click label, draw: ✓ — exactly one aria-pressed=true (17 false); new region has that label's name and colour.
+- b second-column hotkey: ✓ — `h` (right column, last) selected shipping_address_line_2; note activeElement was BODY after clicking blank canvas margin, key still worked. R4-labellist-b-hotkey-hover.png
+- c truncated label hover: ✓ (attribute only) — vendor_tax_registration_id truncated, title="vendor_tax_registration_id"; I did not see the native tooltip render.
+- d keyboard: ✓ — Tab order: toolbar, page buttons, region boxes on canvas, then label buttons; Enter on focused label selected currency, Tab+Space selected next label (shipping_address_line_1); focus ring solid 2px accent red, visible. R4-labellist-d-focus.png
+- e arrows/hotkeys after clicking a label button: ✓ — with no region selected, ArrowRight/ArrowLeft page (Page 2→3→2) and hotkey `u` selects subtotal while the label button keeps focus. Caveat: right after drawing, the new region is selected and arrows nudge it instead of paging (existing design at AnnotationCanvas.tsx:379), which first looked like "arrows swallowed"; pressing a page button cleared it.
+- short viewport 1440x500: ✓ — list scrollHeight 289 vs clientHeight 197; after `h` scrollTop 0→84.5 and last label rect 269–298 inside container 101–300 (only 2px to spare). R4-labellist-short-1440x500.png. At this height the regions list is 49px (see Observations).
+- narrow: ✗ — see R4-3 above (800x900: inspector 379px tall, canvas 417px; 640x900: canvas 379px, toolbar wraps to 2 rows 84px). R4-labellist-narrow-{18,7}-{800,640}x900.png
+- dark selected state: ✓ — selected = bold name + 2px light border + 9% tint; clearly distinct from neighbours. R4-labellist-dark-selected.png
+
+Measurements (1440x900 unless stated; toolbar always 1 row, no horizontal overflow, 14 toolbar buttons, 0 hit-test failures in toolbar and list, no page overflow)
+| cfg | toolbar h | cols | list rows | list h | list scrolls | trunc names | regions area h | regions visible (of 3) | canvas h |
+| 2 | 46 | 1 | 2 | 75 | no | 0 | 571 | 3 | 796 |
+| 7 | 46 | 1 | 7 | 228 | no | 0 | 418 | 3 | 796 |
+| 9 | 46 | 1 | 9 | 289 | no | 0 | 357 | 3 | 796 |
+| 10 | 46 | 2 | 5 | 167 | no | 5 | 479 | 3 | 796 |
+| 12 | 46 | 2 | 6 | 198 | no | 5 | 449 | 3 | 796 |
+| 18 | 46 | 2 | 9 | 289 | no | 9 | 357 | 3 | 796 |
+| 7 @1024x768 | 46 | 1 | 7 | 228 | no | 0 | 286 | 3 | 664 |
+| 18 @1024x768 | 46 | 2 | 9 | 289 | no | 9 | 225 | 2 (3rd needs scroll) | 664 |
+Truncated (visible chars before `…` / full length): invoice_number 12/14, billing_address_line_2 12/22, purchase_order_number 11/21, vendor_tax_registration_id 12/26, shipping_address_line_1 12/23 (from 10 labels); at 18 also line_item_description 11/21, bank_account_number 12/19, supplier_contact_email 12/22, shipping_address_line_2 12/23. Label button 29px tall, 158px wide (2-col) / 318px (1-col); region row 92px. Previously with chips: canvas 725–759px; now 796px at 1440x900 for every label count.
+
+Observations
+- Two-column truncation collides: shipping_address_line_1 and _2 both read "shipping_add…" (billing_addr…, supplier_con…, line_item_de… are also cut); only the hotkey badge or hover title tells them apart, and a user with many `x_address_line_n` fields will mis-click.
+- Narrow layout (<1024px) is the real regression: regions get a 47px sliver at 640–800px wide regardless of label count (labels list takes 168px + header, inspector capped at ~45% of height). Unusable for editing transcriptions.
+- Short windows: at 1440x500 with 18 labels the regions list gets 49px (less than one 92px row); at 1024x768 with 18 labels only 2 of 3 regions fit. The label list takes priority over regions.
+- Zoom changed from 82% to 48% on its own during the e/d keyboard run at 1440x900 (not Space/Enter, which I re-tested; Fit restored 82%). Cause not isolated, may predate this change.
+- Unused space: at 1440x900 with 2–9 labels the regions column has hundreds of px empty; fine.
+- Focus ring and selected state share the same area, so a focused-but-unselected label vs selected label differs only by bold/tint.
+
+Blockers: none.
+
+State left behind: "Five Labels" schema restored to 3 labels (invoice_number i, date d, total t) but the "total" label's id changed from f830… to `qa-total` (I truncated before saving the full id); no region used it. My 4 page-2 regions in "Five Labels Project" deleted; its pre-existing page-1 "Unknown label" region left. "Many Labels" schema/project and "R4 Test Project" untouched. Screenshots in verification-screenshots/R4-labellist-*.png.
+
+Tool-call count: ~38 of 110.
+
+## R4 — Annotate (inspector sections side by side when narrow, attempt 2, 2026-10-10)
+
+Re-verification of VERIFICATION.md R4 items 2 and 3 against the uncommitted working tree (dev server :5173; `.ts-inspector-regions` present). Data: "Many Labels" rewritten to 18 labels (long snake_case names, hotkeys a-r) and "Five Labels" to 7 labels via direct IndexedDB write (ids unique, reloaded/measured in app; header read "Labels · 18" / "Labels · 7"). Regions drawn on page 3 of pages-12.pdf in each. Real mouse/keyboard input throughout.
+
+- 1. 18 labels 1440x900 two columns, long names: ✓ — 2 cols; every name >=14 chars takes exactly 2 lines (Range rects) with scrollHeight==clientHeight and no `…` (10 names: 14-26 chars); names <=8 chars 1 line. Wrapping is mid-word (`shipping_addr/ess_line_1`, `invoice_numbe/r`) but both shipping and both billing names are fully readable and differ in the visible text (`ess_line_1` vs `ess_line_2`). Truncated names: none. R4-labellist2-18-1440x900-labels.png
+- 2. 18 labels 1440x900 fit: ✓ — label-list-scroll 340/340 (no scroll), 3 regions all visible (92px rows; regions scroll area 306px, section 457px), toolbar one row (46px, all button centres y=80), canvas 796px.
+- 3. 7 labels 1440x900: ✓ — 1 column, all 7 names 1 line, list 228/228, regions scroll area 418 (section 569), canvas 796, toolbar 46 — identical to earlier (228/418/796). R4-labellist2-7-1440x900.png
+- 4. 18 labels 1024x768: ✓ (weaker than before) — list 340/340, no scroll; regions scroll area 174px (section 325), canvas 664; row 1 fully visible with its input, row 2's input visible but row cut, row 3 clipped: 1 of 3 regions fully visible (earlier today 2 of 3 with area 225). Meets "at least one whole row", but is a regression in how many fit. R4-labellist2-18-1024x768.png
+- 5. Short window 1440x500, 18 labels: ✗ — label list scrolls (198 visible of 340) and last-label hotkey `r` scrolls it fully into view (rect 272.05-299.05 in container 101.05-299.09: top margin 171, bottom margin 0.05px, flush). BUT regions: section is 199px (>=140 only because it counts the header ~37px and the always-shown "Suggest text" explainer footer ~114px) while the regions SCROLL AREA is 48px; no region row is fully visible and no transcription input is visible (row 1 shows only its header, input cut off). Clause "at least one whole region row including its input is visible" fails. R4-labellist2-short-1440x500.png
+- 6. Narrow 800x900, 18 labels: ✓ — side by side: labels rect 56,523-391,900 (335w), regions 391,523-800,900 (409w); inspector 379px tall, canvas 417px. Regions scroll area 243px: rows 1-2 whole with inputs; scrolling to the end puts last region inside area (bottom margin -0.03px, i.e. flush). Label scroll 340 content in 334: scrolled top/bottom reachable (margins 8 / 7.9px). elementFromPoint: 50 visible buttons, only miss = a "Suggest text" of a half-scrolled row under the footer (expected clipping by scroll). scrollWidth 800 <= innerWidth. Real clicks: selected bank_account_number (1 aria-pressed), drew a box (4th region got that label), typed "IBAN 42" in a region input. NOTE: with the label scrollbar, `vendor_tax_registration_id` shows `vendor_tax_r/egistration…` (ellipsis, allowed by rubric for names too long for two lines) while at 1440 it fit. R4-labellist2-narrow-18-800x900.png
+- 7. Narrow 640x900, 18 labels: ✗ — layout checks pass (side by side labels 263w / regions 321w, canvas 379px, regions scroll 226px with 2 whole rows+inputs, last region reachable bottom margin 0.15px, last label reachable, no horizontal overflow, real draw + typing worked; toolbar wraps to 2 rows 84px, rubric only demands 1 row at 1440/1024). But names are not readable: 2 label columns, each button 121px; 9 long names are cut (Range shows 3-4 lines, clipped, `…`), e.g. `billing_address_line_1` and `_2` both read `billing/_addre…`, `purchase_orde…`→`purchas/e_orde…`, `currency`→`currenc/y`, `due_date`→`due_dat/e`. The pairs can no longer be told apart (only hotkey/title distinguishes). R4-labellist2-narrow-18-640x900.png
+- 8. Narrow 800x900, 7 labels: ✓ — side by side same rects as line 6, 1 column, names 1 line, list 334/334 no scroll, regions scroll 243px with 2 whole rows+inputs, last region reachable (flush), canvas 417, scrollWidth 800, hit-test clean except the partly scrolled row; real label click + draw + type worked. R4-labellist2-narrow-7-800x900.png
+- 9. Phone 375x812, 18 labels: NOT a pass for usability, reported as asked — no degraded-mode/explicit message anywhere. Header/toolbar wrap (toolbar 3 rows = 84px with a banner row), canvas 311px high (page visible, drawing region boxes visible), labels 169px wide / regions 206px wide side by side; label buttons 74px wide so names are 1-2 characters (`b i.`, `p u.`, `l i.`) — labels unreadable/unusable; regions scroll area 119px, no whole row visible, transcription input truncated ("ACME Co"). Versus the previous run's 47px regions sliver: regions slightly better (119px) but labels now unreadable, canvas similar; overall same-ish (still not workable, still no message). R4 / R7 "usable or explicit message" is unmet at 375px. R4-labellist2-phone-375x812.png
+- 10. Regression 18 labels 1440x900: ✓ — clicked second-column label (supplier_contact_email): exactly 1 aria-pressed; drew a box: new region labelled supplier_contact_email (confirmed after the list updated; deleted afterwards); canvas focused + `n` → currency only pressed; with no region selected ArrowRight 3→4, ArrowLeft 4→3. R4-labellist2-regression-1440x900.png
+- 11. Zoom watch item: ✓ — readout was 82% at every observation: after each viewport resize (1440x900→1024x768→1440x500→800x900→640x900→375x812→1440x900→800x900→1440x900), before/after draw, typing, hotkeys r/n, arrows, and after re-opening the doc (7-label project). Extra run on 7-label doc: e, d, a, ArrowRight, ArrowLeft, Space, Enter after clicking canvas: 82% throughout. No unexplained change; the 82→48 from the previous run did NOT reproduce (cause still unknown). Note: no auto-fit change was seen on resize either. Observed that Escape on the canvas returns to the project (by design).
+- 12. Dark and light themes: ✓ — selected supplier_contact_email (2nd column): bold name + 2px light/dark border + tint in dark; bold name + dark border + grey tint in light; both clearly distinct from neighbours. R4-labellist2-dark-selected.png, R4-labellist2-light-selected.png
+
+Heights (px). list = label-list-scroll clientHeight (scrollHeight); regions = regions scroll area (section); canvas = canvas area
+| config | toolbar | cols | list | regions | canvas |
+| 18 @1440x900 | 46 | 2 | 340 (340) | 306 (457) | 796 |
+| 7 @1440x900 | 46 | 1 | 228 (228) | 418 (569) | 796 |
+| 18 @1024x768 | 46 | 2 | 340 (340) | 174 (325) | 664 |
+| 18 @1440x500 | 46 | 2 | 198 (340) | 48 (199) | 396 |
+| 18 @800x900 | 46 | 2 | 334 (340) | 243 (377) | 417 |
+| 18 @640x900 | 84 | 2 (121px btns) | 334 (379) | 226 (377) | 379 |
+| 7 @800x900 | 46 | 1 | 334 (334) | 243 (377) | 417 |
+| 18 @375x812 | 84 | 2 (74px btns) | 261 (392) | 119 (321) | 311 |
+
+Observations (blunt)
+- The fix in this attempt: narrow side-by-side works at 800px and for 7 labels (regions 243px, canvas 417px). It does not hold at 640px (names garbled) or 375px (names 1-2 chars, no message).
+- Short windows still fail the stated promise: at 1440x500 the regions scroll area is 48px, no row or input visible. The "140px minimum" is met only by counting the header and the 114px "Suggest text" explainer footer, which is always shown. That footer is what is stealing the room; a user can't type a transcription in a short window.
+- Two-line wrapping is mid-word (`shipping_addr/ess_line_1`, `invoice_numbe/r`, `currenc/y`). Readable and pair-distinguishable at 1440, but ugly; breaking at underscores would read far better. Wrapping made the 18-label list taller (340 vs 289), costing regions room (306 vs 357) and at 1024x768 only 1 of 3 regions is fully visible now (was 2).
+- At 800px the label scrollbar steals width so `vendor_tax_registration_id` ends in `…` there.
+- Hotkeys scroll labels into view with 0px bottom margin (flush against the container edge), no breathing room.
+- 640px toolbar wraps to 2 rows and the canvas drops to 379px; phone shows no degraded-mode message.
+
+Blockers: none. State left: "Many Labels" schema restored to its original 12 labels and "Five Labels" to its 3 labels (from a backup taken before editing; original ids and names); the 9 regions I drew on page 3 of pages-12.pdf in "Many Labels Project" and "Five Labels Project" deleted (the 1 supplier_contact_email region was deleted in the UI, the rest by IndexedDB delete then page reload); pre-existing page-1 regions and "R4 Test Project" untouched; temp localStorage key removed. Dev servers left running. Tool-call count: ~50 (excluding the report-writing call).
+
+## R4 — Annotate (inspector layout, attempt 3, 2026-10-10)
+
+Re-verification of VERIFICATION.md R4 items 2 and 3 and the R7 375px item against the uncommitted working tree (dev server :5173, `.ts-region-scroll` present). Data written via IndexedDB (unique ids, reload before measuring, backup/restore): "Many Labels" = 18 labels (long snake_case names, hotkeys a-r), "Five Labels" = 7 labels; 3 regions drawn on page 3 of pages-12.pdf in each (one with text). Real mouse/keyboard throughout.
+
+- 1. Short window 1440x500, 18 labels: ✗ — the label list is 0px tall (label-list-scroll clientHeight 0, scrollHeight 340; labels section 15.8px = header only; 0 of 18 label rows visible), so it does not scroll, it vanishes. Regions part passes: .ts-region-scroll 275px (>=110), all 3 rows whole with inputs inside the area (row1 111-202.8, input 156.4-189.8; area 111-386.3), "Suggest text" note fully visible (386.3-500), aside last child bottom 500 <= 500. Failed clause: the label list scrolls and labels stay reachable. R4-labellist3-short-1440x500.png (reproduced after a hard reload).
+- 2. Short window hotkeys: ✗ — pressing `r` set scrollTop 301 and selected `ref`, but the container is 0px tall (rect top 101.05, bottom 101.05), so the label is not visible: reported margins top 4px / bottom -31px (the 4px scroll-margin is applied, against a zero-height box). `a` afterwards: scrollTop 52, margins -44 / 4, also not visible. Nothing visibly scrolled into view. (Same screenshot as line 1.)
+- 3. Even shorter 1440x420, 18 labels: ✗ — label list 0px tall and its header lost (labels section 2px, "LABELS · 18" header overlaps the "REGIONS ON THIS PAGE" header); regions section 426px tall in a 362px aside so the "Suggest text" note is clipped at the bottom (footer 372.5-486.2, aside ends at 420, aside overflow hidden, no scroll); regions list itself fine (275px, 3 whole rows). Labels unreachable by mouse, content clipped with no scroll. R4-labellist3-short-1440x420.png
+- 4. 640x900, 18 labels: ✓ — computed grid one track (244.8px), buttons 245px wide; all 18 names fully shown (scrollHeight==clientHeight, no `…`), every name 1 line except vendor_tax_registration_id 2 lines; shipping pair and billing pair fully readable. Labels rect 56,523-318.8,900 beside regions rect 318.8,523-640,900. Regions scroll area 226px: 2 whole rows with inputs (row1 560.3-652.1); scrolled to bottom last row 694.3-786.1 inside area 560.3-786.3. Label list scrollable 334 of 549; at bottom last button 865.1-892.1 inside list (list bottom 900). scrollWidth 640. elementFromPoint: 11 visible buttons all hit, 0 miss (7 off-screen at that scroll). Real: clicked last label (`ref`, 1 aria-pressed), drew a box (new region labelled ref), typed "TYPED640" into its input (input inside the area). Toolbar wraps to 2 rows (84px), canvas 379px (rubric only requires one row at 1440/1024). R4-labellist3-narrow-18-640x900.png (read: names legible).
+- 5. 800x900, 18 labels: ✓ — one track (316.8px), buttons 317px; all 18 names one line, none cut; vendor_tax_registration_id now fully shown (scrollHeight 15 == clientHeight 15, no `…`; last run it ended in `…`). Labels rect 56,523-390.8,900, regions 390.8,523-800,900; regions area 243px with 2 whole rows+inputs; last row 711.6-803.4 inside area (560.3-803.4); last label inside list at bottom scroll; scrollWidth 800; hit-test 11/11 visible OK. Real: selected `name`, drew a box on clear canvas (new region `name`), typed "T800". (My first draw attempt started inside the existing `ref` box and moved it instead — my error, redone.) R4-labellist3-narrow-18-800x900.png
+- 6. 800x900, 7 labels: ✓ — one column (317px), 7 names one line each, list 334/334 no scroll; regions area 243px, 2 whole rows with inputs (560.3-652.1, 652.1-743.8), last row reachable (711.3-803.1 inside 560.3-803.1); hit-test 7/7; scrollWidth 800; nothing clipped. R4-labellist3-narrow-7-800x900.png
+- 7. 1440x900, 18 labels: ✓ — 2 tracks (158px), 10 long names 2 lines each, no `…`, all full, short names 1 line; list 340/340 no scroll; 3 regions all whole (rows 92px, area 306px, 480.2-786.3); toolbar 46px one row; canvas 796px; scrollWidth 1440. Identical to last run. (Screenshot not taken for this exact state, measured only.)
+- 8. 1440x900, 7 labels: ✓ — 1 column (318px), list 228/228, regions area 418px, 3 whole rows, canvas 796px, toolbar 46px. R4-labellist3-7-1440x900.png
+- 9. 1024x768, 18 labels: ✓ — side-by-side canvas (632x664) + panel; 2 tracks; label list scrolls (239 of 340, 10 labels visible); regions area 275px, 3 of 3 regions whole with inputs (was 1), note visible, aside bottom clipped none; toolbar 46px; scrollWidth 1024. R4-labellist3-18-1024x768.png
+- 10. 375x812, R4 Test Project (2 labels), pages-3.pdf page 1: ✓ — canvas area 375x320 with the page visible, labels column 169px wide / 235px (both names `name_field`, `zero_field` full), regions column 206px wide, region area 110px; real: clicked zero_field (1 aria-pressed), drew a box inside the visible page, a region row appeared (92px row, input fully inside the 110px area), typed "PHONE2" into it (value read back). No degraded message, none needed. Toolbar wraps to 84px; scrollWidth 375. R4-labellist3-phone-2labels-375x812.png, R4-labellist3-phone-2labels-drawn-375x812.png. Observation only (18 labels, 375x812, Many Labels, 4 regions on page): canvas 375x311; labels column 169px with ONE column of 151px buttons, list 261px visible of 666; names mostly 2 lines, vendor_tax_registration_id takes 3 lines and is cut; regions area 119px, 1 whole row with input; no horizontal overflow, no message. Usable-ish, cramped. R4-labellist3-phone-18labels-375x812.png
+- 11. Regression 1440x900, 18 labels: ✓ — clicked 2nd-column supplier_contact_email: exactly 1 aria-pressed; drew a box: new region labelled supplier_contact_email; clicked empty canvas then `n`: only due_date pressed; ArrowRight Page 3→4, ArrowLeft 4→3 (no region selected); Tab from the canvas reached label button invoice_number on the 5th Tab, next Tab went to shipping_address_line_1, Enter made it the single pressed label.
+- 12. Zoom watch: ✓ — readout was 82% at every observation: after open on 4 separate document opens, after each resize (1440x900, 1440x500, 1440x420, 640x900, 800x900, 1024x768, 375x812, back to 1440x900), before/after drawing, typing, deleting regions, hotkeys, arrows, Tab/Enter. No change at all, so none unexplained.
+
+Heights (px). list = label-list-scroll clientHeight (scrollHeight); regions = .ts-region-scroll (whole rows with input visible)
+| config | toolbar | tracks | list | regions | canvas |
+| 18 @1440x900 | 46 | 2 | 340 (340) | 306 (3) | 796 |
+| 7 @1440x900 | 46 | 1 | 228 (228) | 418 (3) | 796 |
+| 18 @1024x768 | 46 | 2 | 239 (340) | 275 (3) | 664 |
+| 18 @1440x500 | 46 | 2 | 0 (340) | 275 (3) | 396 |
+| 18 @1440x420 | 46 | 2 | 0 (340), header lost | 275 (3), note clipped | 316 |
+| 18 @800x900 | 46 | 1 | 334 (536) | 243 (2) | 417 |
+| 18 @640x900 | 84 | 1 (245px) | 334 (549) | 226 (2) | 379 |
+| 7 @800x900 | 46 | 1 | 334 (334) | 243 (2) | 417 |
+| 2 @375x812 | 84 | 1 | 235 (235) | 110 (1) | 320 |
+| 18 @375x812 | 84 | 1 (151px) | 261 (666) | 119 (1) | 311 |
+
+Observations (blunt)
+- The narrow side-by-side fix and the one-column rule work (640/800/375). The short-window fix does not: the 110px minimum on .ts-region-scroll is there but the regions section grows to its content (3 rows = 275px, section 426px at 1440x500) and the label section, flex 0 1 auto with min-height 0, shrinks to its header, then to nothing at 420. At 500px the 18 labels have no visible list at all; hotkeys still select but invisibly. This is the inverse of "label list scrolls before regions are squeezed". Likely depends on region count (with 3 regions it collapses); I did not test 1 region.
+- At 1440x420 headers overlap and the Suggest text note is cut off, no scrollbar anywhere in the inspector.
+- Regions at 1440x500 get 275px, which is more than needed; a cap/shared split would leave the labels ~150px.
+- The 4px scroll-margin did apply (margin 4px at the top edge), it just has no visible effect with a 0px list.
+- 375px: transcription input is only 72px wide beside the Suggest text button; usable but tiny.
+- Region list order puts the newest-drawn region not at a consistent position (new `ref`/`name`/supplier_contact_email appear first, invoice_number last); outside the rubric.
+
+Blockers: none. State left: schemas and annotations restored byte-for-byte from a backup taken before editing (Many Labels 12 labels, Five Labels 3 labels, First Schema From Empty 2 labels; 11 annotations, same ids; compared equal after restore); all regions I drew deleted by the annotations restore; temp localStorage key removed. Dev servers untouched. Tool-call count: about 58 before this report.
+
+## R4 — Annotate (label list at desktop sizes, many regions, 2026-10-10)
+
+Desktop only (1440x900, 1280x720, 1024x768). Data: "Many Labels" schema temporarily rewritten to 18/7/2 labels via IndexedDB, 15 and 3 qa regions on pages 6/7 of Many Labels Project / pages-12.pdf; schema restored byte-identical and qa rows removed afterwards. Dev server on :5173 (inspector-regions min-height computed 270px).
+
+1. ✓ 1440x900, 18 labels, 3 regions: 2 columns, list 340/340 (no scroll), all names <=2 lines, no ellipsis/truncation, shipping/billing pairs readable (wrap mid-word, e.g. "shipping_addr/ess_line_1"; "invoice_numbe/r" leaves one orphan char); 3 regions whole; toolbar one row (46px). Regions scroll 306, canvas 796. R4-labellist4-18-3reg-1440x900.png
+2. ✓ 1440x900, 18 labels, 15 regions: list 340 (same as line 1); 18 labels shown; regions scroll 306 (scrollHeight 1377) with 3 whole rows; scrolled to bottom last row bottom 786.34 vs area bottom 786.31; note top 786 bottom 900; aside last child bottom 900 = aside bottom 900. R4-labellist4-18-15reg-1440x900.png
+3. ✓ 1280x720, 18, 15 regions: list 319/340 scrolls, 16 of 18 buttons (8 rows) whole; regions area 147, 1 whole row with input (input 505-538 inside 459-606); note 606-720; aside bottom 720 = last child bottom; toolbar one row. R4-labellist4-18-15reg-1280x720.png
+4. ✓ 1280x720, 18, 3 regions: list 319/340, same as line 3; same measurements. R4-labellist4-18-3reg-1280x720.png
+5. ✓ 1024x768, 18, 15 regions: list 340/340 (all 18 whole), regions area 174 with 1 whole row incl. input; note 654-768; nothing clipped; toolbar one row. R4-labellist4-18-15reg-1024x768.png
+6. ✓ 1024x768, 18, 3 regions: list 340, equal to line 5. R4-labellist4-18-3reg-1024x768.png
+7. ✓ 1440x900, 7 labels: 1 column, names one line each, list 228/228 with both 3 and 15 regions; with 15 regions the regions area is 418 with 4 whole rows. R4-labellist4-7-15reg-1440x900.png
+8. ✓ 1440x900, 2 labels, 3 regions: both labels shown (list 75), 3 regions whole, toolbar 46px (same as 18 labels). R4-labellist4-2-3reg-1440x900.png
+9. ✓ Clicked supplier_contact_email (2nd column): exactly one aria-pressed. Mouse-drew a box: header "· 16", DB row has labelId of supplier_contact_email. Typed "hello 16" into its input: persisted in that row. Undo: back to "· 15", row gone. (My first typing attempt hit the wrong row; redone via Redo, result above is the redone run.) R4-labellist4-draw-16.png, R4-labellist4-typed.png
+10. ✓ After clicking empty canvas (focus on body), "n" (last label) selects notes at 1440x900 and at 1280x720; at 1280x720 n -> list scrollTop 17, margins top 288/bottom 4px; s (first) -> scrollTop 4, margins 4/275; n again -> 288/4. Both fully inside container. R4-labellist4-hotkey-n-1440.png, R4-labellist4-hotkey-n-1280.png
+11. ✓ No region selected: ArrowRight went page 6->7 (header 15->3), ArrowLeft back to 6. After a canvas click, Tab reached label buttons on the 16th press (after the 15 region overlays); Tab to "date" (26th press) + Enter made date the only pressed label. R4-labellist4-tab-enter.png
+12. ✓ Zoom readout 82% at every check: after load at each size, after resizes 1440->1280->1024->1440->1280 (no reload), after label click, draw, typing, undo/redo, hotkeys, arrow paging, Tab/Enter. No unexplained change.
+
+| config (labels, viewport, regions) | list clientH (scrollH) | whole label rows | regions area H | whole region rows | canvas H |
+|---|---|---|---|---|---|
+| 18, 1440x900, 3 | 340 (340) | 9 (18 btns) | 306 | 3 | 796 |
+| 18, 1440x900, 15 | 340 (340) | 9 | 306 | 3 | 796 |
+| 18, 1280x720, 3 | 319 (340) | 8 (16 btns) | 147 | 1 | 616 |
+| 18, 1280x720, 15 | 319 (340) | 8 | 147 | 1 | 616 |
+| 18, 1024x768, 3 | 340 (340) | 9 | 174 | 1 | 664 |
+| 18, 1024x768, 15 | 340 (340) | 9 | 174 | 1 | 664 |
+| 7, 1440x900, 3 | 228 (228) | 7 | 418 | 3 | 796 |
+| 7, 1440x900, 15 | 228 (228) | 7 | 418 | 4 | 796 |
+| 2, 1440x900, 3 | 75 (75) | 2 | 571 | 3 | 796 |
+
+Observations (desktop only): names wrap mid-word in 2-col mode (orphan "r" in "invoice_numbe/r"); 15 region overlays each take a Tab stop before the label buttons (16 Tabs to reach labels from the canvas); zoom stays 82% on resize (no refit). Region area is narrow at 1280x720/1024x768 (1 row visible) but meets the rubric.
+Data final state: Many Labels schema restored identical (12 labels), no qa-* annotations, annotations total 11 (as at start), localStorage helper keys removed. Tool calls: ~33.
