@@ -25,3 +25,6 @@ dist-ssr
 
 # Playwright MCP scratch output
 .playwright-mcp/
+
+# proofline ledger, reports and evidence
+.proofline/verification/
