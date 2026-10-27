@@ -14,7 +14,7 @@ Output must be right, not merely present: also `presence-is-not-correctness`.
   journey with `--engine tesseract --set synthetic` in Chromium.
 - Observable outcome: the journey's text matches and shows the OCR tag; the harness reads at least
   19 of the 20 synthetic crops and offers Tesseract as its only engine.
-- Broken by: deleting `src/lib/ocr/tesseract.ts` along with the Indra files.
+- Broken by: making Tesseract's `recognize` return empty text.
 
 ### M1-2: nothing of onnxruntime ships
 
@@ -35,4 +35,8 @@ Output must be right, not merely present: also `presence-is-not-correctness`.
 
 ## Changes after a run
 
-<!-- Starts empty. -->
+- **M1-1**, 2026-10-28, agreed by Darren the same day: the Broken by was "deleting
+  `src/lib/ocr/tesseract.ts` along with the Indra files". At 0220ca8 that mutant (6aca53e) stopped
+  the whole app loading, because `suggestText.ts` imports the file, so it could not show the check
+  catching broken OCR (NOT RUN). Replaced with a break that leaves the app loading and only OCR
+  wrong.
