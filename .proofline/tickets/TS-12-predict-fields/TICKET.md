@@ -8,6 +8,20 @@ schema. The model returns each field's value and its box; TagStrip draws the box
 and puts each value into the region's transcription field. Darren: "auto drawing box with
 prediction is something i always wanted to do."
 
+## Decided (Darren, 2026-10-28)
+
+- **The licence (Q5).** LFM Open License v1.0, read 2026-10-28: Apache-style redistribution with a
+  copy of the licence; no terms on Output; no competitor clause; commercial use licensed only for an
+  organisation (with its affiliates) under $10M annual revenue (section 5). Darren: TagStrip is
+  open source, and an organisation over the threshold takes that up with Liquid AI itself.
+- **The model is never bundled (Q4).** Each user downloads it from Hugging Face on first use of
+  "Predict fields", after TagStrip shows its size and the LFM licence; it is cached in the browser.
+  TagStrip does not redistribute it. This is a deliberate exception to the offline-capable rule
+  (`SPEC.md` section 6), for this opt-in feature only.
+- **Opt-in and additive.** Tesseract, Suggest text and manual annotation are unchanged by this
+  ticket.
+- **M3 (Indra refinement) is dropped**, with TS-11 (`.proofline/ARCHIVE.md` O3).
+
 ## The scope change this needs
 
 `SPEC.md` section 2 lists, under "Explicitly out of scope for v1": "Model-assisted pre-labeling
@@ -62,7 +76,7 @@ Riskiest first. M1 decides whether the rest happens.
   separates "the browser port is wrong" from "the model cannot do it". The output is a verdict.
 - **M2. The button.** Only if M1 passes: "Predict fields" on the canvas, predicted regions shown
   as unconfirmed until accepted, the model downloaded and cached on first use per Q4.
-- **M3. Indra refinement.** Only if M2 shows boxes or values need it, and after TS-11 M2.
+- **M3.** Dropped 2026-10-28 with TS-11.
 
 Checkpoints: Darren decides (Q6).
 
