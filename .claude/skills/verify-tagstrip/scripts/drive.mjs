@@ -151,11 +151,22 @@ async function ocrHarness(page, ctx, result) {
     const exportPath = args['eval-export']
     const docsDir = args['eval-docs']
     if (!exportPath || !docsDir) throw new Error('--set eval needs --eval-export and --eval-docs')
-    const docs = fs
-      .readdirSync(docsDir, { withFileTypes: true })
-      .filter((d) => d.isFile() && /\.(pdf|png|jpe?g|webp)$/i.test(d.name))
-      .map((d) => path.join(docsDir, d.name))
+    // Recursive, following symlinks: real sets are split into subfolders. The harness matches
+    // documents by bare filename, so a name seen twice would be ambiguous; refuse it. Errors
+    // give counts only, never names, because eval sets hold real documents.
+    const docs = []
+    const walk = (dir) => {
+      for (const name of fs.readdirSync(dir)) {
+        const p = path.join(dir, name)
+        const st = fs.statSync(p)
+        if (st.isDirectory()) walk(p)
+        else if (st.isFile() && /\.(pdf|png|jpe?g|webp)$/i.test(name)) docs.push(p)
+      }
+    }
+    walk(docsDir)
     if (docs.length === 0) throw new Error('no documents in --eval-docs')
+    const dupes = docs.length - new Set(docs.map((p) => path.basename(p))).size
+    if (dupes > 0) throw new Error(`--eval-docs has ${dupes} duplicate filename(s) across subfolders`)
     await page.getByLabel('Export JSON', { exact: true }).setInputFiles(exportPath)
     await page.getByLabel('Source documents', { exact: true }).setInputFiles(docs)
   }

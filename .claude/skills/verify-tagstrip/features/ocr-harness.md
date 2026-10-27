@@ -31,7 +31,7 @@ NODE_PATH=$RUN_DIR/pw/node_modules node $S/drive.mjs --browser chromium --url ht
   --runs 2 --evidence "$EVIDENCE_DIR" --check-id M1-4
 ```
 
-`--eval-docs` takes a folder, non-recursive; only `.pdf .png .jpg .jpeg .webp` files are attached. Documents are matched to the export by filename. `--runs N` clicks Run N times in the same page and collects each run. `--block-offsite` works as for other journeys (M1-3: use `--set synthetic --engine indra`, expect `blockedCount` 0).
+`--eval-docs` takes a folder, searched recursively (following symlinks); the run refuses a folder where two documents share a filename, since documents are matched by name. Only `.pdf .png .jpg .jpeg .webp` files are attached. Documents are matched to the export by filename. `--runs N` clicks Run N times in the same page and collects each run. `--block-offsite` works as for other journeys (M1-3: use `--set synthetic --engine indra`, expect `blockedCount` 0).
 
 The driver exits 0 when every run reached `data-state=done`; it does not judge the decision rule. Evidence: `<check-id>-ocr-harness-<engine>-<set>-<browser>.json` with, per run, the summary (`total`, `match`, `wrong`, `blank`, `medianMs`), `skipped` (annotations whose document was not supplied) and per-region `id`, `verdict`, `ms`. A screenshot is taken only for `--set synthetic`.
 

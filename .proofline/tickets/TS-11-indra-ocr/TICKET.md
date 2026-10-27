@@ -13,7 +13,10 @@ Darren accepted Claude's recommendation on each of Q1 to Q6 below:
   results and terminal output record counts and verdicts only, never a value or a filename.
   - Ground truth: `~/projects/pai-extract/.proofline/ground-truth/pai-extract-marriage-cert-v2-tagstrip-annotations-only.json`,
     the latest TagStrip export (annotations only).
-  - Documents: `~/projects/pai-extract/samples/sharepoint/marriage/`.
+  - Documents: `~/projects/pai-extract/samples/sharepoint/Marriage Cert/`, in four subfolders
+    (`MC-CHN`, `MC-GBR`, `MC-IND`, `MC-OTHER`). Corrected 2026-10-27 with Darren's agreement: the
+    path first given, `.../sharepoint/marriage/`, does not exist, so the verifier left M1-4 NOT
+    RUN at 39815e3. All 28 export documents are under the corrected folder, each exactly once.
   - Not used: pai-extract's `ground-truth/heldout/` set, kept unseen for pai-extract's own
     measurements.
 - **Tesseract is deleted in M2** if M1 passes; no second engine.
