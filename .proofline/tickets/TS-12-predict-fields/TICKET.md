@@ -135,6 +135,32 @@ Model output can vary run to run on WebGPU. The browser run is repeated; any fie
 or value verdict changes between the two runs counts as unstable and is reported
 (**noise-floor-before-credit**).
 
+## M1 findings, before any verifier run (2026-10-28, overnight)
+
+Built at a079483 on `ts-12-predict-fields` (harness, scorer, synthetic fixture of 8 pages and 36
+fields, Python reference, driver journey). Lint, build and 260 tests green. Not verified: the two
+findings below decide the milestone before a verifier run could, so none was spent
+(**say-what-a-run-will-decide**). No real document was opened.
+
+1. **The model does not place boxes on text fields, even on clean synthetic pages.** Python
+   reference, RTX 4070, bf16, greedy: 36/36 values read correctly, 0/36 boxes at IoU >= 0.5.
+   A follow-up diagnostic (session scratchpad `grounding/`) tried the model card's exact grounding
+   prompt three ways: all field names at once, one field name per call, and the known value text
+   per call. It also tried the page at 2x and 0.5x size. Every arm had 0/36 at IoU >= 0.5 and
+   0/36 at IoU >= 0.3, mean IoU 0.04 to 0.07. Coordinates snap to a roughly 0.1 grid (68 to 89%
+   multiples of 0.1). Grounding the exact value text put the true centre inside the predicted box
+   for 13/36 fields, never tightly. Untested: a 0..1000 coordinate convention (all outputs were
+   already in 0..1). This is the ticket's falsification case "box hits stay low while values
+   match: it reads the field but cannot place it".
+2. **No hardware WebGPU in this WSL2 Chromium.** Only a SwiftShader fallback adapter, which lacks
+   shader-f16, so the q4f16 build cannot run; flags for Vulkan and lavapipe did not help. A q4
+   diagnostic on SwiftShader ran end to end at 474 s for one page. Inferred: Windows-side Chrome on
+   the same laptop would expose the RTX 4070; not checked.
+
+Under the agreed decision rule, finding 1 alone means "do not build M2 on this model": the bar is
+box hits on half the fields, and the model reaches none even at a looser 0.3 on synthetic pages.
+Stopped for Darren rather than retrying (**fail-closed**, **attack-the-premise**).
+
 ## Falsification tests for the design
 
 - **The base model can point at a field by its name.** Shown wrong if box hits stay low while
