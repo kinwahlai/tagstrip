@@ -28,6 +28,3 @@ dist-ssr
 
 # proofline ledger, reports and evidence
 .proofline/verification/
-
-# Indra OCR weights (OpenRAIL-M): fetched by scripts/fetch-indra-models.sh, never committed
-indra-models/

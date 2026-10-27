@@ -3,7 +3,6 @@
 // filenames; results are also exposed as JSON in window.__ocrResults for the driver, under the
 // same rule.
 import { tesseractEngine } from '../lib/ocr/tesseract'
-import { indraEngine } from '../lib/ocr/indra'
 import type { OcrEngine } from '../lib/ocr/types'
 import { summarise, verdict } from '../lib/ocrEval/score'
 import type { RegionResult, Summary } from '../lib/ocrEval/score'
@@ -30,7 +29,7 @@ declare global {
   }
 }
 
-const ENGINES: Record<string, OcrEngine> = { tesseract: tesseractEngine, indra: indraEngine }
+const ENGINES: Record<string, OcrEngine> = { tesseract: tesseractEngine }
 const DOC_EXT = /\.(pdf|png|jpe?g|webp)$/i
 
 const root = document.getElementById('harness-root')!
@@ -53,7 +52,6 @@ const engineSelect = el(
   'select',
   { id: 'engine', ariaLabel: 'Engine' },
   el('option', { value: 'tesseract', textContent: 'tesseract' }),
-  el('option', { value: 'indra', textContent: 'indra' }),
 )
 const setSelect = el(
   'select',

@@ -3,7 +3,7 @@
 //   source scripts/env.sh && NODE_PATH=$RUN_DIR/pw/node_modules node scripts/drive.mjs \
 //     --browser chromium --url http://127.0.0.1:$PORT/ --journey suggest-text-ocr \
 //     --evidence <dir> --check-id <id> [--block-offsite]
-// Journey ocr-harness also takes: --engine tesseract|indra --set synthetic|eval
+// Journey ocr-harness also takes: --engine tesseract --set synthetic|eval
 //     [--eval-export <file> --eval-docs <dir>] [--runs N]
 // Exit 0 only if the journey's own assertion passed (for ocr-harness: the harness completed). Result JSON holds verdicts, counts and
 // timings only, never document text.
@@ -137,10 +137,10 @@ async function suggestTextOcr(page, ctx, result) {
 // --set eval the inputs are real documents: nothing but ids, verdicts and ms is written, and no
 // screenshot is taken.
 async function ocrHarness(page, ctx, result) {
-  const engine = args.engine ?? 'indra'
+  const engine = args.engine ?? 'tesseract'
   const set = args.set ?? 'synthetic'
   const runs = Number(args.runs ?? 1)
-  if (!['tesseract', 'indra'].includes(engine) || !['synthetic', 'eval'].includes(set) || !(runs >= 1)) {
+  if (!engine === 'tesseract' || !['synthetic', 'eval'].includes(set) || !(runs >= 1)) {
     throw new Error('bad --engine/--set/--runs')
   }
   Object.assign(result, { engine, set, runs: [] })
@@ -221,7 +221,7 @@ if (blockOffsite) {
 const page = await context.newPage()
 const stem =
   journey === 'ocr-harness'
-    ? `${checkId}-ocr-harness-${args.engine ?? 'indra'}-${args.set ?? 'synthetic'}-${browserName}`
+    ? `${checkId}-ocr-harness-${args.engine ?? 'tesseract'}-${args.set ?? 'synthetic'}-${browserName}`
     : `${checkId}-${journey}-${browserName}`
 const result = { journey, browser: browserName, checkId, blockOffsite, passed: false, match: false }
 let error = null

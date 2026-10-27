@@ -1,6 +1,6 @@
 # OCR harness (dev-only)
 
-A dev-only page, `/harness/ocr.html`, that runs one OCR engine (`tesseract` or `indra`) over a list of crops and shows, per region, an id, a verdict (match, wrong, blank) and a time, plus the counts. It is not part of the built app (`dist/` has no harness file). It never renders or logs OCR text, transcriptions or filenames.
+A dev-only page, `/harness/ocr.html`, that runs one OCR engine (`tesseract`, the only engine) over a list of crops and shows, per region, an id, a verdict (match, wrong, blank) and a time, plus the counts. It is not part of the built app (`dist/` has no harness file). It never renders or logs OCR text, transcriptions or filenames.
 
 ## Sub-features
 
@@ -16,22 +16,20 @@ A dev-only page, `/harness/ocr.html`, that runs one OCR engine (`tesseract` or `
 
 ## Driving it
 
-Precondition for `--engine indra`: the weights must be in the checkout under test. They are never committed. In `$WORKTREE` run `scripts/fetch-indra-models.sh` (copies `det.onnx`, `rec.onnx`, `meta.json` from the local Hugging Face cache, else downloads revision bd02167f... from huggingface.co), then launch.
-
 ```bash
 export WORKTREE=/path/to/checkout PORT=5199
 S=/home/snaic-darren/projects/tagstrip/.claude/skills/verify-tagstrip/scripts
 $S/launch.sh && $S/doctor.sh && $S/pw-install.sh
 source $S/env.sh
 NODE_PATH=$RUN_DIR/pw/node_modules node $S/drive.mjs --browser chromium --url http://127.0.0.1:$PORT/ \
-  --journey ocr-harness --engine indra --set synthetic --evidence "$EVIDENCE_DIR" --check-id M1-1
+  --journey ocr-harness --engine tesseract --set synthetic --evidence "$EVIDENCE_DIR" --check-id M1-1
 # eval set (real documents, see the rule below), repeat Run twice in one page:
 NODE_PATH=$RUN_DIR/pw/node_modules node $S/drive.mjs --browser chromium --url http://127.0.0.1:$PORT/ \
-  --journey ocr-harness --engine indra --set eval --eval-export <export.json> --eval-docs <folder> \
+  --journey ocr-harness --engine tesseract --set eval --eval-export <export.json> --eval-docs <folder> \
   --runs 2 --evidence "$EVIDENCE_DIR" --check-id M1-4
 ```
 
-`--eval-docs` takes a folder, searched recursively (following symlinks); the run refuses a folder where two documents share a filename, since documents are matched by name. Only `.pdf .png .jpg .jpeg .webp` files are attached. Documents are matched to the export by filename. `--runs N` clicks Run N times in the same page and collects each run. `--block-offsite` works as for other journeys (M1-3: use `--set synthetic --engine indra`, expect `blockedCount` 0).
+`--eval-docs` takes a folder, searched recursively (following symlinks); the run refuses a folder where two documents share a filename, since documents are matched by name. Only `.pdf .png .jpg .jpeg .webp` files are attached. Documents are matched to the export by filename. `--runs N` clicks Run N times in the same page and collects each run. `--block-offsite` works as for other journeys (M1-3: use `--set synthetic --engine tesseract`, expect `blockedCount` 0).
 
 The driver exits 0 when every run reached `data-state=done`; it does not judge the decision rule. Evidence: `<check-id>-ocr-harness-<engine>-<set>-<browser>.json` with, per run, the summary (`total`, `match`, `wrong`, `blank`, `medianMs`), `skipped` (annotations whose document was not supplied) and per-region `id`, `verdict`, `ms`. A screenshot is taken only for `--set synthetic`.
 
@@ -44,6 +42,4 @@ The eval set is real applicants' documents (`~/projects/pai-extract/...`). The v
 ## Gotchas
 
 - First run per engine includes a warm-up on a generated image (untimed); model load time is not in the per-region times.
-- A missing `indra-models/` shows as `data-state=error` for indra (the run fails, it does not return blanks).
-- Indra runs on WASM, single thread, with runtime files from `public/ort/` and weights from `/indra-models/`; no CDN.
 - Input labels are aria-labels on the controls (the visible label text includes the option list, so match with `exact`).
