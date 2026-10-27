@@ -29,3 +29,6 @@ TS-11 was dropped after M1 (see ARCHIVE O3). M1's engine, onnxruntime-web, its r
 the model scripts are on main and pushed. Decide what to remove and what to keep (the scorer,
 harness and synthetic fixtures could serve later OCR work), then agree the removal's checks.
 
+Drafted 2026-10-28 as `.proofline/tickets/TS-13-remove-indra/`; checks agreed 2026-10-28; built on branch
+`ts-13-remove-indra`.
+
