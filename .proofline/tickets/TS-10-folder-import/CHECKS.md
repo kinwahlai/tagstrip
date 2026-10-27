@@ -69,14 +69,14 @@ M2 and M3 checks are written before those milestones start.
 ### M1-7: a quota error part way keeps what landed
 
 - Action: run the unit test that makes the Nth document write fail with `QuotaExceededError`.
-- Run: `pnpm install --frozen-lockfile && pnpm exec vitest run src/db/folderImport.test.ts -t "quota"`
+- Run: pnpm install --frozen-lockfile && pnpm exec vitest run src/db/folderImport.test.ts -t "quota"
 - Observable outcome: exit 0. The test asserts the first N-1 docs remain, each with all its page
   rows, and the project record survives.
 - Broken by: deleting the project on any write error.
 
 ### M1-8: lint, build, test
 
-- Run: `pnpm install --frozen-lockfile && pnpm run lint && pnpm run build && pnpm test`
+- Run: pnpm install --frozen-lockfile && pnpm run lint && pnpm run build && pnpm test
 - Observable outcome: exit 0.
 - Broken by: any lint error, type error or failing test.
 

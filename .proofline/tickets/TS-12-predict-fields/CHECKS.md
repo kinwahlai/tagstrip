@@ -49,7 +49,7 @@ M2 and M3 checks are written before those milestones start.
 
 ### M1-5: lint, build, test
 
-- Run: `pnpm install --frozen-lockfile && pnpm run lint && pnpm run build && pnpm test`
+- Run: pnpm install --frozen-lockfile && pnpm run lint && pnpm run build && pnpm test
 - Observable outcome: exit 0.
 - Broken by: any lint error, type error or failing test.
 

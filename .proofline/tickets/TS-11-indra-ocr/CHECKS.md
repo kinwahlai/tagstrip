@@ -55,7 +55,7 @@ M2 and M3 checks are written before those milestones start.
 
 ### M1-6: lint, build, test
 
-- Run: `pnpm install --frozen-lockfile && pnpm run lint && pnpm run build && pnpm test`
+- Run: pnpm install --frozen-lockfile && pnpm run lint && pnpm run build && pnpm test
 - Observable outcome: exit 0.
 - Broken by: any lint error, type error or failing test.
 
@@ -65,4 +65,7 @@ M2 and M3 checks are written before those milestones start.
 
 ## Changes after a run
 
-<!-- Starts empty. -->
+- **M1-6**, 2026-10-27, agreed by Darren the same day: removed the backticks around the Run
+  command. The ledger runs the line literally, so the shell treated the backticks as command
+  substitution and exited 127 at 279d796 before running lint. Formatting only; the command is
+  unchanged. TS-10 and TS-12 had the same slip and were fixed before any run.
