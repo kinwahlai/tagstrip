@@ -314,6 +314,9 @@ tagstrip/
 
 ## 8. Handoff note for Claude Code
 
+Historical: this was the note for building M0 to M3, which have shipped. Work from here on runs
+through proofline; see `CLAUDE.md` and `.proofline/OPEN-ITEMS.md`.
+
 Suggested first prompt when starting the Claude Code session:
 
 > Scaffold this project per SPEC.md, starting with M0 and M1. Use Vite + React + TypeScript +
@@ -548,9 +551,9 @@ small acts of reading to answer a question the eye should answer at a glance.
 
 ### Deferred — table-aware extraction (not buildable yet)
 
-Recorded so it is not lost, and deliberately left without a `VERIFICATION.md` rubric. Under the
-working policy in `CLAUDE.md` a milestone the verifier has no rubric for cannot be reported done,
-which is the intended effect: **do not build this yet.**
+Recorded so it is not lost, and deliberately left without agreed checks. Under proofline's
+no-checks-no-code rule nothing is built until its checks are agreed in a ticket under
+`.proofline/tickets/`, which is the intended effect: **do not build this yet.**
 
 **The idea.** Draw a box over a table and get its cells back as structured rows and columns, rather
 than one flattened string.
