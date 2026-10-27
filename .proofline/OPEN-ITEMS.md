@@ -12,13 +12,6 @@ Drafted 2026-10-27 as `.proofline/tickets/TS-10-folder-import/` (TICKET.md, CHEC
 on Darren: open questions Q1 to Q6 in TICKET.md, and agreement of the M1 checks. M10 is not yet in
 `SPEC.md`.
 
-## O3. Spec and checks for TS-11, Indra OCR
-
-Opened 2026-10-27. Answers: Darren. Blocks: any TS-11 code.
-
-Drafted 2026-10-27 as `.proofline/tickets/TS-11-indra-ocr/`. Q1 to Q6 answered 2026-10-27.
-M1 verified at 42fd49a (Indra passes the decision rule, +3 matches, 14 fewer wrong values) and approved by Darren 2026-10-27; merged to main. Next: M2's checks, after Darren reads the OpenRAIL-M licence and checks real Safari.
-
 ## O4. Spec and checks for TS-12, predict fields with boxes
 
 Opened 2026-10-27. Answers: Darren. Blocks: any TS-12 code.
@@ -26,4 +19,13 @@ Opened 2026-10-27. Answers: Darren. Blocks: any TS-12 code.
 Drafted 2026-10-27 as `.proofline/tickets/TS-12-predict-fields/`. Reverses the `SPEC.md`
 section 2 exclusion of model-assisted pre-labeling, pending Darren's confirm (Q1). Waiting on Q1 to
 Q7 in TICKET.md and agreement of the M1 checks.
+
+## O5. Remove the Indra code TS-11 left on main
+
+Opened 2026-10-28. Answers: Darren. Blocks: nothing, but `public/ort/` (14 MB) ships in every
+build until it goes.
+
+TS-11 was dropped after M1 (see ARCHIVE O3). M1's engine, onnxruntime-web, its runtime files and
+the model scripts are on main and pushed. Decide what to remove and what to keep (the scorer,
+harness and synthetic fixtures could serve later OCR work), then agree the removal's checks.
 

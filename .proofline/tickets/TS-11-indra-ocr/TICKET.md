@@ -1,5 +1,8 @@
 # TS-11: replace Tesseract with Indra OCR
 
+**Dropped by Darren, 2026-10-28, after M1.** The weights' licence makes Indra unfit as TagStrip's
+engine; see `.proofline/ARCHIVE.md` O3. M2 was never agreed or built.
+
 ## What is asked, and by whom
 
 Asked by Darren, 2026-10-27: replace Tesseract.js with Indra OCR as TagStrip's on-device OCR
@@ -133,6 +136,19 @@ the median times of both runs are given (**noise-floor-before-credit**).
 Tesseract here cannot read non-Latin text; Indra can read Chinese. M1 measured Indra's Latin
 recogniser only (Q3), so the M1 verdict does not include that advantage. It bears on whether M2
 goes ahead and on M3 (the Chinese recogniser).
+
+## M2 questions (2026-10-28)
+
+1. **Ship the weights?** M2 commits `det.onnx` (0.4 MB), `rec.onnx` (5.0 MB) and `meta.json`
+   (0.2 MB) to `public/indra/`, so every deploy and every clone carries them, under OpenRAIL-M.
+   Recommend: Darren reads the licence; if it allows static redistribution with the licence file
+   alongside, ship them with `public/indra/LICENSE`. Blocks: M2 code.
+2. **Download size.** onnxruntime-web's WASM runtime is 14 MB (already in `public/ort/` since M1),
+   plus 5.6 MB of weights, against Tesseract's 2.9 MB language file plus its ~4 MB engine. Both are
+   fetched only on the first OCR. Recommend accepting it. Blocks: nothing.
+3. **Docs.** README, CONTRIBUTING and `SPEC.md` section 2 name Tesseract as the engine. Recommend
+   M2 updates all three to Indra, and `SPEC.md` records the switch with the M1 evidence.
+4. **Real Safari** is Darren's manual check before M2 merges, not a verifier check.
 
 ## Falsification tests for the design
 
