@@ -17,7 +17,7 @@ on Darren: open questions Q1 to Q6 in TICKET.md, and agreement of the M1 checks.
 Opened 2026-10-27. Answers: Darren. Blocks: any TS-11 code.
 
 Drafted 2026-10-27 as `.proofline/tickets/TS-11-indra-ocr/`. Q1 to Q6 answered 2026-10-27.
-Evaluation set named and M1 checks agreed 2026-10-27. Next: the verify skill, then M1.
+M1 verified at 42fd49a (Indra passes the decision rule, +3 matches, 14 fewer wrong values) and approved by Darren 2026-10-27; merged to main. Next: M2's checks, after Darren reads the OpenRAIL-M licence and checks real Safari.
 
 ## O4. Spec and checks for TS-12, predict fields with boxes
 
