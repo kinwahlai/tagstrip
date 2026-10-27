@@ -140,7 +140,7 @@ async function ocrHarness(page, ctx, result) {
   const engine = args.engine ?? 'tesseract'
   const set = args.set ?? 'synthetic'
   const runs = Number(args.runs ?? 1)
-  if (!engine === 'tesseract' || !['synthetic', 'eval'].includes(set) || !(runs >= 1)) {
+  if (engine !== 'tesseract' || !['synthetic', 'eval'].includes(set) || !(runs >= 1)) {
     throw new Error('bad --engine/--set/--runs')
   }
   Object.assign(result, { engine, set, runs: [] })

@@ -32,3 +32,11 @@ harness and synthetic fixtures could serve later OCR work), then agree the remov
 Drafted 2026-10-28 as `.proofline/tickets/TS-13-remove-indra/`; checks agreed 2026-10-28; built on branch
 `ts-13-remove-indra`.
 
+## O6. The OCR tag shows on a region whose OCR returned no text
+
+Opened 2026-10-28. Answers: Darren. Blocks: nothing.
+
+Seen by the TS-13 verifier on mutant d61f1f8 (OCR forced to return empty text): the region kept the
+"OCR" tag with an empty transcription. Not checked against the real engine. Decide whether an empty
+suggestion should carry the tag.
+
