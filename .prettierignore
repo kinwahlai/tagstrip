@@ -11,3 +11,7 @@ pnpm-lock.yaml
 # `pnpm run update-pdfjs-assets` — never hand-format these.
 public/pdfjs
 
+
+# Vendored onnxruntime-web runtime, copied by `pnpm run update-ort-assets`
+public/ort
+indra-models

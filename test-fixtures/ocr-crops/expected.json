@@ -1,0 +1,102 @@
+[
+  {
+    "id": "c01",
+    "file": "c01.png",
+    "expected": "Marcus Aldervane"
+  },
+  {
+    "id": "c02",
+    "file": "c02.png",
+    "expected": "Priya Thornwick-Lowe"
+  },
+  {
+    "id": "c03",
+    "file": "c03.png",
+    "expected": "Esperanza Quillfeather"
+  },
+  {
+    "id": "c04",
+    "file": "c04.png",
+    "expected": "14 March 1987"
+  },
+  {
+    "id": "c05",
+    "file": "c05.png",
+    "expected": "03/11/2019"
+  },
+  {
+    "id": "c06",
+    "file": "c06.png",
+    "expected": "2004-07-22"
+  },
+  {
+    "id": "c07",
+    "file": "c07.png",
+    "expected": "Nov 9, 1995"
+  },
+  {
+    "id": "c08",
+    "file": "c08.png",
+    "expected": "Certificate No. KX-482915"
+  },
+  {
+    "id": "c09",
+    "file": "c09.png",
+    "expected": "REG/2018/0043-B7"
+  },
+  {
+    "id": "c10",
+    "file": "c10.png",
+    "expected": "ID 7Q4M-20913-ZR"
+  },
+  {
+    "id": "c11",
+    "file": "c11.png",
+    "expected": "S9136482H"
+  },
+  {
+    "id": "c12",
+    "file": "c12.png",
+    "expected": "Port Wexcombe"
+  },
+  {
+    "id": "c13",
+    "file": "c13.png",
+    "expected": "Ashgrove Heights"
+  },
+  {
+    "id": "c14",
+    "file": "c14.png",
+    "expected": "Tamsin Okonkwo-Reyes"
+  },
+  {
+    "id": "c15",
+    "file": "c15.png",
+    "expected": "Bartholomew J. Finchley"
+  },
+  {
+    "id": "c16",
+    "file": "c16.png",
+    "expected": "Lena Marquardt\nOrla Vandermeer"
+  },
+  {
+    "id": "c17",
+    "file": "c17.png",
+    "expected": "Blk 52 Larkspur Road\nUnit 08-113"
+  },
+  {
+    "id": "c18",
+    "file": "c18.png",
+    "expected": "31 Dec 2001"
+  },
+  {
+    "id": "c19",
+    "file": "c19.png",
+    "expected": "Doc Ref: FM-2207-5518"
+  },
+  {
+    "id": "c20",
+    "file": "c20.png",
+    "expected": "Rosalind Hartwell"
+  }
+]

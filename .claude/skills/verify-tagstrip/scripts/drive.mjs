@@ -3,7 +3,9 @@
 //   source scripts/env.sh && NODE_PATH=$RUN_DIR/pw/node_modules node scripts/drive.mjs \
 //     --browser chromium --url http://127.0.0.1:$PORT/ --journey suggest-text-ocr \
 //     --evidence <dir> --check-id <id> [--block-offsite]
-// Exit 0 only if the journey's own assertion passed. Result JSON holds verdicts, counts and
+// Journey ocr-harness also takes: --engine tesseract|indra --set synthetic|eval
+//     [--eval-export <file> --eval-docs <dir>] [--runs N]
+// Exit 0 only if the journey's own assertion passed (for ocr-harness: the harness completed). Result JSON holds verdicts, counts and
 // timings only, never document text.
 import { createRequire } from 'node:module'
 import fs from 'node:fs'
@@ -35,6 +37,7 @@ const playwright = require('playwright')
 
 const JOURNEYS = {
   'suggest-text-ocr': suggestTextOcr,
+  'ocr-harness': ocrHarness,
 }
 if (!JOURNEYS[journey]) {
   console.error(`unknown journey "${journey}"; known: ${Object.keys(JOURNEYS).join(', ')}`)
@@ -129,6 +132,55 @@ async function suggestTextOcr(page, ctx, result) {
   return result.match
 }
 
+// Drives the dev-only OCR harness (/harness/ocr.html) and records verdicts and timings only.
+// Passes when every run reached data-state=done; it does not judge the decision rule. With
+// --set eval the inputs are real documents: nothing but ids, verdicts and ms is written, and no
+// screenshot is taken.
+async function ocrHarness(page, ctx, result) {
+  const engine = args.engine ?? 'indra'
+  const set = args.set ?? 'synthetic'
+  const runs = Number(args.runs ?? 1)
+  if (!['tesseract', 'indra'].includes(engine) || !['synthetic', 'eval'].includes(set) || !(runs >= 1)) {
+    throw new Error('bad --engine/--set/--runs')
+  }
+  Object.assign(result, { engine, set, runs: [] })
+  await page.goto(new URL('harness/ocr.html', args.url).href)
+  await page.getByLabel('Engine', { exact: true }).selectOption(engine)
+  await page.getByLabel('Set', { exact: true }).selectOption(set)
+  if (set === 'eval') {
+    const exportPath = args['eval-export']
+    const docsDir = args['eval-docs']
+    if (!exportPath || !docsDir) throw new Error('--set eval needs --eval-export and --eval-docs')
+    const docs = fs
+      .readdirSync(docsDir, { withFileTypes: true })
+      .filter((d) => d.isFile() && /\.(pdf|png|jpe?g|webp)$/i.test(d.name))
+      .map((d) => path.join(docsDir, d.name))
+    if (docs.length === 0) throw new Error('no documents in --eval-docs')
+    await page.getByLabel('Export JSON', { exact: true }).setInputFiles(exportPath)
+    await page.getByLabel('Source documents', { exact: true }).setInputFiles(docs)
+  }
+  const statusEl = page.locator('#status')
+  for (let i = 1; i <= runs; i++) {
+    await page.getByRole('button', { name: 'Run', exact: true }).click()
+    await page.waitForFunction(
+      () => ['done', 'error'].includes(document.querySelector('#status')?.dataset.state),
+      null,
+      { timeout: 3_600_000 },
+    )
+    const state = await statusEl.getAttribute('data-state')
+    if (state !== 'done') {
+      // the harness's own status text is generic (never a filename or OCR text)
+      throw new Error(`run ${i} ended in state ${state}: ${(await statusEl.textContent()).slice(0, 80)}`)
+    }
+    const all = await page.evaluate(() => window.__ocrResults)
+    const rec = all.runs[all.runs.length - 1]
+    result.runs.push({ run: i, summary: rec.summary, skipped: rec.skipped, regions: rec.regions })
+  }
+  if (set === 'synthetic') result.screenshotTaken = true
+  result.totalRegions = result.runs[0].summary.total
+  return true
+}
+
 // Fresh state every run. WebKit cannot store Blobs in IndexedDB in an ephemeral (in-memory)
 // context ("Error preparing Blob/File data to be stored in object store"), so it gets a
 // persistent context on a brand-new temp profile dir, deleted at the end. Still empty at start.
@@ -156,7 +208,10 @@ if (blockOffsite) {
   })
 }
 const page = await context.newPage()
-const stem = `${checkId}-${journey}-${browserName}`
+const stem =
+  journey === 'ocr-harness'
+    ? `${checkId}-ocr-harness-${args.engine ?? 'indra'}-${args.set ?? 'synthetic'}-${browserName}`
+    : `${checkId}-${journey}-${browserName}`
 const result = { journey, browser: browserName, checkId, blockOffsite, passed: false, match: false }
 let error = null
 try {
@@ -164,10 +219,18 @@ try {
 } catch (e) {
   error = e
   result.error = String(e.message ?? e).split('\n')[0].slice(0, 200)
+  // Playwright errors can quote file paths; with real data only this driver's own messages stay.
+  if (journey === 'ocr-harness' && args.set === 'eval' && !/^(run \d+ ended|--set eval|no documents|bad --)/.test(result.error)) {
+    result.error = 'driver error (details withheld for the eval set)'
+  }
 }
-try {
-  await page.screenshot({ path: path.join(evidence, `${stem}.png`) })
-} catch {}
+// ocr-harness with real data: no screenshot (see features/README.md, Real data).
+const noShot = journey === 'ocr-harness' && args.set === 'eval'
+if (!noShot) {
+  try {
+    await page.screenshot({ path: path.join(evidence, `${stem}.png`) })
+  } catch {}
+}
 if (blockOffsite) {
   fs.writeFileSync(path.join(evidence, `${checkId}-blocked.txt`), blocked.map((u) => u + '\n').join(''))
   result.blockedCount = blocked.length

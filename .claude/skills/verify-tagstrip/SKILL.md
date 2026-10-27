@@ -46,7 +46,7 @@ NODE_PATH=$RUN_DIR/pw/node_modules node $S/drive.mjs --browser chromium --url ht
   --journey suggest-text-ocr --evidence "$EVIDENCE_DIR" --check-id "$CHECK_ID" [--block-offsite]
 ```
 
-`--browser` is `chromium|firefox|webkit`. Exit 0 only if the journey's own assertion passed; the JSON summary is printed to stdout. Journeys implemented: `suggest-text-ocr` (empty browser, create schema with one label, create project, upload a generated PNG of "TAGSTRIP 2026", draw a region, press Suggest text, assert normalised transcription equals `tagstrip2026`). `--block-offsite` aborts every http(s) request whose origin is not the app's and lists them in `<evidence>/<check-id>-blocked.txt` (empty means nothing left the origin). Other features have no scripted journey yet: drive them with the verifier's Playwright MCP (Chromium) using the handles in `features/<feature>.md`.
+`--browser` is `chromium|firefox|webkit`. Exit 0 only if the journey's own assertion passed; the JSON summary is printed to stdout. Journeys implemented: `ocr-harness` (below and in `features/ocr-harness.md`) and `suggest-text-ocr` (empty browser, create schema with one label, create project, upload a generated PNG of "TAGSTRIP 2026", draw a region, press Suggest text, assert normalised transcription equals `tagstrip2026`). `ocr-harness` drives the dev-only OCR harness page (`/harness/ocr.html`) with `--engine tesseract|indra`, `--set synthetic|eval`, `--eval-export <file>`, `--eval-docs <dir>`, `--runs N`; it needs the Indra weights fetched first (`scripts/fetch-indra-models.sh` in the checkout under test, which puts them in the gitignored `indra-models/`) and records verdicts and timings only. See `features/ocr-harness.md`. `--block-offsite` aborts every http(s) request whose origin is not the app's and lists them in `<evidence>/<check-id>-blocked.txt` (empty means nothing left the origin). Other features have no scripted journey yet: drive them with the verifier's Playwright MCP (Chromium) using the handles in `features/<feature>.md`.
 
 Handles are accessible names, labels and roles from the source; see `features/`.
 
@@ -56,6 +56,7 @@ Evidence goes to the folder the verifier's brief names, as `<check-id>-<slug>.<e
 
 - `<check-id>-<journey>-<browser>.png`: screenshot at the decision point (after Suggest text filled, or where the journey stopped on failure).
 - `<check-id>-<journey>-<browser>.json`: `passed`, `match`, `ocrMs`, `ocrBadgeShown`, counts, timings, `blockedCount`, and on failure a one-line `error`. Never document text.
+- `ocr-harness` writes `<check-id>-ocr-harness-<engine>-<set>-<browser>.json` instead (per-run summaries and per-region id, verdict, ms) and a `.png` only for `--set synthetic`.
 - `<check-id>-blocked.txt`: only with `--block-offsite`; one file per check id, so use a different `--check-id` per browser if you need them separately.
 
 Side effect to capture for stored-state checks: the row in IndexedDB is observable through the UI (region count in "Regions on this page", the OCR tag, the transcription field). Use the real UI path; there is no test-only entry point. With real data, see "Real data" in `features/README.md`: no extracted text, no filenames, no screenshots.
