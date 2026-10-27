@@ -128,6 +128,12 @@ The OCR text should be the same on every run, but timing is not. Each engine run
 region whose text differs between an engine's two runs is counted as unstable and reported, and
 the median times of both runs are given (**noise-floor-before-credit**).
 
+## Darren's note for the M1 checkpoint (2026-10-27)
+
+Tesseract here cannot read non-Latin text; Indra can read Chinese. M1 measured Indra's Latin
+recogniser only (Q3), so the M1 verdict does not include that advantage. It bears on whether M2
+goes ahead and on M3 (the Chinese recogniser).
+
 ## Falsification tests for the design
 
 - **A crop needs only detection and recognition.** Shown wrong if Indra's match count on crops
