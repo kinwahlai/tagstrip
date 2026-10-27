@@ -2,6 +2,13 @@
 
 Closed items from `OPEN-ITEMS.md`, newest first, with the reasoning kept whole.
 
+## O5. Remove the Indra code TS-11 left on main (closed 2026-10-28)
+
+Done as TS-13, verified at 3ab54a6 (all three checks pass and count) and merged. Removed the Indra
+engine, onnxruntime-web, `public/ort/` and the model scripts; `dist/` went from 28 MB to 14 MB.
+Kept the scorer, the Tesseract-only harness and the synthetic crops for later OCR measurement.
+The attention review caught a broken engine guard in the harness driver, fixed in 3ab54a6.
+
 ## O3. TS-11, replace Tesseract with Indra OCR (closed 2026-10-28: dropped)
 
 Darren dropped TS-11 on 2026-10-28, after M1 and before M2. M1 had passed its agreed decision
