@@ -1,6 +1,6 @@
 # TagStrip feature map
 
-Features: [schemas](schemas.md), [projects-and-documents](projects-and-documents.md), [annotation-canvas](annotation-canvas.md), [suggest-text](suggest-text.md), [import-export](import-export.md), [ocr-harness](ocr-harness.md) (dev-only).
+Features: [schemas](schemas.md), [projects-and-documents](projects-and-documents.md), [annotation-canvas](annotation-canvas.md), [suggest-text](suggest-text.md), [import-export](import-export.md), [ocr-harness](ocr-harness.md) (dev-only), [predict-harness](predict-harness.md) (dev-only).
 
 ## Baseline state
 

@@ -10,3 +10,6 @@ pnpm-lock.yaml
 # Vendored pdf.js runtime assets, copied verbatim from pdfjs-dist by
 # `pnpm run update-pdfjs-assets` — never hand-format these.
 public/pdfjs
+
+# Local LFM2.5-VL model files and ORT WASM (scripts/fetch-lfm-vl.sh); never committed
+lfm-vl-models/

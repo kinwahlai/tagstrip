@@ -28,3 +28,6 @@ dist-ssr
 
 # proofline ledger, reports and evidence
 .proofline/verification/
+
+# Local LFM2.5-VL model files and ORT WASM (scripts/fetch-lfm-vl.sh); never committed
+lfm-vl-models/
