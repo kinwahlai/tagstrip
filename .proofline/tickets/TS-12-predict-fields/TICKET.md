@@ -21,6 +21,18 @@ prediction is something i always wanted to do."
 - **Opt-in and additive.** Tesseract, Suggest text and manual annotation are unchanged by this
   ticket.
 - **M3 (Indra refinement) is dropped**, with TS-11 (`.proofline/ARCHIVE.md` O3).
+- **Q1: the section 2 exclusion is reversed**, worded narrowly; `SPEC.md` edited the same day.
+  The exclusion dated from the v1 scope list, kept to stop scope creep, with pre-labeling named as
+  future work.
+- **Q2: evaluation set** as TS-11's: ground truth
+  `~/projects/pai-extract/.proofline/ground-truth/pai-extract-marriage-cert-v2-tagstrip-annotations-only.json`,
+  documents under `~/projects/pai-extract/samples/sharepoint/Marriage Cert/` (four subfolders),
+  each scored on the page Darren annotated; counts and verdicts only, never values or filenames;
+  no held-out set.
+- **Q3: predictions are stored flagged as unconfirmed** until accepted, one action per region, and
+  exports leave unconfirmed ones out.
+- **Q6: checkpoints M1 and M2.**
+- **Q7: the decision rule below is agreed as written** and not adjusted after the run.
 
 ## The scope change this needs
 
@@ -78,7 +90,7 @@ Riskiest first. M1 decides whether the rest happens.
   as unconfirmed until accepted, the model downloaded and cached on first use per Q4.
 - **M3.** Dropped 2026-10-28 with TS-11.
 
-Checkpoints: Darren decides (Q6).
+Checkpoints: M1 and M2 (decided 2026-10-28).
 
 ## Open questions
 
@@ -101,7 +113,7 @@ Each carries Claude's recommendation; Darren answers.
 - **Q6. Checkpoints.** Recommend M1 and M2, as for TS-11.
 - **Q7. The decision rule's numbers**, below.
 
-## Decision rule for M1 (proposed, not agreed)
+## Decision rule for M1 (agreed 2026-10-28)
 
 For each labelled field on each evaluation page, the prediction is scored twice:
 

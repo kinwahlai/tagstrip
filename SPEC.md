@@ -70,7 +70,10 @@ pre-processing step.
 - Polygons, keypoints, segmentation masks
 - Whole-image/document classification tasks
 - Multi-user accounts, sharing, review/approval workflows, backend of any kind
-- Model-assisted pre-labeling (auto-drawing boxes, not just reading text inside ones you drew)
+- Model-assisted pre-labeling beyond one page (auto-drawing boxes across whole documents). The
+  one-page case is no longer excluded: Darren reversed it on 2026-10-28 for TS-12, "Predict
+  fields", which predicts the labelled fields on one page as unconfirmed regions the user
+  accepts. See `.proofline/tickets/TS-12-predict-fields/`.
 
 Keeping this list explicit matters for an open-source repo — it tells contributors what a PR
 adding "polygon support" is up against, and stops scope creep in issues.

@@ -1,6 +1,6 @@
 # tagstrip checks (ticket TS-12-predict-fields)
 
-Agreed with the human on: not yet agreed
+Agreed with the human on: 2026-10-28
 
 The verifier follows `fail-closed`, `run-it-dont-read-it`, `leave-it-as-you-found-it`,
 `the-verifier-is-independent` and `evidence-holds-no-values` in full.
@@ -45,6 +45,10 @@ M2 and M3 checks are written before those milestones start.
 - Observable outcome: a table of box hits, value matches, wrong values, blanks, unstable fields
   and median time per page, per run; and the verdict under the TICKET.md decision rule as agreed.
   The evidence holds counts only: no text, no filenames.
+- Control, in the same session: score the browser run once more against a temporary copy of the
+  ground truth in which two fields' regions and values are swapped (the copy lives outside every
+  repo and is deleted afterwards). Those two fields turn from hit to miss and from match to wrong,
+  and every other field keeps its verdicts.
 - Broken by: scoring against the first labelled region of each page regardless of its label.
 
 ### M1-5: lint, build, test

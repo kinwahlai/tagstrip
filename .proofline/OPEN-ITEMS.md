@@ -18,7 +18,7 @@ Opened 2026-10-27. Answers: Darren. Blocks: any TS-12 code.
 
 Drafted 2026-10-27 as `.proofline/tickets/TS-12-predict-fields/`. Reverses the `SPEC.md`
 section 2 exclusion of model-assisted pre-labeling, pending Darren's confirm (Q1). Waiting on Q1 to
-Q7 in TICKET.md and agreement of the M1 checks. Q4 and Q5 decided 2026-10-28.
+Q7 in TICKET.md and agreement of the M1 checks. All of Q1 to Q7 decided and M1 checks agreed 2026-10-28. Next: build M1.
 
 ## O6. The OCR tag shows on a region whose OCR returned no text
 
