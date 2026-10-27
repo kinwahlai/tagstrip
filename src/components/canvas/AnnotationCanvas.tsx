@@ -10,13 +10,20 @@ import {
 } from '../../db/annotations'
 import { suggestText } from '../../lib/suggestText'
 import { isHotkey } from '../../lib/hotkeys'
-import { clamp, computeFitZoom, moveRect, pointToNormalized } from '../../lib/geometry'
+import {
+  clamp,
+  computeFitZoom,
+  computeWholePageZoom,
+  moveRect,
+  pointToNormalized,
+} from '../../lib/geometry'
 import { Toolbar, ZOOM_MAX, ZOOM_MIN } from './Toolbar'
+import { LabelList } from './LabelList'
 import { PageStageLoader } from './PageStageLoader'
 import { RegionList } from './RegionList'
 import { DocsOverlay } from './DocsOverlay'
 import type { NormalizedRect } from '../../lib/geometry'
-import type { Annotation, Doc } from '../../db/types'
+import type { Annotation, Doc, Page } from '../../db/types'
 import type { AnnotationGeometry } from '../../db/annotations'
 
 // With a region selected, arrow keys nudge it by this many normalized units,
@@ -27,9 +34,25 @@ import type { AnnotationGeometry } from '../../db/annotations'
 const NUDGE_STEP = 0.002
 const NUDGE_STEP_LARGE = 0.02
 
-// Horizontal padding inside the page stage's scroll container (p-6 = 24px each
-// side — see PageStage.tsx) that isn't available for the page image itself.
+// Padding inside the page stage's scroll container (p-6 = 24px each side — see
+// PageStage.tsx) that isn't available for the page image itself.
 const PAGE_STAGE_PADDING_X = 48
+const PAGE_STAGE_PADDING_Y = 48
+
+// How far out zoom may go: the usual 50%, or further when it takes less than
+// that to see the whole page at once. Falls back to the width-only fit while
+// the container has no measurable height.
+function zoomFloor(container: HTMLElement, page: Page, fitZoom: number): number {
+  const wholePageZoom = computeWholePageZoom(
+    container.clientWidth,
+    container.clientHeight,
+    PAGE_STAGE_PADDING_X,
+    PAGE_STAGE_PADDING_Y,
+    page.width,
+    page.height,
+  )
+  return Math.min(ZOOM_MIN, wholePageZoom ?? fitZoom)
+}
 
 interface AnnotationCanvasProps {
   docId: string
@@ -39,6 +62,8 @@ interface AnnotationCanvasProps {
   overlayOpen: boolean
   onCloseOverlay: () => void
   onSelectDoc: (docId: string) => void
+  // The header shows this beside the filename; null while no page is loaded.
+  onContentTypeChange: (contentType: Page['contentType'] | null) => void
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -66,6 +91,7 @@ export function AnnotationCanvas({
   overlayOpen,
   onCloseOverlay,
   onSelectDoc,
+  onContentTypeChange,
 }: AnnotationCanvasProps) {
   const doc = useLiveQuery(() => db.docs.get(docId), [docId])
   const project = useLiveQuery(
@@ -117,6 +143,12 @@ export function AnnotationCanvas({
 
   const currentPage = pages?.[pageIndex]
 
+  const currentContentType = currentPage?.contentType ?? null
+  useEffect(() => {
+    onContentTypeChange(currentContentType)
+    return () => onContentTypeChange(null)
+  }, [currentContentType, onContentTypeChange])
+
   // Opening a document always starts at 100% zoom otherwise, which is wider
   // than the viewport for most real page sizes — most noticeably on narrow
   // screens, where that meant scrolling sideways just to see the whole page.
@@ -124,11 +156,12 @@ export function AnnotationCanvas({
   // page navigation, so it never fights a zoom level the user picked
   // themselves) and never zooms IN past 100%, only ever out to fit.
   //
-  // minZoom, on the other hand, is recomputed whenever the container's width
+  // minZoom, on the other hand, is recomputed whenever the container's size
   // changes: a fixed 50% floor doesn't fit an oversized page any better than
-  // 100% does, so the floor itself drops (below the usual 50%) whenever a
-  // page's true fit-zoom is smaller than that — otherwise "zoom out" on a very
-  // large page hits a wall well before the whole page is visible.
+  // 100% does, so the floor itself drops (below the usual 50%) whenever it
+  // takes less than that to show the whole page, height included — otherwise
+  // "zoom out" hits a wall well before the whole page is visible, which an
+  // ordinary portrait page on a short window is enough to trigger.
   //
   // Both measurements are driven by a ResizeObserver rather than by a render
   // pass. An effect keyed only on the page runs while Dexie's live queries are
@@ -148,7 +181,7 @@ export function AnnotationCanvas({
       if (!el || !currentPage) return
       const fitZoom = computeFitZoom(el.clientWidth, PAGE_STAGE_PADDING_X, currentPage.width)
       if (fitZoom === null) return
-      const effectiveMinZoom = Math.min(ZOOM_MIN, fitZoom)
+      const effectiveMinZoom = zoomFloor(el, currentPage, fitZoom)
       setMinZoom(effectiveMinZoom)
 
       if (!didAutoFitZoom.current) {
@@ -233,7 +266,7 @@ export function AnnotationCanvas({
     // something measured. Clamping a correct fit-zoom against a stale, larger
     // floor is precisely how Fit came to leave a wide page still needing to be
     // scrolled sideways.
-    const floor = Math.min(ZOOM_MIN, fitZoom)
+    const floor = zoomFloor(container, currentPage, fitZoom)
     setMinZoom(floor)
     // Unlike the one-shot auto-fit on open, this is allowed to exceed 100% —
     // that cap exists only to avoid surprising someone when a document first
@@ -435,9 +468,6 @@ export function AnnotationCanvas({
         }}
       >
         <Toolbar
-          labels={schema.labels}
-          selectedLabelId={activeLabelId}
-          onSelectLabel={setSelectedLabelId}
           zoom={zoom}
           onZoomChange={setZoom}
           onFitZoom={handleFitZoom}
@@ -445,7 +475,6 @@ export function AnnotationCanvas({
           pageIndex={pageIndex}
           pageCount={pages.length}
           onPageChange={goToPage}
-          contentType={currentPage?.contentType ?? null}
           canUndo={undoStack.length > 0}
           canRedo={redoStack.length > 0}
           onUndo={handleUndo}
@@ -509,65 +538,98 @@ export function AnnotationCanvas({
       </main>
 
       <aside className="ts-inspector" aria-label="Regions on this page">
-        <div
-          style={{
-            flex: 'none',
-            display: 'flex',
-            alignItems: 'baseline',
-            gap: 'var(--space-2)',
-            padding: 'var(--space-3) var(--space-4)',
-            borderBottom: '2px solid var(--color-divider)',
-          }}
-        >
-          <h2 className="ts-eyebrow" style={{ margin: 0 }}>
-            Regions on this page · {annotations?.length ?? 0}
-          </h2>
-          <span
-            className="mono"
+        <div className="ts-inspector-labels">
+          <div
             style={{
-              marginLeft: 'auto',
-              fontSize: 11,
-              color: 'color-mix(in srgb, var(--color-text) 60%, transparent)',
+              flex: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--space-2)',
+              boxSizing: 'border-box',
+              minHeight: 'var(--ts-bar)',
+              padding: '0 var(--space-4)',
+              borderBottom: '2px solid var(--color-divider)',
             }}
           >
-            {schema.name}
-          </span>
+            <h2 className="ts-eyebrow" style={{ margin: 0 }}>
+              Labels · {schema.labels.length}
+            </h2>
+            <span
+              className="mono"
+              style={{
+                marginLeft: 'auto',
+                fontSize: 11,
+                color: 'color-mix(in srgb, var(--color-text) 60%, transparent)',
+              }}
+            >
+              {schema.name}
+            </span>
+          </div>
+          <div
+            className="ts-scroll"
+            data-testid="label-list-scroll"
+            style={{ flex: '1 1 auto', minHeight: 0 }}
+          >
+            <LabelList
+              labels={schema.labels}
+              selectedLabelId={activeLabelId}
+              onSelectLabel={setSelectedLabelId}
+            />
+          </div>
         </div>
-
-        <div className="ts-scroll" style={{ flex: 1, minHeight: 0 }}>
-          <RegionList
-            annotations={annotations ?? []}
-            labelsById={labelsById}
-            selectedId={selectedAnnotationId}
-            onSelect={setSelectedAnnotationId}
-            onDelete={handleDeleteAnnotation}
-            onSuggestText={handleSuggestText}
-            suggestUnavailableReason={suggestUnavailableReason}
-          />
-        </div>
-
-        <div
-          style={{
-            flex: 'none',
-            padding: 'var(--space-3) var(--space-4)',
-            borderTop: '2px solid var(--color-divider)',
-            background: 'var(--color-surface)',
-          }}
-        >
-          <span className="ts-eyebrow" style={{ display: 'block', marginBottom: 4 }}>
-            Suggest text
-          </span>
-          <p
-            className="mono"
+        <div className="ts-inspector-regions">
+          <div
             style={{
-              margin: 0,
-              fontSize: 11,
-              lineHeight: 1.55,
-              color: 'color-mix(in srgb, var(--color-text) 72%, transparent)',
+              flex: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 'var(--space-2)',
+              boxSizing: 'border-box',
+              minHeight: 'var(--ts-bar)',
+              padding: '0 var(--space-4)',
+              borderBottom: '2px solid var(--color-divider)',
             }}
           >
-            {suggestHint}
-          </p>
+            <h2 className="ts-eyebrow" style={{ margin: 0 }}>
+              Regions on this page · {annotations?.length ?? 0}
+            </h2>
+          </div>
+
+          <div className="ts-scroll ts-region-scroll">
+            <RegionList
+              annotations={annotations ?? []}
+              labelsById={labelsById}
+              selectedId={selectedAnnotationId}
+              onSelect={setSelectedAnnotationId}
+              onDelete={handleDeleteAnnotation}
+              onSuggestText={handleSuggestText}
+              suggestUnavailableReason={suggestUnavailableReason}
+            />
+          </div>
+
+          <div
+            style={{
+              flex: 'none',
+              padding: 'var(--space-3) var(--space-4)',
+              borderTop: '2px solid var(--color-divider)',
+              background: 'var(--color-surface)',
+            }}
+          >
+            <span className="ts-eyebrow" style={{ display: 'block', marginBottom: 4 }}>
+              Suggest text
+            </span>
+            <p
+              className="mono"
+              style={{
+                margin: 0,
+                fontSize: 11,
+                lineHeight: 1.55,
+                color: 'color-mix(in srgb, var(--color-text) 72%, transparent)',
+              }}
+            >
+              {suggestHint}
+            </p>
+          </div>
         </div>
       </aside>
     </div>

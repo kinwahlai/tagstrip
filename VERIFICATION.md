@@ -127,6 +127,14 @@ not by reading the code and reasoning that it should work. Reading code tells yo
       pressing the key is the only way to catch that.)
 - [ ] Do the same with a letter hotkey (e.g. `d`) — confirm it selects the label, and that holding
       Ctrl while pressing it does NOT (bare letters would otherwise swallow browser shortcuts)
+- [ ] In a multi-page document, click a page number in the toolbar — confirm the canvas shows that
+      page, that number becomes the filled (current) button, and ← / → still step from there
+- [ ] In a document with more than 7 pages, step from the first page to the last with → — confirm
+      the strip always shows the first page, the last page, the current page and its neighbours,
+      with `…` for the gaps, and never more than 7 slots. Measure the strip's width at
+      every page: it must be the same throughout, and the toolbar must not re-wrap (slots are
+      equal-width so neither the page buttons nor the controls beside them slide under the cursor)
+- [ ] In a document with 7 pages or fewer, confirm every page number is listed and no `…` appears
 
 ## M4 — Import / export
 
@@ -247,7 +255,31 @@ not by reading the code and reasoning that it should work. Reading code tells yo
 
 *(Checkpoint milestone — highest-risk screen. Stop for human review after it passes.)*
 
-- [ ] Labels, undo/redo, zoom, page navigation and the layer tag all sit in the toolbar and work
+- [ ] Undo/redo, zoom and page navigation sit in the toolbar and work, on a single row at 1440px
+      and at 1024px wide (for a document of up to 99 pages) whatever the schema — the toolbar is
+      the same height with 2 labels as with 18
+- [ ] The divider lines meet across the top right corner at 1440x900, 1280x720 and 1024x768
+      (measure with `getBoundingClientRect`, tolerance 0.5px): the left edge of the header's
+      "Nothing leaves your browser" block is at the same x as the left edge of the right-hand
+      panel, and the bottom edge of the toolbar is at the same y as the bottom edge of the
+      "Labels · N" header
+- [ ] Labels are a list at the top of the right-hand panel, above "Regions on this page", each
+      with its colour, name and hotkey. Clicking one selects it (and it alone shows as selected);
+      pressing a label's hotkey selects it there too. Up to 9 labels are one column with names in
+      full; 10 or more are two columns, where a name too long for one line wraps to a second, so
+      that names sharing a long prefix (`shipping_address_line_1` / `_2`) can still be told
+      apart; only a name too long for two lines ends in `…`, and it shows in full on hover
+- [ ] Desktop sizes only (SPEC: desktop only — do not extend this item to tablet or phone widths
+      or to windows under 700px tall). At 1440x900 an 18-label list fits without scrolling and
+      leaves at least three regions visible. At 1280x720 and 1024x768 the label list may scroll;
+      at least two whole label rows and one whole region row stay visible. At all three sizes
+      this still holds with 15 regions on the page: the regions list scrolls and the label list
+      keeps its height — a long regions list must never squeeze the labels out. A label
+      selected by hotkey is scrolled into view
+- [ ] The layer tag (`text` / `scanned` / `unknown`) sits in the header beside the filename, in a
+      visible box, and follows the page: on a document mixing text and scanned pages it changes as
+      you page through. It is gone from the header on every screen other than the canvas, and a
+      long filename truncates with an ellipsis rather than pushing the tag out of view
 - [ ] Rail is collapsed to 56px; the document overlay opens, picks a document without leaving the
       canvas, and closes
 - [ ] The breadcrumb returns to the project, and Esc does the same
@@ -379,6 +411,14 @@ once all items pass.)*
 - [ ] Ctrl/Cmd + scroll wheel zooms, and zooms about the pointer position rather than the corner;
       plain scroll still scrolls the page area without zooming
 - [ ] The existing `−`/`+` buttons still step by 25% and still clamp at the top of the range
+- [ ] On an ordinary portrait page that is taller than the canvas area at 50%, `−` goes below 50%
+      and stops exactly where the whole page, top to bottom, is visible with no scrollbar on
+      either axis. One more `−` does nothing. (The floor used to consider width only, so a tall
+      page stopped at 50% with its lower part still off screen.)
+- [ ] On a page that is fully visible at 50% or above, `−` still stops at 50%
+- [ ] Undo and Redo are icon-only buttons showing a drawn arrow, clear at normal size — not a thin
+      or undersized font glyph. Hovering shows "Undo (Ctrl+Z)" / "Redo (Ctrl+Shift+Z)", and each
+      is still found by its accessible name
 - [ ] Existing boxes stay aligned with the underlying image after Fit and after Ctrl+scroll — not
       drifted
 

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
+import type { Page } from './db/types'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from './db/db'
 import { FirstRun } from './components/FirstRun'
@@ -8,6 +9,7 @@ import { SchemaDetail } from './components/SchemaDetail'
 import { ProjectsOverview } from './components/ProjectsOverview'
 import { ProjectDetail } from './components/ProjectDetail'
 import { AnnotationCanvas } from './components/canvas/AnnotationCanvas'
+import { ContentTypeBadge } from './components/ContentTypeBadge'
 import { AppShell } from './components/shell/AppShell'
 import { Rail } from './components/shell/Rail'
 import { MiniRail } from './components/shell/MiniRail'
@@ -25,6 +27,7 @@ type View =
 function App() {
   const [view, setView] = useState<View>({ tab: 'schemas' })
   const [docsOverlayOpen, setDocsOverlayOpen] = useState(false)
+  const [pageContentType, setPageContentType] = useState<Page['contentType'] | null>(null)
   const [navOverlayOpen, setNavOverlayOpen] = useState(false)
   const breakpoint = useBreakpoint()
 
@@ -167,6 +170,7 @@ function App() {
     <AppShell
       crumbTop={crumbTop}
       crumbMain={crumbMain}
+      crumbTag={pageContentType && <ContentTypeBadge contentType={pageContentType} boxed />}
       stackClaim={breakpoint === 'narrow'}
       onOpenAbout={() => goTo({ tab: 'about' })}
       onOpenNav={
@@ -221,6 +225,7 @@ function App() {
           overlayOpen={docsOverlayOpen}
           onCloseOverlay={() => setDocsOverlayOpen(false)}
           onSelectDoc={(docId) => goTo({ tab: 'annotate', projectId: view.projectId, docId })}
+          onContentTypeChange={setPageContentType}
         />
       )}
     </AppShell>

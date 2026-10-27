@@ -27,6 +27,23 @@ export function computeFitZoom(
   return availableWidth / pageWidth
 }
 
+// The zoom level at which the whole page, height included, is visible at once
+// with nothing to scroll. Never more than computeFitZoom's width-only answer.
+// This is the floor for zooming out: below it there is only more empty space.
+export function computeWholePageZoom(
+  containerWidth: number,
+  containerHeight: number,
+  paddingX: number,
+  paddingY: number,
+  pageWidth: number,
+  pageHeight: number,
+): number | null {
+  const widthZoom = computeFitZoom(containerWidth, paddingX, pageWidth)
+  const heightZoom = computeFitZoom(containerHeight, paddingY, pageHeight)
+  if (widthZoom === null || heightZoom === null) return null
+  return Math.min(widthZoom, heightZoom)
+}
+
 // Converts a pointer's viewport (clientX/clientY) coordinates into a position
 // normalized to [0, 1] relative to `container`, clamping so a drag that ends
 // outside the element's bounds still resolves to a valid point on its edge.

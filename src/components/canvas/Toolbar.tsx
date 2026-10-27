@@ -1,10 +1,6 @@
-import { ContentTypeBadge } from '../ContentTypeBadge'
-import type { Label, Page } from '../../db/types'
+import { pageWindow } from '../../lib/pageWindow'
 
 interface ToolbarProps {
-  labels: Label[]
-  selectedLabelId: string | null
-  onSelectLabel: (labelId: string) => void
   zoom: number
   onZoomChange: (zoom: number) => void
   onFitZoom: () => void
@@ -12,7 +8,6 @@ interface ToolbarProps {
   pageIndex: number
   pageCount: number
   onPageChange: (pageIndex: number) => void
-  contentType: Page['contentType'] | null
   canUndo: boolean
   canRedo: boolean
   onUndo: () => void
@@ -22,19 +17,36 @@ interface ToolbarProps {
 // Default zoom bounds. minZoom is only the floor for a "normal"-sized page —
 // AnnotationCanvas passes a smaller value (via the minZoom prop) for pages
 // too large to fit the viewport at 50%, so "zoom out" can always reach a
-// level that actually shows the whole page width.
+// level that actually shows the whole page.
 export const ZOOM_MIN = 0.5
 export const ZOOM_MAX = 3
 export const ZOOM_STEP = 0.25
 
-// Everything that acts on the page lives in one row: labels, undo/redo, zoom,
-// page navigation, and the page's text-layer state. Undo and redo used to sit in
-// a separate strip above, whose only other content was a "← filename" back link;
-// the breadcrumb is the back link now, so that strip had nothing left in it.
+// Drawn, not typed: ↶ and ↷ are not in Archivo, so they fell back to whatever
+// system font had them and came out thin, small and off the baseline. The
+// buttons carry no word beside the icon: with the words the row was a few
+// pixels too wide for one line at 1440px. aria-label and title name them.
+function UndoRedoIcon({ d }: { d: string }) {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2.5"
+      strokeLinecap="square"
+      aria-hidden="true"
+    >
+      <path d={d} />
+    </svg>
+  )
+}
+
+// The toolbar holds what acts on the view — undo/redo, zoom and page navigation — on one row.
+// Labels moved to the inspector because a real schema has too many for a row; the text-layer tag
+// sits beside the filename in the header.
 export function Toolbar({
-  labels,
-  selectedLabelId,
-  onSelectLabel,
   zoom,
   onZoomChange,
   onFitZoom,
@@ -42,12 +54,22 @@ export function Toolbar({
   pageIndex,
   pageCount,
   onPageChange,
-  contentType,
   canUndo,
   canRedo,
   onUndo,
   onRedo,
 }: ToolbarProps) {
+  // Every slot in the page strip, gap or number, is as wide as the widest page
+  // number plus 12px. Otherwise a gap is narrower than a button and the strip,
+  // and everything left of it, shifts as you page. 12px is tighter than
+  // .btn-sm's own padding and border (20px), about the width of the − and +
+  // beside it: with that, the 12px between groups and the narrow zoom readout,
+  // the control row fits one line in a 1024px-wide window.
+  const pageSlotStyle = {
+    width: `calc(${String(pageCount).length}ch + 12px)`,
+    paddingInline: 0,
+    fontSize: 12,
+  }
   return (
     <div
       style={{
@@ -55,46 +77,13 @@ export function Toolbar({
         display: 'flex',
         flexWrap: 'wrap',
         alignItems: 'center',
-        gap: 'var(--space-4)',
+        gap: 'var(--space-3)',
+        boxSizing: 'border-box',
+        minHeight: 'var(--ts-bar)',
         padding: 'var(--space-2) var(--space-3)',
         borderBottom: '2px solid var(--color-divider)',
       }}
     >
-      <div
-        role="group"
-        aria-label="Labels"
-        style={{ display: 'flex', flexWrap: 'wrap', gap: 6, minWidth: 0 }}
-      >
-        {labels.map((label) => {
-          const on = selectedLabelId === label.id
-          return (
-            <button
-              key={label.id}
-              type="button"
-              className="ts-chip"
-              aria-pressed={on}
-              onClick={() => onSelectLabel(label.id)}
-            >
-              <span
-                className="ts-swatch"
-                style={{ width: 11, height: 11, background: label.color }}
-                aria-hidden="true"
-              />
-              <span className="mono" style={{ fontSize: 12, fontWeight: on ? 700 : 400 }}>
-                {label.name}
-              </span>
-              {label.hotkey && (
-                <span className="ts-kbd" style={{ minWidth: 17, height: 17, fontSize: 10 }}>
-                  {label.hotkey}
-                </span>
-              )}
-            </button>
-          )
-        })}
-      </div>
-
-      <div style={{ flex: 1 }} />
-
       <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
         <button
           type="button"
@@ -104,7 +93,7 @@ export function Toolbar({
           aria-label="Undo"
           title="Undo (Ctrl+Z)"
         >
-          ↶ Undo
+          <UndoRedoIcon d="M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3" />
         </button>
         <button
           type="button"
@@ -114,7 +103,7 @@ export function Toolbar({
           aria-label="Redo"
           title="Redo (Ctrl+Shift+Z)"
         >
-          ↷ Redo
+          <UndoRedoIcon d="m15 14 5-5-5-5M20 9H10a6 6 0 0 0 0 12h3" />
         </button>
       </div>
 
@@ -130,7 +119,7 @@ export function Toolbar({
         <span
           className="mono"
           data-testid="zoom-readout"
-          style={{ minWidth: 48, textAlign: 'center', fontSize: 12 }}
+          style={{ minWidth: 40, textAlign: 'center', fontSize: 12 }}
         >
           {Math.round(zoom * 100)}%
         </span>
@@ -160,7 +149,11 @@ export function Toolbar({
         </button>
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}>
+      <div
+        role="group"
+        aria-label="Pages"
+        style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)' }}
+      >
         <button
           type="button"
           className="btn btn-secondary btn-sm"
@@ -170,9 +163,30 @@ export function Toolbar({
         >
           ←
         </button>
-        <span className="mono" style={{ minWidth: 84, textAlign: 'center', fontSize: 12 }}>
-          Page {pageIndex + 1} / {pageCount}
-        </span>
+        {pageWindow(pageIndex, pageCount).map((index, slot) =>
+          index === null ? (
+            <span
+              key={`gap-${slot}`}
+              className="mono"
+              aria-hidden="true"
+              style={{ ...pageSlotStyle, textAlign: 'center' }}
+            >
+              …
+            </span>
+          ) : (
+            <button
+              key={`page-${index}`}
+              type="button"
+              className={`btn ${index === pageIndex ? 'btn-primary' : 'btn-secondary'} btn-sm mono`}
+              aria-label={`Page ${index + 1}`}
+              aria-current={index === pageIndex ? 'page' : undefined}
+              style={pageSlotStyle}
+              onClick={() => onPageChange(index)}
+            >
+              {index + 1}
+            </button>
+          ),
+        )}
         <button
           type="button"
           className="btn btn-secondary btn-sm"
@@ -183,8 +197,6 @@ export function Toolbar({
           →
         </button>
       </div>
-
-      {contentType && <ContentTypeBadge contentType={contentType} />}
     </div>
   )
 }

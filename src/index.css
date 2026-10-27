@@ -71,6 +71,18 @@
   min-height: 0;
   display: flex;
 }
+/* The header's right-hand block is the inspector's width wherever the
+   inspector is a column, so its left rule carries straight down into the
+   inspector's. */
+.ts-header-end {
+  flex: none;
+  display: flex;
+}
+@media (min-width: 1024px) {
+  .ts-header-end {
+    width: var(--ts-inspector);
+  }
+}
 .ts-inspector {
   flex: none;
   width: var(--ts-inspector);
@@ -78,6 +90,31 @@
   flex-direction: column;
   border-left: 2px solid var(--color-divider);
   overflow: hidden;
+}
+/* The inspector holds two things, labels above regions. Both minimums are
+   explicit. Left to itself the regions section's minimum is its content, so a
+   page with many regions grew it until the labels, which shrink, had no height
+   at all. 270px is the section's header, one region row and the Suggest text
+   note; 100px is the labels' header and two rows. Between those the label list
+   scrolls first. */
+.ts-inspector-labels {
+  flex: 0 1 auto;
+  min-height: 100px;
+  max-height: 55%;
+  display: flex;
+  flex-direction: column;
+  border-bottom: 2px solid var(--color-divider);
+}
+.ts-inspector-regions {
+  flex: 1 1 0;
+  min-height: 270px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.ts-region-scroll {
+  flex: 1;
+  min-height: 0;
 }
 
 /* Tables carry more columns than a narrow window can show. They scroll inside
@@ -114,6 +151,27 @@
     max-height: 45%;
     border-left: 0;
     border-top: 2px solid var(--color-divider);
+    flex-direction: row;
+  }
+  /* Under the canvas the inspector is wide and short, so its two sections sit
+     side by side instead of labels crowding regions out of a 45%-height strip. */
+  .ts-inspector-labels {
+    flex: none;
+    width: 45%;
+    max-width: 360px;
+    min-height: 0;
+    max-height: none;
+    border-bottom: 0;
+    border-right: 2px solid var(--color-divider);
+  }
+  .ts-inspector-regions {
+    min-height: 0;
+  }
+  /* The label column is under half a narrow window. Two-up in that, an
+     eighteen-label schema had 121px buttons and names cut to a few letters;
+     one column scrolls instead and every name stays readable. */
+  .ts-label-list[data-columns='2'] {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
