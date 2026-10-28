@@ -32,7 +32,8 @@ schema of at least 7 labels and a project with at least 3 documents (one multi-p
 - Action: open doc 1 page 1. Click the toolbar's Next document button. Then press `]`. Then `[`.
   On the last document, check the button and press `]`. Then select a region's text field and
   press `]`.
-- Observable outcome: doc 2, doc 3, doc 2, each opening at page 1. On the last doc the button
+- Observable outcome: doc 2, doc 3, doc 2, each opening at page 1. From page 2 of a multi-page
+  document, `]` to a 1-page document shows its page 1 image, and `[` back opens page 1. On the last doc the button
   is disabled and `]` does nothing. With the text field focused, `]` types into the field and
   the document does not change.
 - Broken by: wiring `]` to next page instead of next document.
@@ -64,8 +65,8 @@ drawing label. Behaviour agreed by Darren the same day.
   third time. Click C. Press B's hotkey (after Esc).
 - Observable outcome: first click selects the first-drawn A box and focuses its field (`x` lands
   there); second click selects the second A box (`y` lands there); third click wraps back to the
-  first A box. Each time A is also the active drawing label. Clicking C makes C active and
-  focuses no field. B's hotkey makes B active and moves focus to no field.
+  first A box. Each time A is also the active drawing label. Clicking C makes C active,
+  deselects the A box (no field outlined) and focuses no field. B's hotkey makes B active and moves focus to no field.
 - Broken by: making a label click only set the drawing label again.
 
 ### M1-7: previous document button
@@ -82,4 +83,10 @@ Added 2026-10-28, agreed by Darren the same day.
 
 ## Changes after a run
 
-<!-- Starts empty. -->
+- **M1-3**, 2026-10-28, agreed by Darren the same day: added the page-2-to-1-page-document step.
+  The verifier found at 343c4e4 that the page index carried across documents (blank page);
+  fixed at 40d9c9d and seen fixed there as an ad-hoc observation. Not yet seen failing as part
+  of the check.
+- **M1-6**, 2026-10-28, agreed by Darren the same day: clicking a label with no region on the
+  page now also deselects the current region. Reason: after trying cec3939, Darren found region A
+  stayed selected and focused after clicking such a label.

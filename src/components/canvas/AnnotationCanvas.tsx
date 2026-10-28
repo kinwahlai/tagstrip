@@ -298,14 +298,20 @@ export function AnnotationCanvas({
 
   // A click on a label in the picker makes it the drawing label and, when the
   // page has regions of that label, selects the next one in list order, so
-  // repeated clicks step through repeats. Hotkeys only set the drawing label.
+  // repeated clicks step through repeats. With none, the current region is
+  // deselected and its field left, so Delete and the arrows can't act on a box
+  // that belongs to another label. Hotkeys only set the drawing label.
   function handleLabelClick(labelId: string) {
     setSelectedLabelId(labelId)
     if (!schema) return
     const matching = sortRegionsBySchema(annotations ?? [], schema.labels).filter(
       (a) => a.labelId === labelId,
     )
-    if (matching.length === 0) return
+    if (matching.length === 0) {
+      setSelectedAnnotationId(null)
+      if (isTypingTarget(document.activeElement)) (document.activeElement as HTMLElement).blur()
+      return
+    }
     const current = matching.findIndex((a) => a.id === selectedAnnotationId)
     selectRegion(matching[(current + 1) % matching.length].id)
   }

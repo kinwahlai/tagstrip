@@ -256,10 +256,15 @@ describe('AnnotationCanvas label click', () => {
     await waitFor(() => expect(focusedValue()).toBe('first'))
     expect(totalBtn.getAttribute('aria-pressed')).toBe('true')
 
-    ;(document.activeElement as HTMLElement).blur()
     const vatBtn = within(picker).getByRole('button', { name: /vat/ })
     fireEvent.click(vatBtn)
     expect(vatBtn.getAttribute('aria-pressed')).toBe('true')
+    // no vat region on the page: the total region is deselected and its field left
+    await waitFor(() =>
+      expect(
+        screen.queryAllByLabelText(/^Transcription for/).some((el) => el.dataset.selected),
+      ).toBe(false),
+    )
     await new Promise((resolve) => setTimeout(resolve, 50))
     expect(document.activeElement?.tagName).not.toBe('INPUT')
 
