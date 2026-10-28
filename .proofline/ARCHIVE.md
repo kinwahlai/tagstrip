@@ -2,6 +2,16 @@
 
 Closed items from `OPEN-ITEMS.md`, newest first, with the reasoning kept whole.
 
+## O9. TS-15, stable document order (closed 2026-10-28)
+
+Done and merged at 44f23bf. Every document list (project list, annotate rail, `[` `]`, both
+exports) now sorts by filename in natural order, case ignored, then import time, then id, so the
+order no longer changes on reload. Cause was a `createdAt`-only sort, with native import stamping
+every doc with the same time, so ties fell to random UUIDs (reproduced: 3 imports, 3 orders).
+Native import now keeps the export's order. All four checks pass in Chromium and count. The
+command checks' `Run:` lines were fixed after their first run (backticks, missing install), with
+Darren's approval. Same-filename tiebreak is unit-tested only. Firefox and Safari untested, as O8.
+
 ## O7. TS-14, annotation flow fixes (closed 2026-10-28)
 
 Done and merged at 86e3b06, before the 110-document annotation run. Regions list in schema order;
