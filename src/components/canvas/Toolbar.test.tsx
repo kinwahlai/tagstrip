@@ -100,6 +100,7 @@ describe('Toolbar page navigation', () => {
 describe('Toolbar next document', () => {
   function renderWithDocs(hasNextDoc: boolean) {
     const onNextDoc = vi.fn()
+    const onPrevDoc = vi.fn()
     render(
       <Toolbar
         zoom={1}
@@ -115,9 +116,11 @@ describe('Toolbar next document', () => {
         onRedo={() => {}}
         hasNextDoc={hasNextDoc}
         onNextDoc={onNextDoc}
+        hasPrevDoc={hasNextDoc}
+        onPrevDoc={onPrevDoc}
       />,
     )
-    return { onNextDoc }
+    return { onNextDoc, onPrevDoc }
   }
 
   it('opens the next document from the toolbar', () => {
@@ -130,6 +133,33 @@ describe('Toolbar next document', () => {
   it('is disabled on the last document', () => {
     renderWithDocs(false)
     expect(screen.getByRole('button', { name: /Next doc/ })).toHaveProperty('disabled', true)
+    cleanup()
+  })
+})
+
+describe('Toolbar previous document', () => {
+  it('opens the previous document, and is disabled on the first', () => {
+    const onPrevDoc = vi.fn()
+    const props = {
+      zoom: 1,
+      onZoomChange: () => {},
+      onFitZoom: () => {},
+      minZoom: 0.5,
+      pageIndex: 0,
+      pageCount: 1,
+      onPageChange: () => {},
+      canUndo: false,
+      canRedo: false,
+      onUndo: () => {},
+      onRedo: () => {},
+      onNextDoc: () => {},
+      onPrevDoc,
+    }
+    const view = render(<Toolbar {...props} hasPrevDoc />)
+    fireEvent.click(screen.getByRole('button', { name: '← Prev doc' }))
+    expect(onPrevDoc).toHaveBeenCalledTimes(1)
+    view.rerender(<Toolbar {...props} hasPrevDoc={false} />)
+    expect(screen.getByRole('button', { name: '← Prev doc' })).toHaveProperty('disabled', true)
     cleanup()
   })
 })

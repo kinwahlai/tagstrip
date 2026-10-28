@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { db } from '../../db/db'
 import { AnnotationCanvas } from './AnnotationCanvas'
 import type { Doc, LabelSchema, Page, Project } from '../../db/types'
@@ -213,5 +213,61 @@ describe('AnnotationCanvas region order', () => {
         screen.getAllByLabelText(/^Transcription for/).map((el) => el.getAttribute('aria-label')),
       ).toEqual(['Transcription for total region', 'Transcription for date region']),
     )
+  })
+})
+
+// A click on a label in the picker jumps to that label's region on the page,
+// cycling through repeats; a hotkey only switches the drawing label.
+describe('AnnotationCanvas label click', () => {
+  it('selects and focuses the label’s regions in turn, wrapping around', async () => {
+    await db.labelSchemas.put({
+      ...schema,
+      labels: [
+        { id: 'l1', name: 'total', color: '#E6194B', hotkey: 't' },
+        { id: 'l2', name: 'date', color: '#3CB44B', hotkey: 'd' },
+        { id: 'l3', name: 'vat', color: '#4363D8', hotkey: 'v' },
+      ],
+    })
+    const base = {
+      documentId: 'd1',
+      pageIndex: 0,
+      x: 0,
+      y: 0,
+      width: 0.1,
+      height: 0.1,
+      updatedAt: 0,
+    }
+    await db.annotations.bulkAdd([
+      { ...base, id: 'z', labelId: 'l1', createdAt: 0, text: 'first' },
+      { ...base, id: 'y', labelId: 'l1', createdAt: 1, text: 'second' },
+      { ...base, id: 'x', labelId: 'l2', createdAt: 2, text: 'date' },
+    ])
+    renderCanvas()
+    await screen.findAllByLabelText('Transcription for total region')
+    const picker = screen.getByRole('group', { name: 'Labels' })
+    const totalBtn = within(picker).getByRole('button', { name: /total/ })
+    const focusedValue = () => (document.activeElement as HTMLInputElement | null)?.value
+
+    fireEvent.click(totalBtn)
+    await waitFor(() => expect(focusedValue()).toBe('first'))
+    fireEvent.click(totalBtn)
+    await waitFor(() => expect(focusedValue()).toBe('second'))
+    fireEvent.click(totalBtn)
+    await waitFor(() => expect(focusedValue()).toBe('first'))
+    expect(totalBtn.getAttribute('aria-pressed')).toBe('true')
+
+    ;(document.activeElement as HTMLElement).blur()
+    const vatBtn = within(picker).getByRole('button', { name: /vat/ })
+    fireEvent.click(vatBtn)
+    expect(vatBtn.getAttribute('aria-pressed')).toBe('true')
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(document.activeElement?.tagName).not.toBe('INPUT')
+
+    fireEvent.keyDown(window, { key: 'd' })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    expect(within(picker).getByRole('button', { name: /date/ }).getAttribute('aria-pressed')).toBe(
+      'true',
+    )
+    expect(document.activeElement?.tagName).not.toBe('INPUT')
   })
 })

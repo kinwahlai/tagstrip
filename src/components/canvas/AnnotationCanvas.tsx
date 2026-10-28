@@ -296,6 +296,20 @@ export function AnnotationCanvas({
     setFocusTick((t) => t + 1)
   }
 
+  // A click on a label in the picker makes it the drawing label and, when the
+  // page has regions of that label, selects the next one in list order, so
+  // repeated clicks step through repeats. Hotkeys only set the drawing label.
+  function handleLabelClick(labelId: string) {
+    setSelectedLabelId(labelId)
+    if (!schema) return
+    const matching = sortRegionsBySchema(annotations ?? [], schema.labels).filter(
+      (a) => a.labelId === labelId,
+    )
+    if (matching.length === 0) return
+    const current = matching.findIndex((a) => a.id === selectedAnnotationId)
+    selectRegion(matching[(current + 1) % matching.length].id)
+  }
+
   function goToPage(next: number) {
     if (!pages) return
     setPageIndex(Math.max(0, Math.min(pages.length - 1, next)))
@@ -510,6 +524,8 @@ export function AnnotationCanvas({
           onRedo={handleRedo}
           hasNextDoc={hasNextDoc}
           onNextDoc={onNextDoc}
+          hasPrevDoc={hasPrevDoc}
+          onPrevDoc={onPrevDoc}
         />
 
         <div
@@ -604,7 +620,7 @@ export function AnnotationCanvas({
             <LabelList
               labels={schema.labels}
               selectedLabelId={activeLabelId}
-              onSelectLabel={setSelectedLabelId}
+              onSelectLabel={handleLabelClick}
             />
           </div>
         </div>

@@ -10,9 +10,10 @@ The page view where the user picks a label, drags on the page to draw a region, 
 - zoom: in, out, fit, 100%, Ctrl+wheel
 - page-nav: previous and next page
 - label-hotkeys, arrow-key nudge, Esc to leave
-- doc-switching: toolbar "Next doc →", `]` / `[` keys, mini rail, documents overlay
+- doc-switching: toolbar "← Prev doc" / "Next doc →", `]` / `[` keys, mini rail, documents overlay
 - region-order: the region list follows schema label order, then draw order (TS-14)
 - field-focus: selecting a region focuses and outlines its transcription field (TS-14)
+- label-click: clicking a label in the Labels picker selects that label's next region on the page (cycling) and focuses its field; hotkeys only set the drawing label (TS-14)
 
 ## How to get to it
 

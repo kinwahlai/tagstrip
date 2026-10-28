@@ -54,6 +54,28 @@ schema of at least 7 labels and a project with at least 3 documents (one multi-p
 - Observable outcome: exit 0.
 - Broken by: any lint error, type error or failing test.
 
+### M1-6: clicking a label in the Labels picker jumps to its region's field
+
+Added 2026-10-28 after Darren tried 40d9c9d: clicking a label in the picker only made it the
+drawing label. Behaviour agreed by Darren the same day.
+
+- Action: on a page with two regions of label A (drawn first, second) and one of label B, and
+  none of label C: click A in the Labels picker, type `x`; click A again, type `y`; click A a
+  third time. Click C. Press B's hotkey (after Esc).
+- Observable outcome: first click selects the first-drawn A box and focuses its field (`x` lands
+  there); second click selects the second A box (`y` lands there); third click wraps back to the
+  first A box. Each time A is also the active drawing label. Clicking C makes C active and
+  focuses no field. B's hotkey makes B active and moves focus to no field.
+- Broken by: making a label click only set the drawing label again.
+
+### M1-7: previous document button
+
+Added 2026-10-28, agreed by Darren the same day.
+
+- Action: open doc 2, click the toolbar's "← Prev doc"; on doc 1, check the button.
+- Observable outcome: doc 1 opens at page 1; on doc 1 the button is disabled.
+- Broken by: wiring "← Prev doc" to the next document.
+
 ## Known non-failures
 
 <!-- Starts empty. -->

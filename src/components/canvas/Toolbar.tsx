@@ -14,6 +14,8 @@ interface ToolbarProps {
   onRedo: () => void
   hasNextDoc?: boolean
   onNextDoc?: () => void
+  hasPrevDoc?: boolean
+  onPrevDoc?: () => void
 }
 
 // Default zoom bounds. minZoom is only the floor for a "normal"-sized page —
@@ -62,6 +64,8 @@ export function Toolbar({
   onRedo,
   hasNextDoc = false,
   onNextDoc,
+  hasPrevDoc = false,
+  onPrevDoc,
 }: ToolbarProps) {
   // Every slot in the page strip, gap or number, is as wide as the widest page
   // number plus 12px. Otherwise a gap is narrower than a button and the strip,
@@ -203,16 +207,30 @@ export function Toolbar({
       </div>
 
       {onNextDoc && (
-        <button
-          type="button"
-          className="btn btn-primary btn-sm"
-          style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}
-          onClick={onNextDoc}
-          disabled={!hasNextDoc}
-          title="Next document (])"
-        >
-          Next doc →
-        </button>
+        <div style={{ marginLeft: 'auto', display: 'flex', gap: 'var(--space-1)' }}>
+          {onPrevDoc && (
+            <button
+              type="button"
+              className="btn btn-secondary btn-sm"
+              style={{ whiteSpace: 'nowrap' }}
+              onClick={onPrevDoc}
+              disabled={!hasPrevDoc}
+              title="Previous document ([)"
+            >
+              ← Prev doc
+            </button>
+          )}
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            style={{ whiteSpace: 'nowrap' }}
+            onClick={onNextDoc}
+            disabled={!hasNextDoc}
+            title="Next document (])"
+          >
+            Next doc →
+          </button>
+        </div>
       )}
     </div>
   )
