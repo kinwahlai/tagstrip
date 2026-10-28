@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
@@ -18,6 +18,8 @@ const HINT = 'color-mix(in srgb, var(--color-text) 65%, transparent)'
 
 interface ProjectDetailProps {
   projectId: string
+  // Set when coming back from the canvas: the document last open there.
+  initialSelectedDocId?: string
   onOpenAnnotate: (docId: string) => void
 }
 
@@ -25,13 +27,26 @@ interface ProjectDetailProps {
 // earn one. The rail is the first; documents the second; the selected document
 // takes the remainder. Every column carries data — the old layout left one
 // permanently empty (survey finding 6).
-export function ProjectDetail({ projectId, onOpenAnnotate }: ProjectDetailProps) {
+export function ProjectDetail({
+  projectId,
+  initialSelectedDocId,
+  onOpenAnnotate,
+}: ProjectDetailProps) {
   const project = useLiveQuery(() => db.projects.get(projectId), [projectId])
   const docs = useLiveQuery(
     () => db.docs.where('projectId').equals(projectId).sortBy('createdAt'),
     [projectId],
   )
-  const [selectedDocId, setSelectedDocId] = useState<string | null>(null)
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(initialSelectedDocId ?? null)
+  // Scrolls the returned-to document into view once, after the list first renders.
+  const selectedRowRef = useRef<HTMLButtonElement | null>(null)
+  const scrolledToInitial = useRef(!initialSelectedDocId)
+  const docsLoaded = docs !== undefined
+  useEffect(() => {
+    if (scrolledToInitial.current || !docsLoaded) return
+    scrolledToInitial.current = true
+    selectedRowRef.current?.scrollIntoView?.({ block: 'center' })
+  }, [docsLoaded])
   const [uploadState, setUploadState] = useState<{
     filename: string
     done: number
@@ -185,6 +200,7 @@ export function ProjectDetail({ projectId, onOpenAnnotate }: ProjectDetailProps)
                     key={doc.id}
                     type="button"
                     className="ts-row-btn"
+                    ref={selectedDocId === doc.id ? selectedRowRef : undefined}
                     aria-current={selectedDocId === doc.id}
                     onClick={() => setSelectedDocId(doc.id)}
                     style={{

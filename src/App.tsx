@@ -21,7 +21,8 @@ type View =
   | { tab: 'schemas' }
   | { tab: 'schema'; schemaId: string }
   | { tab: 'projects' }
-  | { tab: 'project'; projectId: string }
+  // selectedDocId: the document last open in the canvas, selected again on the way back
+  | { tab: 'project'; projectId: string; selectedDocId?: string }
   | { tab: 'annotate'; projectId: string; docId: string }
 
 function App() {
@@ -185,7 +186,7 @@ function App() {
       }
       onCrumbBack={
         view.tab === 'annotate'
-          ? () => goTo({ tab: 'project', projectId: view.projectId })
+          ? () => goTo({ tab: 'project', projectId: view.projectId, selectedDocId: view.docId })
           : undefined
       }
       rail={rail}
@@ -213,19 +214,26 @@ function App() {
       {view.tab === 'project' && (
         <ProjectDetail
           projectId={view.projectId}
+          initialSelectedDocId={view.selectedDocId}
           onOpenAnnotate={(docId) => goTo({ tab: 'annotate', projectId: view.projectId, docId })}
         />
       )}
       {view.tab === 'annotate' && (
         <AnnotationCanvas
           docId={view.docId}
-          onBack={() => goTo({ tab: 'project', projectId: view.projectId })}
+          onBack={() =>
+            goTo({ tab: 'project', projectId: view.projectId, selectedDocId: view.docId })
+          }
           projectName={currentProject?.name ?? 'Project'}
           docs={docs}
           overlayOpen={docsOverlayOpen}
           onCloseOverlay={() => setDocsOverlayOpen(false)}
           onSelectDoc={(docId) => goTo({ tab: 'annotate', projectId: view.projectId, docId })}
           onContentTypeChange={setPageContentType}
+          hasPrevDoc={docIndex > 0}
+          hasNextDoc={docIndex >= 0 && docIndex < docs.length - 1}
+          onPrevDoc={() => openDocAt(docIndex - 1)}
+          onNextDoc={() => openDocAt(docIndex + 1)}
         />
       )}
     </AppShell>

@@ -25,6 +25,7 @@ Precondition: a schema exists (see schemas.md); without one, "Create project" sh
 2. `getByRole('region', {name:'Documents'}).locator('input[type=file]').setInputFiles(...)` (the visible control is the "Upload document" label). Result: a document row button named after the file.
 3. Click the row. Result: "Selected document" panel with "PDF/PNG ... · N page(s)", Notes (`Notes` label, id `doc-notes`) and a `Content type for page N` select per page.
 4. Click "Open annotation canvas".
+5. Coming back from the canvas (breadcrumb, Esc, or the overlay's back link), the document last open there has `aria-current="true"` and its detail panel is shown.
 
 ## Gotchas
 

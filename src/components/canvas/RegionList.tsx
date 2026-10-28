@@ -13,6 +13,8 @@ interface RegionListProps {
   // — Suggest text needs pixels that don't exist, so every row's button is
   // disabled and this text explains why, rather than the button just vanishing.
   suggestUnavailableReason?: string | null
+  // Changes on each deliberate selection; the selected field takes focus then.
+  focusTick?: number
 }
 
 const HINT = 'color-mix(in srgb, var(--color-text) 68%, transparent)'
@@ -25,6 +27,7 @@ export function RegionList({
   onDelete,
   onSuggestText,
   suggestUnavailableReason,
+  focusTick = 0,
 }: RegionListProps) {
   const [suggestingId, setSuggestingId] = useState<string | null>(null)
   const [errorById, setErrorById] = useState<Record<string, string>>({})
@@ -151,7 +154,12 @@ export function RegionList({
               </button>
             </div>
             <div style={{ display: 'flex', alignItems: 'stretch', gap: 6 }}>
-              <TranscriptionInput annotation={annotation} labelName={labelName} />
+              <TranscriptionInput
+                annotation={annotation}
+                labelName={labelName}
+                selected={selected}
+                focusTick={selected ? focusTick : 0}
+              />
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
@@ -190,11 +198,32 @@ export function RegionList({
 function TranscriptionInput({
   annotation,
   labelName,
+  selected,
+  focusTick,
 }: {
   annotation: Annotation
   labelName: string
+  selected: boolean
+  focusTick: number
 }) {
   const stored = annotation.text ?? ''
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  // Selecting a region (a box on the canvas, its row here, or a box just drawn)
+  // puts the cursor in its field so the transcription can be typed at once.
+  // Esc leaves the field, which hands label hotkeys and arrows back to the canvas.
+  // One frame late on purpose: boxes on the canvas are buttons, and the
+  // mousedown that selected one would otherwise focus that button afterwards.
+  useEffect(() => {
+    if (!selected) return
+    const frame = requestAnimationFrame(() => {
+      const el = inputRef.current
+      if (!el) return
+      el.focus({ preventScroll: true })
+      el.scrollIntoView?.({ block: 'nearest' })
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [selected, focusTick])
   const [draft, setDraft] = useState(stored)
   const selfWritten = useRef<Set<string>>(new Set())
 
@@ -212,13 +241,26 @@ function TranscriptionInput({
 
   return (
     <input
+      ref={inputRef}
       className="input mono"
       type="text"
       value={draft}
       onChange={(e) => handleChange(e.target.value)}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') e.currentTarget.blur()
+      }}
+      data-selected={selected || undefined}
       placeholder="Transcription…"
       aria-label={`Transcription for ${labelName} region`}
-      style={{ minHeight: 30, fontSize: '12.5px' }}
+      style={{
+        minHeight: 30,
+        fontSize: '12.5px',
+        ...(selected && {
+          outline: '2px solid var(--color-accent)',
+          outlineOffset: 1,
+          background: 'color-mix(in srgb, var(--color-accent) 8%, var(--color-bg))',
+        }),
+      }}
     />
   )
 }

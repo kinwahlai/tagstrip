@@ -12,6 +12,8 @@ interface ToolbarProps {
   canRedo: boolean
   onUndo: () => void
   onRedo: () => void
+  hasNextDoc?: boolean
+  onNextDoc?: () => void
 }
 
 // Default zoom bounds. minZoom is only the floor for a "normal"-sized page —
@@ -58,6 +60,8 @@ export function Toolbar({
   canRedo,
   onUndo,
   onRedo,
+  hasNextDoc = false,
+  onNextDoc,
 }: ToolbarProps) {
   // Every slot in the page strip, gap or number, is as wide as the widest page
   // number plus 12px. Otherwise a gap is narrower than a button and the strip,
@@ -197,6 +201,19 @@ export function Toolbar({
           →
         </button>
       </div>
+
+      {onNextDoc && (
+        <button
+          type="button"
+          className="btn btn-primary btn-sm"
+          style={{ marginLeft: 'auto', whiteSpace: 'nowrap' }}
+          onClick={onNextDoc}
+          disabled={!hasNextDoc}
+          title="Next document (])"
+        >
+          Next doc →
+        </button>
+      )}
     </div>
   )
 }

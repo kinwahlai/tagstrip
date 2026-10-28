@@ -91,3 +91,40 @@ describe('RegionList transcription field', () => {
     })
   })
 })
+
+// Selecting a region (on the canvas or in the list) brings its transcription
+// field forward so it can be typed into at once; Esc hands the keys back.
+describe('RegionList selection focus', () => {
+  function list(selectedId: string | null) {
+    return (
+      <RegionList
+        annotations={[annotation('hello')]}
+        labelsById={new Map([[label.id, label]])}
+        selectedId={selectedId}
+        onSelect={() => {}}
+        onDelete={() => {}}
+        onSuggestText={async () => {}}
+      />
+    )
+  }
+
+  it('focuses and highlights the selected region’s field', async () => {
+    const view = render(list(null))
+    expect(document.activeElement).not.toBe(field())
+    expect(field().dataset.selected).toBeUndefined()
+
+    view.rerender(list('a1'))
+
+    await waitFor(() => expect(document.activeElement).toBe(field()))
+    expect(field().dataset.selected).toBe('true')
+  })
+
+  it('leaves the field on Esc', async () => {
+    render(list('a1'))
+    await waitFor(() => expect(document.activeElement).toBe(field()))
+
+    fireEvent.keyDown(field(), { key: 'Escape' })
+
+    expect(document.activeElement).not.toBe(field())
+  })
+})

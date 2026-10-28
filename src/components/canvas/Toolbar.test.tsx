@@ -96,3 +96,40 @@ describe('Toolbar page navigation', () => {
     expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled()
   })
 })
+
+describe('Toolbar next document', () => {
+  function renderWithDocs(hasNextDoc: boolean) {
+    const onNextDoc = vi.fn()
+    render(
+      <Toolbar
+        zoom={1}
+        onZoomChange={() => {}}
+        onFitZoom={() => {}}
+        minZoom={0.5}
+        pageIndex={0}
+        pageCount={2}
+        onPageChange={() => {}}
+        canUndo={false}
+        canRedo={false}
+        onUndo={() => {}}
+        onRedo={() => {}}
+        hasNextDoc={hasNextDoc}
+        onNextDoc={onNextDoc}
+      />,
+    )
+    return { onNextDoc }
+  }
+
+  it('opens the next document from the toolbar', () => {
+    const { onNextDoc } = renderWithDocs(true)
+    fireEvent.click(screen.getByRole('button', { name: /Next doc/ }))
+    expect(onNextDoc).toHaveBeenCalledTimes(1)
+    cleanup()
+  })
+
+  it('is disabled on the last document', () => {
+    renderWithDocs(false)
+    expect(screen.getByRole('button', { name: /Next doc/ })).toHaveProperty('disabled', true)
+    cleanup()
+  })
+})

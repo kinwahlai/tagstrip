@@ -56,9 +56,13 @@ beforeEach(async () => {
 })
 
 const onContentTypeChange = vi.fn()
+const onPrevDoc = vi.fn()
+const onNextDoc = vi.fn()
 
-function renderCanvas() {
+function renderCanvas({ hasPrevDoc = false, hasNextDoc = false } = {}) {
   onContentTypeChange.mockClear()
+  onPrevDoc.mockClear()
+  onNextDoc.mockClear()
   render(
     <AnnotationCanvas
       docId="d1"
@@ -69,6 +73,10 @@ function renderCanvas() {
       onCloseOverlay={() => {}}
       onSelectDoc={() => {}}
       onContentTypeChange={onContentTypeChange}
+      hasPrevDoc={hasPrevDoc}
+      hasNextDoc={hasNextDoc}
+      onPrevDoc={onPrevDoc}
+      onNextDoc={onNextDoc}
     />,
   )
 }
@@ -146,5 +154,64 @@ describe('AnnotationCanvas wheel zoom', () => {
     })
 
     expect(screen.getByTestId('zoom-readout')).not.toHaveTextContent('100%')
+  })
+})
+
+// ] and [ step through the project's documents without leaving the canvas.
+// Letters and digits are label hotkeys, so the brackets are what is free.
+describe('AnnotationCanvas document keys', () => {
+  it('opens the next and previous document on ] and [', async () => {
+    renderCanvas({ hasPrevDoc: true, hasNextDoc: true })
+    await screen.findByTestId('zoom-readout')
+
+    fireEvent.keyDown(window, { key: ']' })
+    fireEvent.keyDown(window, { key: '[' })
+
+    expect(onNextDoc).toHaveBeenCalledTimes(1)
+    expect(onPrevDoc).toHaveBeenCalledTimes(1)
+  })
+
+  it('does nothing past either end', async () => {
+    renderCanvas()
+    await screen.findByTestId('zoom-readout')
+
+    fireEvent.keyDown(window, { key: ']' })
+    fireEvent.keyDown(window, { key: '[' })
+
+    expect(onNextDoc).not.toHaveBeenCalled()
+    expect(onPrevDoc).not.toHaveBeenCalled()
+  })
+})
+
+describe('AnnotationCanvas region order', () => {
+  it('lists regions in schema label order, whatever their ids', async () => {
+    await db.labelSchemas.put({
+      ...schema,
+      labels: [
+        { id: 'l1', name: 'total', color: '#E6194B' },
+        { id: 'l2', name: 'date', color: '#3CB44B' },
+      ],
+    })
+    const base = {
+      documentId: 'd1',
+      pageIndex: 0,
+      x: 0,
+      y: 0,
+      width: 0.1,
+      height: 0.1,
+      updatedAt: 0,
+    }
+    // ids chosen so primary-key order is the reverse of schema order
+    await db.annotations.bulkAdd([
+      { ...base, id: 'a', labelId: 'l2', createdAt: 0 },
+      { ...base, id: 'b', labelId: 'l1', createdAt: 1 },
+    ])
+    renderCanvas()
+
+    await waitFor(() =>
+      expect(
+        screen.getAllByLabelText(/^Transcription for/).map((el) => el.getAttribute('aria-label')),
+      ).toEqual(['Transcription for total region', 'Transcription for date region']),
+    )
   })
 })

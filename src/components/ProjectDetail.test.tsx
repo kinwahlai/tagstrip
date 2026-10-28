@@ -157,3 +157,14 @@ describe('ProjectDetail document progress markers', () => {
     expect(marker.getAttribute('aria-label')?.toLowerCase()).not.toMatch(/complete|done/)
   })
 })
+
+// Coming back from the canvas, the document last annotated stays selected.
+describe('ProjectDetail initial selection', () => {
+  it('selects the document it is given', async () => {
+    render(<ProjectDetail projectId="p1" initialSelectedDocId="d2" onOpenAnnotate={() => {}} />)
+
+    const row = (await screen.findByText('second.png')).closest('button')
+    expect(row?.getAttribute('aria-current')).toBe('true')
+    expect(await screen.findByLabelText('Notes')).toBeTruthy()
+  })
+})

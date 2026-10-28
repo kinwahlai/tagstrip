@@ -10,6 +10,7 @@ import {
 } from '../../db/annotations'
 import { suggestText } from '../../lib/suggestText'
 import { isHotkey } from '../../lib/hotkeys'
+import { sortRegionsBySchema } from '../../lib/regionOrder'
 import {
   clamp,
   computeFitZoom,
@@ -64,6 +65,10 @@ interface AnnotationCanvasProps {
   onSelectDoc: (docId: string) => void
   // The header shows this beside the filename; null while no page is loaded.
   onContentTypeChange: (contentType: Page['contentType'] | null) => void
+  hasPrevDoc: boolean
+  hasNextDoc: boolean
+  onPrevDoc: () => void
+  onNextDoc: () => void
 }
 
 function isTypingTarget(target: EventTarget | null): boolean {
@@ -92,6 +97,10 @@ export function AnnotationCanvas({
   onCloseOverlay,
   onSelectDoc,
   onContentTypeChange,
+  hasPrevDoc,
+  hasNextDoc,
+  onPrevDoc,
+  onNextDoc,
 }: AnnotationCanvasProps) {
   const doc = useLiveQuery(() => db.docs.get(docId), [docId])
   const project = useLiveQuery(
@@ -112,6 +121,9 @@ export function AnnotationCanvas({
   const [minZoom, setMinZoom] = useState(ZOOM_MIN)
   const [selectedLabelId, setSelectedLabelId] = useState<string | null>(null)
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null)
+  // Bumped on every deliberate selection, so the region's field takes focus
+  // again even when the same region is picked twice in a row.
+  const [focusTick, setFocusTick] = useState(0)
   const [undoStack, setUndoStack] = useState<AnnotationCommand[]>([])
   const [redoStack, setRedoStack] = useState<AnnotationCommand[]>([])
   const canvasAreaRef = useRef<HTMLDivElement>(null)
@@ -279,6 +291,11 @@ export function AnnotationCanvas({
     [docId, pageIndex],
   )
 
+  function selectRegion(id: string) {
+    setSelectedAnnotationId(id)
+    setFocusTick((t) => t + 1)
+  }
+
   function goToPage(next: number) {
     if (!pages) return
     setPageIndex(Math.max(0, Math.min(pages.length - 1, next)))
@@ -394,6 +411,16 @@ export function AnnotationCanvas({
         }
         return
       }
+      // Brackets step through the project's documents: letters and digits are
+      // label hotkeys, so these are the free keys nearest the arrows.
+      if (!isModified && e.key === ']') {
+        if (hasNextDoc) onNextDoc()
+        return
+      }
+      if (!isModified && e.key === '[') {
+        if (hasPrevDoc) onPrevDoc()
+        return
+      }
       if (e.key === 'ArrowLeft') {
         goToPage(pageIndex - 1)
         return
@@ -433,6 +460,8 @@ export function AnnotationCanvas({
     undoStack,
     redoStack,
     overlayOpen,
+    hasPrevDoc,
+    hasNextDoc,
   ])
 
   if (doc === undefined || project === undefined || schema === undefined || pages === undefined) {
@@ -479,6 +508,8 @@ export function AnnotationCanvas({
           canRedo={redoStack.length > 0}
           onUndo={handleUndo}
           onRedo={handleRedo}
+          hasNextDoc={hasNextDoc}
+          onNextDoc={onNextDoc}
         />
 
         <div
@@ -511,13 +542,13 @@ export function AnnotationCanvas({
               onPageElement={(el) => {
                 pageElementRef.current = el
               }}
-              onSelectAnnotation={setSelectedAnnotationId}
+              onSelectAnnotation={selectRegion}
               onDeselect={() => setSelectedAnnotationId(null)}
               onUpdateGeometry={handleUpdateGeometry}
               onCreateAnnotation={(rect: NormalizedRect) => {
                 if (!activeLabelId || sourceMissing) return
                 createAnnotation(docId, pageIndex, activeLabelId, rect).then((annotation) => {
-                  setSelectedAnnotationId(annotation.id)
+                  selectRegion(annotation.id)
                   pushCommand({ type: 'create', annotation })
                 })
               }}
@@ -597,10 +628,11 @@ export function AnnotationCanvas({
 
           <div className="ts-scroll ts-region-scroll">
             <RegionList
-              annotations={annotations ?? []}
+              annotations={sortRegionsBySchema(annotations ?? [], schema.labels)}
               labelsById={labelsById}
               selectedId={selectedAnnotationId}
-              onSelect={setSelectedAnnotationId}
+              onSelect={selectRegion}
+              focusTick={focusTick}
               onDelete={handleDeleteAnnotation}
               onSuggestText={handleSuggestText}
               suggestUnavailableReason={suggestUnavailableReason}
