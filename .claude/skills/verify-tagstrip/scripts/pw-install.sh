@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Scratch Playwright (library only) in $RUN_DIR/pw. Browsers come from ~/.cache/ms-playwright
+# (macOS: ~/Library/Caches/ms-playwright)
 # (chromium-1234, firefox-1538, webkit-2336), which match playwright 1.62.1. Idempotent.
 source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
 mkdir -p "$RUN_DIR/pw"

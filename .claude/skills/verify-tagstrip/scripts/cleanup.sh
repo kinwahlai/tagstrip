@@ -7,11 +7,11 @@ pid=""
 if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
   stop "$pid"; echo "cleanup: stopped recorded pid $pid"
 else
-  owner="$(ss -ltnp "sport = :$PORT" 2>/dev/null | grep -o 'pid=[0-9]*' | head -n1 | cut -d= -f2)"
+  owner="$(port_owner)"
   if [ -n "$owner" ]; then
     : "${WORKTREE:?set WORKTREE so the port owner can be confirmed as ours}"
     wt="$(cd "$WORKTREE" && pwd -P)"
-    cwd="$(readlink "/proc/$owner/cwd")"; cmd="$(tr '\0' ' ' < "/proc/$owner/cmdline")"
+    cwd="$(pid_cwd "$owner")"; cmd="$(pid_cmd "$owner")"
     case "$cwd $cmd" in
       *"$wt"*) stop "$owner"; echo "cleanup: stopped port owner pid $owner (confirmed under $wt)";;
       *) echo "cleanup: port $PORT is owned by pid $owner which is not under $wt; leaving it alone" >&2;;
