@@ -15,6 +15,7 @@ import { Rail } from './components/shell/Rail'
 import { MiniRail } from './components/shell/MiniRail'
 import { RailOverlay } from './components/shell/RailOverlay'
 import { useBreakpoint } from './lib/useBreakpoint'
+import { sortDocs } from './lib/docOrder'
 
 type View =
   | { tab: 'about' }
@@ -39,7 +40,7 @@ function App() {
   const annotateDocs = useLiveQuery(
     () =>
       view.tab === 'annotate'
-        ? db.docs.where('projectId').equals(view.projectId).sortBy('createdAt')
+        ? db.docs.where('projectId').equals(view.projectId).toArray().then(sortDocs)
         : [],
     [view],
   )

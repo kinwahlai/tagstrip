@@ -2,6 +2,7 @@ import { db } from '../db/db'
 import { blobToBase64, downloadJson } from './serialize'
 import { NATIVE_EXPORT_VERSION } from './nativeFormat'
 import type { NativeExportDoc, NativeExportFile } from './nativeFormat'
+import { sortDocs } from './docOrder'
 
 export interface NativeExportOptions {
   includeSource: boolean
@@ -24,7 +25,7 @@ export async function buildNativeExport(
   const schema = await db.labelSchemas.get(project.schemaId)
   if (!schema) throw new Error('This project’s label schema is missing.')
 
-  const docs = await db.docs.where('projectId').equals(projectId).sortBy('createdAt')
+  const docs = await db.docs.where('projectId').equals(projectId).toArray().then(sortDocs)
 
   const documents: NativeExportDoc[] = []
   for (const doc of docs) {

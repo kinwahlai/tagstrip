@@ -12,6 +12,7 @@ import { SurfaceHeader } from './shell/SurfaceHeader'
 import { useWorkspaceStats } from '../lib/useWorkspaceStats'
 import { useBreakpoint } from '../lib/useBreakpoint'
 import type { Doc } from '../db/types'
+import { sortDocs } from '../lib/docOrder'
 
 const IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/webp'])
 const HINT = 'color-mix(in srgb, var(--color-text) 65%, transparent)'
@@ -34,7 +35,7 @@ export function ProjectDetail({
 }: ProjectDetailProps) {
   const project = useLiveQuery(() => db.projects.get(projectId), [projectId])
   const docs = useLiveQuery(
-    () => db.docs.where('projectId').equals(projectId).sortBy('createdAt'),
+    () => db.docs.where('projectId').equals(projectId).toArray().then(sortDocs),
     [projectId],
   )
   const [selectedDocId, setSelectedDocId] = useState<string | null>(initialSelectedDocId ?? null)

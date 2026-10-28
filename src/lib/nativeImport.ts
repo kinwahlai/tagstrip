@@ -109,7 +109,7 @@ export async function importNativeExport(data: NativeExportFile): Promise<string
   const pages: Page[] = []
   const annotations: Annotation[] = []
 
-  for (const exportedDoc of data.documents) {
+  for (const [index, exportedDoc] of data.documents.entries()) {
     const docId = createId()
     // Absent sourceBase64 means this export was built with includeSource:
     // false (parseNativeExport already rejected a present-but-empty one as
@@ -128,7 +128,8 @@ export async function importNativeExport(data: NativeExportFile): Promise<string
       pageCount: exportedDoc.pageCount,
       sourceType: exportedDoc.sourceType,
       notes: exportedDoc.notes,
-      createdAt: now,
+      // One ms apart, so the export's order survives as the import order.
+      createdAt: now + index,
       sourceBlob: exportedDoc.sourceType === 'pdf' ? sourceBlob : undefined,
       ...(sourceMissing ? { sourceMissing: true } : {}),
     })

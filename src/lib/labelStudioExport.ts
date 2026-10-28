@@ -1,5 +1,6 @@
 import { db } from '../db/db'
 import { downloadJson } from './serialize'
+import { sortDocs } from './docOrder'
 
 // This emits the shape Label Studio's own "Export -> JSON" produces — their full
 // JSON format, not JSON_MIN and not one of the nine other formats they offer.
@@ -51,7 +52,7 @@ export async function buildLabelStudioExport(
   if (!schema) throw new Error('This project’s label schema is missing.')
   const labelsById = new Map(schema.labels.map((l) => [l.id, l]))
 
-  const docs = await db.docs.where('projectId').equals(projectId).sortBy('createdAt')
+  const docs = await db.docs.where('projectId').equals(projectId).toArray().then(sortDocs)
 
   const tasks: unknown[] = []
   let taskId = 0

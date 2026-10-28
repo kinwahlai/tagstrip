@@ -40,3 +40,11 @@ at risk: field focus after clicking a box (Safari does not focus buttons on clic
 timing differs) and the `[` `]` keys on non-US keyboard layouts. To test: run the TS-14 checks
 (`.proofline/tickets/TS-14-annotate-flow/CHECKS.md`) with the verify skill's `--browser firefox`
 and `--browser webkit`, or by hand in each browser.
+
+## O9. Spec and checks for TS-15, stable document order
+
+Opened 2026-10-28. Answers: Darren. Blocks: any TS-15 code.
+
+Document lists sort by `createdAt` only; native import gives every doc the same time, so order is
+random and changes on reload. Drafted `.proofline/tickets/TS-15-doc-order/` (TICKET.md,
+CHECKS.md). Waiting on Darren: Q1, Q2, and agreement of the checks.

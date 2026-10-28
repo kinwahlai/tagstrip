@@ -207,4 +207,16 @@ describe('importNativeExport', () => {
     expect(document!.sourceBlob).toBeDefined()
     expect(pages[0].image).toBeUndefined()
   })
+
+  it("keeps the export's document order in import time", async () => {
+    const exported = validExport()
+    const order = ['h', 'c', 'a', 'f', 'b', 'g', 'e', 'd']
+    exported.documents = order.map((name) => ({ ...exported.documents[0], filename: `${name}.png` }))
+
+    for (let run = 0; run < 3; run++) {
+      const projectId = await importNativeExport(exported)
+      const docs = await db.docs.where('projectId').equals(projectId).sortBy('createdAt')
+      expect(docs.map((d) => d.filename[0])).toEqual(order)
+    }
+  })
 })

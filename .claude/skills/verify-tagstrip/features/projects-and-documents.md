@@ -8,6 +8,7 @@ A project pairs one label schema with many documents. The user creates a project
 - upload: PDF or image, per-file progress
 - doc-detail: pages, notes, per-page content-type override
 - delete-document, delete-project
+- doc-order: every document list (project list, annotate rail, `[` `]`, exports) is by filename in natural order, case ignored (TS-15)
 
 ## How to get to it
 
