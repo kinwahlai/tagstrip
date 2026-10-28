@@ -62,7 +62,7 @@ drawing label. Behaviour agreed by Darren the same day.
 
 - Action: on a page with two regions of label A (drawn first, second) and one of label B, and
   none of label C: click A in the Labels picker, type `x`; click A again, type `y`; click A a
-  third time. Click C. Press B's hotkey (after Esc).
+  third time. Click C. Press B's hotkey.
 - Observable outcome: first click selects the first-drawn A box and focuses its field (`x` lands
   there); second click selects the second A box (`y` lands there); third click wraps back to the
   first A box. Each time A is also the active drawing label. Clicking C makes C active,
@@ -90,3 +90,7 @@ Added 2026-10-28, agreed by Darren the same day.
 - **M1-6**, 2026-10-28, agreed by Darren the same day: clicking a label with no region on the
   page now also deselects the current region. Reason: after trying cec3939, Darren found region A
   stayed selected and focused after clicking such a label.
+- **M1-6**, 2026-10-28, agreed by Darren the same day: dropped "(after Esc)" before B's hotkey.
+  At dcf019d the verifier failed M1-6 on that step: clicking C already deselects and leaves the
+  field, so the Esc left the canvas (the existing Esc behaviour) and the hotkey had nothing to
+  act on. The Esc was a leftover from when C's click kept A's field focused.
