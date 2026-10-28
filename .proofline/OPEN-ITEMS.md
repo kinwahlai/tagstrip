@@ -30,11 +30,13 @@ Seen by the TS-13 verifier on mutant d61f1f8 (OCR forced to return empty text): 
 "OCR" tag with an empty transcription. Not checked against the real engine. Decide whether an empty
 suggestion should carry the tag.
 
+## O8. TS-14 is not tested in Firefox or Safari
 
-## O7. Spec and checks for TS-14, annotation flow fixes
+Opened 2026-10-28. Answers: Darren. Blocks: nothing.
 
-Opened 2026-10-28. Answers: Darren. Blocks: TS-14 code, and the 110-document annotation run.
-
-Drafted as `.proofline/tickets/TS-14-annotate-flow/` (TICKET.md, CHECKS.md). Waiting on Darren:
-Q1 (next-document button and `]` / `[` keys), Q2 (Esc to leave the focused field), the M1
-checkpoint, and agreement of checks M1-1 to M1-5.
+TS-14 (region order, return-to-selected doc, Prev/Next doc and `[` `]`, field focus, label-click
+jump) was verified in Chromium only, at 86e3b06. Firefox and Safari (WebKit) are untested. Most
+at risk: field focus after clicking a box (Safari does not focus buttons on click, so the focus
+timing differs) and the `[` `]` keys on non-US keyboard layouts. To test: run the TS-14 checks
+(`.proofline/tickets/TS-14-annotate-flow/CHECKS.md`) with the verify skill's `--browser firefox`
+and `--browser webkit`, or by hand in each browser.

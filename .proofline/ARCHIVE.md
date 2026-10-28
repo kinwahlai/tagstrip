@@ -2,6 +2,17 @@
 
 Closed items from `OPEN-ITEMS.md`, newest first, with the reasoning kept whole.
 
+## O7. TS-14, annotation flow fixes (closed 2026-10-28)
+
+Done and merged at 86e3b06, before the 110-document annotation run. Regions list in schema order;
+Back returns to the last document, selected and in view; "← Prev doc" / "Next doc →" and `[` `]`
+in the canvas, each document opening at page 1; selecting a box focuses and outlines its field;
+clicking a label jumps to that label's boxes in turn, or deselects when it has none. All seven
+checks pass in Chromium and count. The verifier caught two defects on the way (returned-to row
+not scrolled into view; page index carried across documents) and a stale Esc step in M1-6,
+reworded with Darren's agreement. The verify skill was ported to macOS. Firefox and Safari are
+untested: O8.
+
 ## O5. Remove the Indra code TS-11 left on main (closed 2026-10-28)
 
 Done as TS-13, verified at 3ab54a6 (all three checks pass and count) and merged. Removed the Indra
