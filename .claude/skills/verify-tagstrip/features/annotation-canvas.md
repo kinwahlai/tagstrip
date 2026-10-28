@@ -39,4 +39,4 @@ Preconditions: a project with an uploaded document (projects-and-documents.md).
 - Regions beyond MIN_BOX_SIZE only; use `steps` on mouse moves so mousemove handlers fire.
 - Keyboard shortcuts are window-level: typing in a transcription field must not be mistaken for a hotkey press.
 - Selecting, clicking or drawing a region moves focus into its transcription field one animation frame later, and the field gets `data-selected="true"`. Label hotkeys, `]` / `[`, arrows and Delete then type into the field: press Esc once to leave the field before using them, and a second time to deselect.
-- The mini rail's "Next document" button and the toolbar's "Next doc →" do the same thing; match the toolbar one with `{name: /Next doc/}`, as `Next document` is only the rail's.
+- The mini rail's "Next document" button and the toolbar's "Next doc →" do the same thing; match the toolbar one with the exact name `'Next doc →'`; a regex like `/Next doc/` also matches the rail's "Next document" and fails strict mode.

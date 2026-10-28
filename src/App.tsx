@@ -220,6 +220,9 @@ function App() {
       )}
       {view.tab === 'annotate' && (
         <AnnotationCanvas
+          // A fresh canvas per document: page, zoom, selection and undo belong
+          // to one document, so the next one opens at page 1.
+          key={view.docId}
           docId={view.docId}
           onBack={() =>
             goTo({ tab: 'project', projectId: view.projectId, selectedDocId: view.docId })

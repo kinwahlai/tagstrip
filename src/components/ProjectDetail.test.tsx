@@ -168,3 +168,27 @@ describe('ProjectDetail initial selection', () => {
     expect(await screen.findByLabelText('Notes')).toBeTruthy()
   })
 })
+
+describe('ProjectDetail initial scroll', () => {
+  it('scrolls the document it is given into view once the list renders', async () => {
+    const scrolled: Element[] = []
+    const original = Element.prototype.scrollIntoView
+    Element.prototype.scrollIntoView = function () {
+      scrolled.push(this)
+    }
+    try {
+      // The documents arrive before the project, so the list is not on screen
+      // yet when they do: the scroll must wait for the row itself.
+      const project = await db.projects.get('p1')
+      await db.projects.clear()
+      render(<ProjectDetail projectId="p1" initialSelectedDocId="d2" onOpenAnnotate={() => {}} />)
+      // let the documents query settle while the project is still missing
+      await new Promise((resolve) => setTimeout(resolve, 50))
+      await db.projects.add(project!)
+      const row = (await screen.findByText('second.png')).closest('button')
+      await waitFor(() => expect(scrolled).toContain(row))
+    } finally {
+      Element.prototype.scrollIntoView = original
+    }
+  })
+})

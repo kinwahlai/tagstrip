@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useRef, useState } from 'react'
 import type { ChangeEvent } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '../db/db'
@@ -38,15 +38,15 @@ export function ProjectDetail({
     [projectId],
   )
   const [selectedDocId, setSelectedDocId] = useState<string | null>(initialSelectedDocId ?? null)
-  // Scrolls the returned-to document into view once, after the list first renders.
-  const selectedRowRef = useRef<HTMLButtonElement | null>(null)
+  // Scrolls the returned-to document into view once, when its row first appears.
+  // A ref callback rather than an effect: the project and the documents load
+  // separately, and the list only renders once both have.
   const scrolledToInitial = useRef(!initialSelectedDocId)
-  const docsLoaded = docs !== undefined
-  useEffect(() => {
-    if (scrolledToInitial.current || !docsLoaded) return
+  function scrollIntoViewOnce(row: HTMLButtonElement | null) {
+    if (!row || scrolledToInitial.current) return
     scrolledToInitial.current = true
-    selectedRowRef.current?.scrollIntoView?.({ block: 'center' })
-  }, [docsLoaded])
+    row.scrollIntoView?.({ block: 'center' })
+  }
   const [uploadState, setUploadState] = useState<{
     filename: string
     done: number
@@ -200,7 +200,7 @@ export function ProjectDetail({
                     key={doc.id}
                     type="button"
                     className="ts-row-btn"
-                    ref={selectedDocId === doc.id ? selectedRowRef : undefined}
+                    ref={selectedDocId === doc.id ? scrollIntoViewOnce : undefined}
                     aria-current={selectedDocId === doc.id}
                     onClick={() => setSelectedDocId(doc.id)}
                     style={{
