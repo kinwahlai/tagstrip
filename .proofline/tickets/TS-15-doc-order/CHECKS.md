@@ -2,6 +2,10 @@
 
 Agreed with the human on: 2026-10-28
 
+Changed 2026-10-28, approved by Darren: M1-1, M1-2, M1-4 `Run:` lines lost their backticks
+(the ledger passed them to the shell, exit 127) and gained `pnpm install --frozen-lockfile &&`
+for clean-checkout re-runs. Same commands otherwise.
+
 The verifier follows `fail-closed`, `run-it-dont-read-it`, `leave-it-as-you-found-it`,
 `the-verifier-is-independent` and `evidence-holds-no-values` in full.
 Output must be right, not merely present: also `presence-is-not-correctness`.
@@ -10,14 +14,14 @@ Output must be right, not merely present: also `presence-is-not-correctness`.
 
 ### M1-1: sort rule (command check)
 
-- Run: `pnpm vitest run src/lib/docOrder.test.ts`
+- Run: pnpm install --frozen-lockfile && pnpm vitest run src/lib/docOrder.test.ts
 - Observable outcome: passes. Covers natural order (`p1, p2, p10`), case-insensitive, same
   filename ordered by `createdAt` then `id`.
 - Broken by: comparing filenames with plain `<` (gives `p1, p10, p2`).
 
 ### M1-2: native import keeps export order (command check)
 
-- Run: `pnpm vitest run src/lib/nativeImport.test.ts`
+- Run: pnpm install --frozen-lockfile && pnpm vitest run src/lib/nativeImport.test.ts
 - Observable outcome: passes, including a test that imports 8 docs with identical filenames
   except a suffix, 3 times, and reads them back in export order every time.
 - Broken by: reverting `createdAt` to the same `now` for every doc.
@@ -33,6 +37,6 @@ Output must be right, not merely present: also `presence-is-not-correctness`.
 
 ### M1-4: lint, build, full test suite (command check)
 
-- Run: `pnpm run lint && pnpm run build && pnpm test`
+- Run: pnpm install --frozen-lockfile && pnpm run lint && pnpm run build && pnpm test
 - Observable outcome: all three exit 0.
 - Broken by: any type error in the new sort module.
