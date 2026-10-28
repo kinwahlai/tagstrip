@@ -1,5 +1,10 @@
 # TS-12: predict fields, with boxes, on the current page
 
+**Paused by Darren, 2026-10-28, after M1 stopped.** The in-app feature is not being built for now;
+Darren's real need (pre-annotating a batch of passports quickly) was met by a private offline
+script instead. See "Outcome" below. M1's code is parked on branch `ts-12-predict-fields`,
+unverified and not merged.
+
 ## What is asked, and by whom
 
 Asked by Darren, 2026-10-27. On the annotation canvas, on any page of a document, a "Predict
@@ -160,6 +165,35 @@ findings below decide the milestone before a verifier run could, so none was spe
 Under the agreed decision rule, finding 1 alone means "do not build M2 on this model": the bar is
 box hits on half the fields, and the model reaches none even at a looser 0.3 on synthetic pages.
 Stopped for Darren rather than retrying (**fail-closed**, **attack-the-premise**).
+
+## Outcome (2026-10-28): the batch route instead of the feature
+
+After M1's findings, a separate local model server (Label Studio ML-backend style) was discussed
+and set aside: it would fix the browser limit but not the boxes. Darren's goal was to annotate
+documents quickly, so the work moved to a one-off private script, outside TagStrip:
+
+- **Where:** `~/projects/passport-prelabel/` on Darren's WSL machine. Local git only, no remote;
+  outputs in `out/` (gitignored) hold real values. It is not on any other machine.
+- **How:** per passport, the MRZ read with Tesseract and checked by its check digits (passport
+  number, country code, nationality, names, birth and expiry dates);
+  `LiquidAI/LFM2.5-VL-1.6B-Extract` on the GPU for place of issue, authority, date of issue and
+  full name; each value's box found where Tesseract sees it printed. It writes a TagStrip import
+  file with every region tagged OCR (`ocrSuggested`). Documents with no MRZ are skipped.
+- **Measured on Darren's 10 labelled passports (in-sample):** 44/85 regions fully right (box
+  IoU >= 0.5 and value match), 13 wrong values. That misses the bar agreed beforehand (60% fully
+  right, at most 10% wrong). Darren chose to run it anyway, reviewing every passport.
+  Most reliable: passport_number 9/10, country_code 8/10. Least: nationality (5 wrong of 10),
+  place_of_issue (5 wrong of 7).
+- **Batch:** 119 passports in about 3 minutes once parallel. 102 pre-filled with 616 regions; 17
+  skipped with no MRZ (Indian back pages among them, plus some the capped MRZ search missed).
+  Import into TagStrip was checked: 1 project, 102 documents, 616 regions, 0 errors.
+- **Time:** the MRZ search was about 52% of the time, 4-pass orientation 17%, the extra
+  contrast pass 14.5%, the model 4%. Tesseract's OSD orientation was confidently wrong on 4 of 11
+  labelled passports, so it saved nothing.
+- **Open for later:** Indian back pages need their own schema.
+
+The diagnostic scripts and raw outputs named in "M1 findings" lived in a session scratchpad and
+are gone; the numbers above and in that section are the record.
 
 ## Falsification tests for the design
 

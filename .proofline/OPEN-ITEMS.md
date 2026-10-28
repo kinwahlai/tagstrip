@@ -14,11 +14,13 @@ on Darren: open questions Q1 to Q6 in TICKET.md, and agreement of the M1 checks.
 
 ## O4. Spec and checks for TS-12, predict fields with boxes
 
-Opened 2026-10-27. Answers: Darren. Blocks: any TS-12 code.
+Opened 2026-10-27. Answers: Darren. Blocks: nothing.
 
-Drafted 2026-10-27 as `.proofline/tickets/TS-12-predict-fields/`. Reverses the `SPEC.md`
-section 2 exclusion of model-assisted pre-labeling, pending Darren's confirm (Q1). Waiting on Q1 to
-Q7 in TICKET.md and agreement of the M1 checks. All of Q1 to Q7 decided and M1 checks agreed 2026-10-28. M1 built at a079483 and stopped before verification: the model reads values but places no boxes (0/36 even on synthetic pages), and this WSL Chromium has no hardware WebGPU. See TICKET.md, "M1 findings". Waiting on Darren for the route.
+Paused 2026-10-28. M1 (in-browser LFM2.5-VL-450M) stopped before verification: the model reads values
+but places no boxes, and this WSL Chromium has no hardware WebGPU. Darren's need was met by a private
+offline passport pre-label script instead (`~/projects/passport-prelabel/`, WSL machine only).
+M1 code is parked on branch `ts-12-predict-fields`. Resume only if the in-app feature is wanted
+again; see TICKET.md "Outcome".
 
 ## O6. The OCR tag shows on a region whose OCR returned no text
 
