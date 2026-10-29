@@ -2,6 +2,10 @@
 
 Agreed with the human on: 2026-10-29 (M1)
 
+Changed 2026-10-29 before any run, agreed by Darren: PP-OCRv6 small added beside Florence-2;
+Chinese synthetic pages (simplified, traditional) added; Chinese bar for the Tesseract
+comparison. See TICKET.md "Changes agreed".
+
 The verifier follows `fail-closed`, `run-it-dont-read-it`, `leave-it-as-you-found-it`,
 `the-verifier-is-independent` and `evidence-holds-no-values` in full.
 Output must be right, not merely present: also `presence-is-not-correctness`.
@@ -27,13 +31,15 @@ No billed checks: models run locally once downloaded.
 
 ### M1-3: the run, in Chrome on hardware WebGPU (verifier check)
 
-- Action: via the verify skill, open the harness on the 8 synthetic pages, models cached, network
-  blocked after caching. Run arms A, B, C and the Tesseract comparison twice.
-- Observable outcome: a report with, per arm and run: box hits at 0.5 (and 0.3), values match /
+- Action: via the verify skill, open the harness on the synthetic pages (8 English plus the
+  Chinese ones), models cached, network
+  blocked after caching. Run arms A and B for Florence-2 and for PP-OCRv6, arm C, and the region
+  comparison (Florence-2, PP-OCRv6, Tesseract with eng, chi_sim, chi_tra), twice.
+- Observable outcome: a report with, per model, arm, run and language: box hits at 0.5 (and 0.3), values match /
   wrong / blank, seconds per page or per region, unstable fields; the WebGPU adapter is hardware,
   not a fallback; no network request after caching. Verdicts against the decision rule in
   TICKET.md, read by the verifier from the counts, not taken from the harness's own summary.
-- Broken by: shifting every Florence box by 0.1 of the page before scoring; arm A box hits must
+- Broken by: shifting every line box (both models) by 0.1 of the page before scoring; arm A box hits must
   drop and the verdict must turn to fail.
 
 ## Checks: M2 (real set), written before M2 starts, after Q1

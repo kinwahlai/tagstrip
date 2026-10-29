@@ -31,6 +31,25 @@ Tesseract. Florence-2's `<OCR_WITH_REGION>` returns every text line with a box, 
   `ts-12-predict-fields` (a079483).
 - The real evaluation set (TS-12 Q2, under `~/projects/pai-extract/`) is **not on this Mac**.
 
+## Changes agreed 2026-10-29 (Darren), before any run
+
+Darren's reasons to replace Tesseract: (1) it does not work with Chinese, (2) it is slow, (3) a
+model to pair with prediction to draw boxes. Candidates compared the same day (model cards, HF
+API): PP-OCRv6 (PaddlePaddle, Apache-2.0, June 2026; official ONNX: small det 9.9 MB + rec
+21.2 MB, tiny 6.3 MB; Chinese simplified and traditional official; line polygons; v6 browser
+pipeline unproven, PaddleOCR's browser SDK documents v5) and GLM-OCR (0.9B, MIT; text only, no
+model-level boxes; community WebGPU port only, 635 MB; Chinese undocumented).
+
+1. **PP-OCRv6 small is added** beside Florence-2: arms A and B with its line boxes, and in the
+   region-reading comparison.
+2. **Chinese synthetic pages are added**, simplified and traditional, to the 8 English pages.
+3. **Chinese bar for replacing Tesseract:** on Chinese fields, at least 80% values match and at
+   most 10% wrong, plus at most 2 s per region once cached. Tesseract runs with `chi_sim` and
+   `chi_tra` loaded, for a fair baseline.
+4. **Browser LFM on Chinese values is reported**, not part of the rule.
+
+GLM-OCR is dropped: it fails reason 3. Florence-2 stays though its Chinese is undocumented.
+
 ## Design
 
 Per page, three arms, all in Chrome on WebGPU:
@@ -61,9 +80,11 @@ TS-12's normalisation. Counts per arm.
 - **Arm B passes** on a set: box hits on at least half the labelled fields, wrong values at most
   a fifth, in Chrome on hardware WebGPU on this Mac, at most 30 s per page for both models once
   cached, no network once cached.
-- **Florence replaces Tesseract** for Suggest text if, on the same crops, it matches at least as
-  many values as Tesseract, has no more wrong values, and takes at most 2 s per region once cached.
-- **If arm A fails on synthetic:** stop. Florence cannot supply boxes; record and close.
+- **A model replaces Tesseract** for Suggest text if, on English crops, on the same crops, it matches at least as
+  many values as Tesseract, has no more wrong values, and takes at most 2 s per region once cached; and on Chinese crops matches at least 80% of
+  values with at most 10% wrong (change 3).
+- **If arm A fails on synthetic for a model:** that model cannot supply boxes; record it. Both
+  fail: close.
 - **If arm A passes but arm B fails:** boxes are fine, values are the problem; the next decision
   is the value model, not Florence.
 - Each arm runs twice; a field whose verdict changes between runs is reported as unstable
