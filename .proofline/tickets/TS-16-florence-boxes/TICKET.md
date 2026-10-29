@@ -148,3 +148,25 @@ three checks pass and count; each mutant caught. Headless Chromium, Apple Metal-
 
 **PP-OCRv6 only**: Florence-2 lost every comparison in M1. Run on the Windows machine
 (`WINDOWS-M2.md`).
+
+## M2 results (verified at c0ef9bf, 2026-10-29)
+
+Verifier report `.proofline/verification/TS-16-florence-boxes/M2-c0ef9bf/` (gitignored, WSL
+machine). M2-1 and M2-2 pass and count; each mutant caught (M2-1 by the build; M2-2 by arm A, 65 to
+0 box hits, since arm B was already below half at base). Headless Windows Chrome 156 driven from
+WSL over CDP (`win-chrome.sh`), NVIDIA Lovelace hardware WebGPU, not a fallback; PP-OCRv6 on
+WebGPU. 2 runs with identical counts, no unstable fields, 0 offsite requests. 168 real fields on
+34 pages, 0 skipped. Arms A, B and T with PP-OCRv6; no Florence.
+
+- **Arm A (true values), box hits:** 65/168 (38.7%) at 0.5, 91/168 (54.2%) at 0.3; 0.66 s/page
+  median. Reported, not judged.
+- **Arm B (LFM values): fails the rule.** Boxes 14/168 (8.3%, needs 84). Values 29 match / 133
+  wrong (79.2%, limit 20%) / 6 blank. 5.1 s/page median (limit 30 s); no network.
+- **Replace Tesseract:** PP-OCRv6 passes: 128 match / 31 wrong / 9 blank, median 12 ms/region.
+  Tesseract (eng+chi_sim+chi_tra) 114 / 43 / 11, 58 ms. Chinese bar not judged (eval pages have
+  language `unknown`).
+- **Reading:** under the decision rule, arm B's failure comes mainly from values (133 wrong of
+  168), and the next decision is the value model. Boxes are weaker on real pages than on
+  synthetic even with true values (arm A 39% against 83%).
+- Deviations: the harness now leaves Florence out of arm T and of arm `all` when the line model is
+  `ppocr` (c0ef9bf); Chrome needs `--force_high_performance_gpu`, or it picks the Intel iGPU.
