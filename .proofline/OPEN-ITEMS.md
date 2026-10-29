@@ -22,14 +22,6 @@ offline passport pre-label script instead (`~/projects/passport-prelabel/`, WSL 
 M1 code is parked on branch `ts-12-predict-fields`. Resume only if the in-app feature is wanted
 again; see TICKET.md "Outcome".
 
-## O6. The OCR tag shows on a region whose OCR returned no text
-
-Opened 2026-10-28. Answers: Darren. Blocks: nothing.
-
-Seen by the TS-13 verifier on mutant d61f1f8 (OCR forced to return empty text): the region kept the
-"OCR" tag with an empty transcription. Not checked against the real engine. Decide whether an empty
-suggestion should carry the tag.
-
 ## O8. TS-14 is not tested in Firefox or Safari
 
 Opened 2026-10-28. Answers: Darren. Blocks: nothing.

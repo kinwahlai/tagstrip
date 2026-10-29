@@ -2,6 +2,13 @@
 
 Closed items from `OPEN-ITEMS.md`, newest first, with the reasoning kept whole.
 
+## O6. OCR tag on a region whose OCR returned no text (closed 2026-10-29)
+
+Decided by Darren, 2026-10-29: an empty OCR result keeps the "OCR" tag. Reason not stated; Claude's
+reading: the tag records that OCR ran, and an empty result is still an OCR result. No code change; current
+behaviour (seen by the TS-13 verifier on mutant d61f1f8) stands. Not observed against the real
+engine, but the decision covers it either way.
+
 ## O9. TS-15, stable document order (closed 2026-10-28)
 
 Done and merged at 44f23bf. Every document list (project list, annotate rail, `[` `]`, both
