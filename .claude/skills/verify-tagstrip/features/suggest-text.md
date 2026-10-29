@@ -8,10 +8,12 @@ For a drawn region, the "Suggest text" button fills its transcription. The text 
 - ocr-fallback: image pages and scanned PDFs, "OCR" tag shown
 - content-type override: per-page select changes the route
 - unavailable: disabled with a reason when the export had no source document
+- hotkey (TS-18): Ctrl+Alt+S (Ctrl+Option+S on Mac) runs it on the selected region, from inside its field too; focus stays in the field. No region selected, or unavailable: does nothing
 
 ## How to get to it
 
 - Annotation canvas, "Regions on this page" panel: button "Suggest text" beside each region's `Transcription for <label> region` field.
+- Keyboard: select a region (drawing one selects it and focuses its field), then Ctrl+Alt+S. In Playwright: `page.keyboard.press('Control+Alt+KeyS')`. The app matches `e.code === 'KeyS'`, not `e.key`. Not wired into `drive.mjs`; drive it by hand in the session.
 
 ## Driving it
 

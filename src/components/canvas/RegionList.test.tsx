@@ -128,3 +128,100 @@ describe('RegionList selection focus', () => {
     expect(document.activeElement).not.toBe(field())
   })
 })
+
+// Ctrl+Alt+S (Ctrl+Option+S on a Mac) runs Suggest text on the selected region,
+// including from inside its field, where selecting a region puts the cursor.
+describe('RegionList Suggest text hotkey', () => {
+  function list(selectedId: string | null, onSuggestText: (id: string) => Promise<void>) {
+    return (
+      <RegionList
+        annotations={[annotation('hello')]}
+        labelsById={new Map([[label.id, label]])}
+        selectedId={selectedId}
+        onSelect={() => {}}
+        onDelete={() => {}}
+        onSuggestText={onSuggestText}
+      />
+    )
+  }
+
+  function press(init: KeyboardEventInit) {
+    fireEvent.keyDown(document.activeElement ?? document.body, init)
+  }
+
+  it('runs on the selected region from inside its field', async () => {
+    const calls: string[] = []
+    render(list('a1', async (id) => void calls.push(id)))
+    await waitFor(() => expect(document.activeElement).toBe(field()))
+
+    press({ key: 's', code: 'KeyS', ctrlKey: true, altKey: true })
+
+    await waitFor(() => expect(calls).toEqual(['a1']))
+  })
+
+  it('runs when a Mac Option key turns the key into ß', async () => {
+    const calls: string[] = []
+    render(list('a1', async (id) => void calls.push(id)))
+    await waitFor(() => expect(document.activeElement).toBe(field()))
+
+    press({ key: 'ß', code: 'KeyS', ctrlKey: true, altKey: true })
+
+    await waitFor(() => expect(calls).toEqual(['a1']))
+  })
+
+  it('does nothing with no region selected', async () => {
+    const calls: string[] = []
+    render(list(null, async (id) => void calls.push(id)))
+
+    press({ key: 's', code: 'KeyS', ctrlKey: true, altKey: true })
+    await new Promise((r) => setTimeout(r, 20))
+
+    expect(calls).toEqual([])
+  })
+
+  it('ignores a second press while the first is running', async () => {
+    const calls: string[] = []
+    let finish = () => {}
+    render(
+      list('a1', (id) => {
+        calls.push(id)
+        return new Promise<void>((resolve) => (finish = resolve))
+      }),
+    )
+    await waitFor(() => expect(document.activeElement).toBe(field()))
+
+    press({ key: 's', code: 'KeyS', ctrlKey: true, altKey: true })
+    press({ key: 's', code: 'KeyS', ctrlKey: true, altKey: true })
+    await waitFor(() => expect(screen.getByText('Suggesting…')).toBeTruthy())
+    finish()
+
+    await waitFor(() => expect(screen.getByText('Suggest text')).toBeTruthy())
+    expect(calls).toEqual(['a1'])
+  })
+
+  it('does not run on Ctrl+S, Alt+S or a bare s', async () => {
+    const calls: string[] = []
+    render(list('a1', async (id) => void calls.push(id)))
+    await waitFor(() => expect(document.activeElement).toBe(field()))
+
+    press({ key: 's', code: 'KeyS', ctrlKey: true })
+    press({ key: 's', code: 'KeyS', altKey: true })
+    press({ key: 's', code: 'KeyS' })
+    await new Promise((r) => setTimeout(r, 20))
+
+    expect(calls).toEqual([])
+  })
+
+  it('leaves focus in the field once the text arrives', async () => {
+    let finish = () => {}
+    render(list('a1', () => new Promise<void>((resolve) => (finish = resolve))))
+    await waitFor(() => expect(document.activeElement).toBe(field()))
+
+    press({ key: 's', code: 'KeyS', ctrlKey: true, altKey: true })
+    await waitFor(() => expect(screen.getByText('Suggesting…')).toBeTruthy())
+    finish()
+    await waitFor(() => expect(screen.getByText('Suggest text')).toBeTruthy())
+
+    expect(document.activeElement).toBe(field())
+  })
+})

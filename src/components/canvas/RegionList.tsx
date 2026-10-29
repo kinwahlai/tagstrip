@@ -17,6 +17,9 @@ interface RegionListProps {
   focusTick?: number
 }
 
+const SUGGEST_HOTKEY_LABEL =
+  typeof navigator !== 'undefined' && /Mac/.test(navigator.platform) ? 'Ctrl+Option+S' : 'Ctrl+Alt+S'
+
 const HINT = 'color-mix(in srgb, var(--color-text) 68%, transparent)'
 
 export function RegionList({
@@ -31,8 +34,13 @@ export function RegionList({
 }: RegionListProps) {
   const [suggestingId, setSuggestingId] = useState<string | null>(null)
   const [errorById, setErrorById] = useState<Record<string, string>>({})
+  // Mirrors suggestingId synchronously, so a second hotkey press that lands
+  // before React re-renders is still seen as a run in progress.
+  const runningRef = useRef<string | null>(null)
 
   async function handleSuggest(id: string) {
+    if (runningRef.current === id) return
+    runningRef.current = id
     setSuggestingId(id)
     setErrorById((prev) => {
       const next = { ...prev }
@@ -47,9 +55,28 @@ export function RegionList({
         [id]: err instanceof Error ? err.message : String(err),
       }))
     } finally {
+      runningRef.current = null
       setSuggestingId(null)
     }
   }
+
+  // Ctrl+Alt+S (Ctrl+Option+S on a Mac) is the button for the selected region.
+  // Listened for here, not in the canvas's key handler, because that handler
+  // ignores keys typed into a field, and selecting a region focuses its field.
+  // Matched on the physical key: Option+S on a Mac reports e.key as ß.
+  const hotkeyRef = useRef<(e: KeyboardEvent) => void>(() => {})
+  hotkeyRef.current = (e) => {
+    if (!(e.ctrlKey && e.altKey) || e.metaKey || e.shiftKey || e.code !== 'KeyS') return
+    if (!selectedId || suggestUnavailableReason) return
+    if (!annotations.some((a) => a.id === selectedId)) return
+    e.preventDefault()
+    void handleSuggest(selectedId)
+  }
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => hotkeyRef.current(e)
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
 
   if (annotations.length === 0) {
     return (
@@ -166,7 +193,7 @@ export function RegionList({
                 style={{ whiteSpace: 'nowrap' }}
                 onClick={() => handleSuggest(annotation.id)}
                 disabled={suggestingId === annotation.id || Boolean(suggestUnavailableReason)}
-                title={suggestUnavailableReason ?? undefined}
+                title={suggestUnavailableReason ?? `Suggest text (${SUGGEST_HOTKEY_LABEL})`}
               >
                 {suggestingId === annotation.id ? 'Suggesting…' : 'Suggest text'}
               </button>
