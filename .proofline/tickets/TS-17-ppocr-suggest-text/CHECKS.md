@@ -1,6 +1,6 @@
 # tagstrip checks (ticket TS-17-ppocr-suggest-text)
 
-Agreed with the human on: (pending)
+Agreed with the human on: 2026-10-29 (Darren), with Q1 and Q2 in TICKET.md.
 
 The verifier follows `fail-closed`, `run-it-dont-read-it`, `leave-it-as-you-found-it`,
 `the-verifier-is-independent` and `evidence-holds-no-values` in full.

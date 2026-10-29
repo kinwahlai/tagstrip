@@ -67,7 +67,13 @@ wording, README and CONTRIBUTING mentions.
   harness on the same synthetic crops. Check the crop handed over first (scale, padding in
   `src/lib/ocrCrop.ts` against the harness's `cropOf`) before blaming the model.
 
-## Open questions (Darren answers)
+## Answered (Darren, 2026-10-29)
+
+- **Q1 and Q2 as recommended below**: the build downloads the pinned files and serves them from the
+  app's origin, not in git; Tesseract is removed unless M1-4 shows WASM fails the bar.
+- M1 checks agreed. M1 is a checkpoint (the default for code Darren has not seen).
+
+## Open questions (as drafted)
 
 - **Q1. Where the files come from.** About 57 MB: models 31 MB plus the onnxruntime WASM 25.6 MB.
   Recommend: serve them from the app's origin, downloaded at build time by a pinned script with
