@@ -44,8 +44,10 @@ No billed checks: models run locally once downloaded.
 
 ## Checks: M2 (real set, PP-OCRv6 only)
 
-Drafted 2026-10-29. Agreed with the human on: (pending; Darren agrees at the start of the Windows
-session, before any run)
+Drafted 2026-10-29. Agreed with the human on: 2026-10-29 (Windows session, before any run), with
+two changes: M2-2's mutant outcome no longer depends on arm B passing at base (it may fail
+honestly on real pages), and M2-1's mutant is judged by the verifier on this machine, whose
+ledger holds no TS-16 rows.
 
 Runs on Darren's WSL machine, where the real set lives. Real applicants' documents: evidence holds
 counts, ids, verdicts, IoUs and times only; no text, no filenames, no screenshots. Eval pages have
@@ -55,7 +57,7 @@ language `unknown`, so the Chinese bar is not judged in M2.
 
 - Run: pnpm install --frozen-lockfile && pnpm run lint && pnpm run build && pnpm test
 - Observable outcome: all three exit 0.
-- Broken by: a type error in the matcher.
+- Broken by: a type error in the matcher. Judged by the verifier in the same call as M2-2.
 
 ### M2-2: the real-set run, on hardware WebGPU (verifier check)
 
@@ -70,4 +72,5 @@ language `unknown`, so the Chinese bar is not judged in M2.
   Tesseract on the same crops (matches at least as many, no more wrong, at most 2 s per region).
   Arm A is reported, not judged.
 - Broken by: shifting every PP-OCRv6 line box by 0.1 of the page before scoring; arm A box hits
-  must drop and the arm B verdict must turn to fail (one run is enough for the mutant).
+  at 0.5 must drop, and arm B box hits must fall below half of the labelled fields (one run is
+  enough for the mutant).

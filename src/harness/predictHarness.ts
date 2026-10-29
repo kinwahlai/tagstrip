@@ -61,19 +61,22 @@ interface ArmRun {
 
 type Engine = 'florence' | 'ppocr' | 'tesseract'
 const ENGINES: Engine[] = ['florence', 'ppocr', 'tesseract']
+// Only the engines a run used have a key: Florence is left out when it was not loaded.
+type EngineMap<T> = Partial<Record<Engine, T>>
+const enginesOf = (m: EngineMap<unknown>) => Object.keys(m) as Engine[]
 
 interface TessField {
   id: string
   lang: string
-  verdict: Record<Engine, Verdict>
-  ms: Record<Engine, number>
+  verdict: EngineMap<Verdict>
+  ms: EngineMap<number>
 }
 
 interface TessRun {
   run: number
   arm: 'T'
-  summary: Record<Engine, Summary>
-  byLang: Record<string, Record<Engine, Summary>>
+  summary: EngineMap<Summary>
+  byLang: Record<string, EngineMap<Summary>>
   pages: { page: string; lang: string; fields: TessField[] }[]
   skipped: number
 }
@@ -389,14 +392,19 @@ function armLine(label: string, s: ArmSummary, skipped: number): string {
   )
 }
 
-function tessLine(label: string, s: Record<Engine, Summary>): string {
+function tessLine(label: string, s: EngineMap<Summary>): string {
+  const engines = enginesOf(s)
   return (
-    `${label}: regions ${s.florence.total}; ` +
-    ENGINES.map(
-      (e) =>
-        `${e} match ${s[e].match}, wrong ${s[e].wrong}, blank ${s[e].blank}, ` +
-        `median s/region ${sec(s[e].medianMs)}`,
-    ).join('; ')
+    `${label}: regions ${s[engines[0]]!.total}; ` +
+    engines
+      .map((e) => {
+        const x = s[e]!
+        return (
+          `${e} match ${x.match}, wrong ${x.wrong}, blank ${x.blank}, ` +
+          `median s/region ${sec(x.medianMs)}`
+        )
+      })
+      .join('; ')
   )
 }
 
@@ -419,11 +427,12 @@ function renderRecord(rec: RunRecord): HTMLElement[] {
   const cells = (...t: string[]) => el('tr', {}, ...t.map((x) => el('td', { textContent: x })))
   let head: string[]
   if (rec.arm === 'T') {
-    head = ['id', ...ENGINES]
+    const engines = enginesOf(rec.summary)
+    head = ['id', ...engines]
     for (const p of rec.pages) {
-      rows.push(cells(`${p.page} ${p.lang}`, '', '', ''))
+      rows.push(cells(`${p.page} ${p.lang}`, ...engines.map(() => '')))
       for (const f of p.fields) {
-        rows.push(cells(f.id, ...ENGINES.map((e) => `${f.verdict[e]} ${sec(f.ms[e])} s`)))
+        rows.push(cells(f.id, ...engines.map((e) => `${f.verdict[e]} ${sec(f.ms[e]!)} s`)))
       }
     }
   } else {
@@ -459,17 +468,23 @@ async function run(): Promise<void> {
   runButton.disabled = true
   setStatus('loading')
   try {
+    const models: LineModel[] =
+      modelSelect.value === 'all' ? ['florence', 'ppocr'] : [modelSelect.value as LineModel]
+    // Arm C is Florence grounding, so `all` leaves it out when Florence is not a line model; an
+    // explicitly chosen C still runs.
     const arms: Arm[] =
       armSelect.value === 'all'
         ? mode === 'model'
-          ? ['A', 'B', 'C', 'T']
+          ? models.includes('florence')
+            ? ['A', 'B', 'C', 'T']
+            : ['A', 'B', 'T']
           : ['A', 'B']
         : [armSelect.value as Arm]
     if (mode !== 'model' && arms.some((a) => a === 'C' || a === 'T')) {
       throw new HarnessInputError('arms C and T need predictions model')
     }
-    const models: LineModel[] =
-      modelSelect.value === 'all' ? ['florence', 'ppocr'] : [modelSelect.value as LineModel]
+    // Arm T reads Florence <OCR> only when Florence is a selected line model.
+    const engines: Engine[] = models.includes('florence') ? ENGINES : ['ppocr', 'tesseract']
     let pages: PageItem[]
     let skipped = 0
     if (setSelect.value === 'synthetic') pages = await syntheticPages()
@@ -483,7 +498,9 @@ async function run(): Promise<void> {
 
     const needLines = arms.includes('A') || arms.includes('B')
     const useFlorence =
-      (needLines && models.includes('florence')) || arms.includes('C') || arms.includes('T')
+      (needLines && models.includes('florence')) ||
+      arms.includes('C') ||
+      (arms.includes('T') && engines.includes('florence'))
     const usePpocr = (needLines && models.includes('ppocr')) || arms.includes('T')
     if (mode === 'model') {
       configureLocalRuntime()
@@ -501,7 +518,7 @@ async function run(): Promise<void> {
       if (arms.includes('C')) await ground(firstImage, first.truth[0].label)
       if (arms.includes('T')) {
         const crop = await cropOf(firstImage, first.truth[0].bbox)
-        await ocr(crop)
+        if (engines.includes('florence')) await ocr(crop)
         await ppocrCrop(crop)
         await tesseractMulti(crop)
       }
@@ -513,9 +530,9 @@ async function run(): Promise<void> {
     const armPages = new Map<string, PageRecord[]>()
     const push = (k: string, r: PageRecord) => armPages.set(k, [...(armPages.get(k) ?? []), r])
     const tessPages: TessRun['pages'] = []
-    const tessResults = Object.fromEntries(
-      ENGINES.map((e) => [e, [] as (RegionResult & { lang: string })[]]),
-    ) as unknown as Record<Engine, (RegionResult & { lang: string })[]>
+    const tessResults: EngineMap<(RegionResult & { lang: string })[]> = Object.fromEntries(
+      engines.map((e) => [e, []]),
+    )
     let seq = 0
     for (let i = 0; i < pages.length; i++) {
       const item = pages[i]
@@ -587,15 +604,15 @@ async function run(): Promise<void> {
             ppocr: ppocrCrop,
             tesseract: tesseractMulti,
           }
-          const verdicts = {} as Record<Engine, Verdict>
-          const times = {} as Record<Engine, number>
-          for (const e of ENGINES) {
+          const verdicts: EngineMap<Verdict> = {}
+          const times: EngineMap<number> = {}
+          for (const e of engines) {
             const t0 = performance.now()
             // The text goes straight into the scorer; it is not stored, rendered or logged.
             const text = await readers[e](crop)
             times[e] = performance.now() - t0
             verdicts[e] = ocrVerdict(text, item.truth[k].value)
-            tessResults[e].push({ id: ids[k], verdict: verdicts[e], ms: times[e], lang })
+            tessResults[e]!.push({ id: ids[k], verdict: verdicts[e]!, ms: times[e]!, lang })
           }
           fields.push({ id: ids[k], lang, verdict: verdicts, ms: times })
         }
@@ -607,24 +624,21 @@ async function run(): Promise<void> {
     const added: RunRecord[] = []
     for (const arm of arms) {
       if (arm === 'T') {
-        const sum = (rows: Record<Engine, RegionResult[]>) =>
-          Object.fromEntries(ENGINES.map((e) => [e, summariseOcr(rows[e])])) as Record<
-            Engine,
-            Summary
-          >
+        const sum = (rows: EngineMap<RegionResult[]>): EngineMap<Summary> =>
+          Object.fromEntries(engines.map((e) => [e, summariseOcr(rows[e]!)]))
         added.push({
           run: runNo,
           arm,
           summary: sum(tessResults),
           byLang: Object.fromEntries(
-            [...new Set(tessResults.florence.map((r) => r.lang))]
+            [...new Set(tessResults[engines[0]]!.map((r) => r.lang))]
               .sort()
               .map((l) => [
                 l,
                 sum(
                   Object.fromEntries(
-                    ENGINES.map((e) => [e, tessResults[e].filter((r) => r.lang === l)]),
-                  ) as unknown as Record<Engine, RegionResult[]>,
+                    engines.map((e) => [e, tessResults[e]!.filter((r) => r.lang === l)]),
+                  ),
                 ),
               ]),
           ),

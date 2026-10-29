@@ -5,6 +5,7 @@
 //     --evidence <dir> --check-id <id> [--block-offsite]
 // Journey predict-harness takes: --set synthetic|eval [--eval-export <file> --eval-docs <dir>]
 //     [--arm all|A|B|C|T] [--line-model all|florence|ppocr] [--runs N] [--predictions model|truth|shifted] [--headed]; WEBGPU_ARGS env overrides the Chromium flags.
+//     --cdp <ws-url> (chromium only) drives an already-running Chrome instead (win-chrome.sh).
 // Journey ocr-harness also takes: --engine tesseract --set synthetic|eval
 //     [--eval-export <file> --eval-docs <dir>] [--runs N]
 // Exit 0 only if the journey's own assertion passed (for ocr-harness: the harness completed). Result JSON holds verdicts, counts and
@@ -277,7 +278,12 @@ const WEBGPU_ARGS = (process.env.WEBGPU_ARGS ?? DEFAULT_WEBGPU_ARGS).split(' ').
 let browser = null
 let profileDir = null
 let context
-if (browserName === 'webkit') {
+if (args.cdp && browserName === 'chromium') {
+  // An already-running Chrome (Windows-side, for hardware WebGPU from WSL; see win-chrome.sh).
+  // Its own flags apply, not WEBGPU_ARGS.
+  browser = await playwright.chromium.connectOverCDP(args.cdp)
+  context = await browser.newContext({ viewport })
+} else if (browserName === 'webkit') {
   profileDir = fs.mkdtempSync(path.join(runDir, 'profile-'))
   context = await playwright.webkit.launchPersistentContext(profileDir, { headless: true, viewport })
 } else {
