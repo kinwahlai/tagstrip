@@ -32,3 +32,12 @@ at risk: field focus after clicking a box (Safari does not focus buttons on clic
 timing differs) and the `[` `]` keys on non-US keyboard layouts. To test: run the TS-14 checks
 (`.proofline/tickets/TS-14-annotate-flow/CHECKS.md`) with the verify skill's `--browser firefox`
 and `--browser webkit`, or by hand in each browser.
+
+## O10. Spec and checks for TS-16, Florence-2 boxes with browser LFM values
+
+Opened 2026-10-29. Answers: Darren. Blocks: any TS-16 code.
+
+Combined test: Florence-2 text-line boxes plus browser LFM values, and Florence versus Tesseract
+on region crops. Drafted `.proofline/tickets/TS-16-florence-boxes/` (TICKET.md, CHECKS.md).
+Q1 to Q5 answered and M1 checks agreed 2026-10-29; M1 in progress on branch
+`TS-16-florence-boxes`. M2 (real set) deferred to the Windows machine. Follows O4 (TS-12).
