@@ -14,10 +14,11 @@ export interface SuggestTextResult {
 //      not cover every region and a manually-overridden page could still have
 //      a usable layer underneath.
 //   2. OCR fallback — only when step 1 finds nothing. Crops the region out of
-//      the page image and runs it through the OCR engine (English only — see
-//      src/lib/ocr/tesseract.ts for why multi-language support was reverted).
-//      The engine module (and its ~4MB of WASM/model assets) is dynamically
-//      imported here, so it's never fetched unless this branch actually runs.
+//      the page image and runs it through the OCR engine (PP-OCRv6,
+//      English and Chinese — see src/lib/ocr/ppocr.ts). The engine module
+//      (and the ~57MB of model and WASM files it loads from the app's own
+//      origin) is dynamically imported here, so nothing is fetched unless this
+//      branch actually runs.
 export async function suggestText(page: Page, rect: NormalizedRect): Promise<SuggestTextResult> {
   if (page.textLayer) {
     const extracted = extractTextFromLayer(page.textLayer, rect)
@@ -29,7 +30,9 @@ export async function suggestText(page: Page, rect: NormalizedRect): Promise<Sug
   }
 
   const crop = await cropPageRegion(page.image, rect, page.width, page.height)
-  const { tesseractEngine } = await import('./ocr/tesseract')
-  const result = await tesseractEngine.recognize(crop)
+  const { ppocrEngine, ppocrBackend } = await import('./ocr/ppocr')
+  const result = await ppocrEngine.recognize(crop)
+  // Which backend ran, for the verify driver to read (a window property, not shown in the UI).
+  ;(window as unknown as { __ocrBackend?: string | null }).__ocrBackend = ppocrBackend()
   return { text: result.text, ocrSuggested: true }
 }

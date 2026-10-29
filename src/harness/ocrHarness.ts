@@ -2,7 +2,7 @@
 // region, an id, a verdict and a time. It never renders or logs OCR text, transcriptions or
 // filenames; results are also exposed as JSON in window.__ocrResults for the driver, under the
 // same rule.
-import { tesseractEngine } from '../lib/ocr/tesseract'
+import { ppocrBackend, ppocrEngine } from '../lib/ocr/ppocr'
 import type { OcrEngine } from '../lib/ocr/types'
 import { summarise, verdict } from '../lib/ocrEval/score'
 import type { RegionResult, Summary } from '../lib/ocrEval/score'
@@ -10,26 +10,51 @@ import { parseNativeExport } from '../lib/nativeImport'
 import { loadPdfDocument, renderPageToBlob } from '../lib/pdf'
 import { cropPageRegion } from '../lib/ocrCrop'
 
+type Lang = 'en' | 'zh-Hans' | 'zh-Hant' | 'unknown'
+
 interface Item {
   id: string
+  lang: Lang
   crop: () => Promise<Blob>
   expected: string
+}
+
+interface LangResult extends RegionResult {
+  lang: Lang
 }
 
 interface RunRecord {
   run: number
   summary: Summary
-  regions: RegionResult[]
+  byLang: Record<string, Summary>
+  regions: LangResult[]
   skipped: number
+}
+
+interface AdapterInfo {
+  webgpu: boolean
+  vendor?: string
+  architecture?: string
+  device?: string
+  description?: string
+  isFallbackAdapter?: boolean
+}
+
+interface Store {
+  engine: string
+  set: string
+  backend: string | null
+  adapter: AdapterInfo | null
+  runs: RunRecord[]
 }
 
 declare global {
   interface Window {
-    __ocrResults?: { engine: string; set: string; runs: RunRecord[] }
+    __ocrResults?: Store
   }
 }
 
-const ENGINES: Record<string, OcrEngine> = { tesseract: tesseractEngine }
+const ENGINES: Record<string, OcrEngine> = { ppocr: ppocrEngine }
 const DOC_EXT = /\.(pdf|png|jpe?g|webp)$/i
 
 const root = document.getElementById('harness-root')!
@@ -51,12 +76,13 @@ function labelled(text: string, control: HTMLElement): HTMLLabelElement {
 const engineSelect = el(
   'select',
   { id: 'engine', ariaLabel: 'Engine' },
-  el('option', { value: 'tesseract', textContent: 'tesseract' }),
+  el('option', { value: 'ppocr', textContent: 'ppocr' }),
 )
 const setSelect = el(
   'select',
   { id: 'set', ariaLabel: 'Set' },
   el('option', { value: 'synthetic', textContent: 'synthetic' }),
+  el('option', { value: 'synthetic-zh', textContent: 'synthetic-zh' }),
   el('option', { value: 'eval', textContent: 'eval' }),
 )
 const exportInput = el('input', {
@@ -99,15 +125,23 @@ function setStatus(state: 'idle' | 'running' | 'done' | 'error', detail = ''): v
   status.textContent = detail ? `${state}: ${detail}` : state
 }
 
-let store: { engine: string; set: string; runs: RunRecord[] } = {
+let store: Store = {
   engine: engineSelect.value,
   set: setSelect.value,
+  backend: null,
+  adapter: null,
   runs: [],
 }
 window.__ocrResults = store
 
 function resetStore(): void {
-  store = { engine: engineSelect.value, set: setSelect.value, runs: [] }
+  store = {
+    engine: engineSelect.value,
+    set: setSelect.value,
+    backend: null,
+    adapter: null,
+    runs: [],
+  }
   window.__ocrResults = store
   results.replaceChildren()
   setStatus('idle')
@@ -128,6 +162,7 @@ async function syntheticItems(): Promise<Item[]> {
   const list = (await res.json()) as { id: string; file: string; expected: string }[]
   return list.map((e) => ({
     id: e.id,
+    lang: 'en',
     expected: e.expected,
     crop: async () => {
       const r = await fetch(base + e.file)
@@ -135,6 +170,49 @@ async function syntheticItems(): Promise<Item[]> {
       return r.blob()
     },
   }))
+}
+
+// Chinese pages with a box per field. Each field is cropped out of its page with the app's own
+// cropPageRegion, so the crop path Suggest text uses is the one measured.
+async function syntheticZhItems(): Promise<Item[]> {
+  const base = '/test-fixtures/ocr-pages-zh/'
+  const res = await fetch(`${base}expected.json`)
+  if (!res.ok) throw new HarnessInputError('synthetic fixture missing')
+  const pages = (await res.json()) as {
+    page: string
+    lang: 'zh-Hans' | 'zh-Hant'
+    fields: { id: string; bbox: [number, number, number, number]; value: string }[]
+  }[]
+  const items: Item[] = []
+  for (const p of pages) {
+    const loaded = (async () => {
+      const r = await fetch(base + p.page)
+      if (!r.ok) throw new HarnessInputError('synthetic page missing')
+      const blob = await r.blob()
+      const bmp = await createImageBitmap(blob)
+      const dims = { blob, width: bmp.width, height: bmp.height }
+      bmp.close()
+      return dims
+    })()
+    for (const f of p.fields) {
+      const [x1, y1, x2, y2] = f.bbox
+      items.push({
+        id: f.id,
+        lang: p.lang,
+        expected: f.value,
+        crop: async () => {
+          const page = await loaded
+          return cropPageRegion(
+            page.blob,
+            { x: x1, y: y1, width: x2 - x1, height: y2 - y1 },
+            page.width,
+            page.height,
+          )
+        },
+      })
+    }
+  }
+  return items
 }
 
 async function evalItems(): Promise<{ items: Item[]; skipped: number }> {
@@ -182,6 +260,7 @@ async function evalItems(): Promise<{ items: Item[]; skipped: number }> {
       seq++
       items.push({
         id: `r${String(seq).padStart(3, '0')}`,
+        lang: 'unknown',
         expected: a.text!,
         crop: async () => {
           const page = await getPage(a.pageIndex)
@@ -195,6 +274,9 @@ async function evalItems(): Promise<{ items: Item[]; skipped: number }> {
 
 function renderResults(rec: RunRecord): void {
   const s = rec.summary
+  const langs = Object.entries(rec.byLang)
+    .map(([l, v]) => `${l} ${v.match}/${v.total}`)
+    .join(', ')
   const table = el(
     'table',
     {},
@@ -205,6 +287,7 @@ function renderResults(rec: RunRecord): void {
         'tr',
         {},
         el('th', { textContent: 'id' }),
+        el('th', { textContent: 'lang' }),
         el('th', { textContent: 'verdict' }),
         el('th', { textContent: 'ms' }),
       ),
@@ -217,6 +300,7 @@ function renderResults(rec: RunRecord): void {
           'tr',
           {},
           el('td', { textContent: r.id }),
+          el('td', { textContent: r.lang }),
           el('td', { textContent: r.verdict }),
           el('td', { textContent: r.ms.toFixed(1) }),
         ),
@@ -226,7 +310,7 @@ function renderResults(rec: RunRecord): void {
   const summary = el('p', { id: 'summary' })
   summary.textContent =
     `run ${rec.run}: total ${s.total}, match ${s.match}, wrong ${s.wrong}, blank ${s.blank}, ` +
-    `median ms ${s.medianMs.toFixed(1)}, skipped ${rec.skipped}`
+    `median ms ${s.medianMs.toFixed(1)}, skipped ${rec.skipped}, by lang: ${langs}, backend ${store.backend ?? '?'}`
   results.replaceChildren(summary, table)
 }
 
@@ -249,6 +333,25 @@ async function warmUp(name: string, engine: OcrEngine): Promise<void> {
   warmed.add(name)
 }
 
+// Which WebGPU adapter is present, so a software one (SwiftShader) is visible in the results.
+async function adapterInfo(): Promise<AdapterInfo> {
+  type Adapter = { info?: Record<string, unknown>; isFallbackAdapter?: boolean }
+  const gpu = (navigator as unknown as { gpu?: { requestAdapter(): Promise<Adapter | null> } }).gpu
+  const adapter = gpu ? await gpu.requestAdapter() : null
+  if (!adapter) return { webgpu: false }
+  const i = adapter.info ?? {}
+  const str = (v: unknown) => (typeof v === 'string' ? v : undefined)
+  return {
+    webgpu: true,
+    vendor: str(i.vendor),
+    architecture: str(i.architecture),
+    device: str(i.device),
+    description: str(i.description),
+    isFallbackAdapter:
+      typeof i.isFallbackAdapter === 'boolean' ? i.isFallbackAdapter : adapter.isFallbackAdapter,
+  }
+}
+
 async function run(): Promise<void> {
   const name = engineSelect.value
   const engine = ENGINES[name]
@@ -258,20 +361,28 @@ async function run(): Promise<void> {
     let items: Item[]
     let skipped = 0
     if (setSelect.value === 'synthetic') items = await syntheticItems()
+    else if (setSelect.value === 'synthetic-zh') items = await syntheticZhItems()
     else ({ items, skipped } = await evalItems())
     await warmUp(name, engine)
-    const regions: RegionResult[] = []
+    const regions: LangResult[] = []
     for (const item of items) {
       const crop = await item.crop()
       const t0 = performance.now()
       const out = await engine.recognize(crop)
       const ms = performance.now() - t0
       // The text goes straight into the scorer; it is not stored, rendered or logged.
-      regions.push({ id: item.id, verdict: verdict(out.text, item.expected), ms })
+      regions.push({ id: item.id, lang: item.lang, verdict: verdict(out.text, item.expected), ms })
+    }
+    store.backend = ppocrBackend()
+    store.adapter = await adapterInfo()
+    const byLang: Record<string, Summary> = {}
+    for (const lang of new Set(regions.map((r) => r.lang))) {
+      byLang[lang] = summarise(regions.filter((r) => r.lang === lang))
     }
     const rec: RunRecord = {
       run: store.runs.length + 1,
       summary: summarise(regions),
+      byLang,
       regions,
       skipped,
     }

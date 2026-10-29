@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "predev": "bash scripts/fetch-ocr-assets.sh",
     "dev": "vite",
+    "prebuild": "bash scripts/fetch-ocr-assets.sh",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "format": "prettier --write .",
@@ -12,22 +14,19 @@
     "preview": "vite preview",
     "test": "vitest run",
     "screenshot": "node docs/capture-screenshot.cjs",
-    "update-pdfjs-assets": "rm -rf public/pdfjs && mkdir -p public/pdfjs && cp -r node_modules/pdfjs-dist/wasm node_modules/pdfjs-dist/cmaps node_modules/pdfjs-dist/standard_fonts node_modules/pdfjs-dist/iccs public/pdfjs/",
-    "update-tessdata": "cp node_modules/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz public/tessdata/eng.traineddata.gz"
+    "update-pdfjs-assets": "rm -rf public/pdfjs && mkdir -p public/pdfjs && cp -r node_modules/pdfjs-dist/wasm node_modules/pdfjs-dist/cmaps node_modules/pdfjs-dist/standard_fonts node_modules/pdfjs-dist/iccs public/pdfjs/"
   },
   "dependencies": {
     "dexie": "^4.4.5",
     "dexie-react-hooks": "^4.4.0",
+    "onnxruntime-web": "1.31.0-dev.20260914-8d85527a0",
     "pdfjs-dist": "^6.2.108",
     "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "tesseract.js": "^7.0.0",
-    "tesseract.js-core": "^7.0.0"
+    "react-dom": "^19.2.8"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.3.3",
-    "@tesseract.js-data/eng": "^1.0.0",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^24.13.3",
@@ -50,10 +49,5 @@
     "vite": "^8.2.0",
     "vitest": "^4.1.10"
   },
-  "packageManager": "pnpm@10.32.1",
-  "pnpm": {
-    "ignoredBuiltDependencies": [
-      "tesseract.js"
-    ]
-  }
+  "packageManager": "pnpm@10.32.1"
 }

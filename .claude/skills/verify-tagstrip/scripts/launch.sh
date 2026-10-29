@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Start Vite from $WORKTREE on $PORT. Records the Vite node pid in $RUN_DIR/vite.pid.
+# MODE=preview (env) serves the production build instead: runs `pnpm run build`, then `vite
+# preview`. Default is the dev server. The dev-only harness pages exist on the dev server only.
 source "$(dirname "${BASH_SOURCE[0]}")/env.sh"
 : "${WORKTREE:?set WORKTREE to the checkout to run}"
 mkdir -p "$RUN_DIR"
@@ -11,7 +13,14 @@ if [ -n "$(port_owner)" ]; then
 fi
 cd "$WORKTREE" || exit 1
 pnpm install --frozen-lockfile > "$RUN_DIR/install.log" 2>&1 || { tail -n 30 "$RUN_DIR/install.log" >&2; echo "launch: pnpm install failed" >&2; exit 1; }
-$(command -v setsid || true) nohup node node_modules/vite/bin/vite.js --port "$PORT" --strictPort --host 127.0.0.1 \
+VITE_CMD=()
+if [ "${MODE:-dev}" = preview ]; then
+  pnpm run build > "$RUN_DIR/build.log" 2>&1 || { tail -n 30 "$RUN_DIR/build.log" >&2; echo "launch: pnpm run build failed" >&2; exit 1; }
+  VITE_CMD=(preview)
+elif [ "${MODE:-dev}" != dev ]; then
+  echo "launch: MODE must be dev or preview" >&2; exit 1
+fi
+$(command -v setsid || true) nohup node node_modules/vite/bin/vite.js "${VITE_CMD[@]}" --port "$PORT" --strictPort --host 127.0.0.1 \
   > "$RUN_DIR/vite.log" 2>&1 < /dev/null &
 echo $! > "$RUN_DIR/vite.pid"
 for _ in $(seq 1 60); do

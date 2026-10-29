@@ -28,3 +28,6 @@ dist-ssr
 
 # proofline ledger, reports and evidence
 .proofline/verification/
+
+# OCR model and runtime files, fetched by scripts/fetch-ocr-assets.sh
+public/ocr/

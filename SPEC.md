@@ -41,13 +41,19 @@ pre-processing step.
     recognize(imageBlob: Blob): Promise<{ text: string; confidence?: number }>;
   }
   ```
-  Ship **Tesseract.js** as the default implementation — purpose-built for this, no WebGPU
-  dependency (works in Safari/Firefox, not just Chrome/Edge), ~10–15MB per language. Add
+  Ship **PP-OCRv6 small** (PaddlePaddle, Apache-2.0) as the default implementation, run through
+  onnxruntime-web: a text detector finds the lines in the cropped region and one recogniser reads
+  English, simplified and traditional Chinese (about 31MB of models, plus the ~25MB onnxruntime
+  WASM). It uses WebGPU when the browser has it and falls back to WASM when it does not (Firefox
+  and Safari mostly). The model and runtime files are served from the app's own origin, fetched at
+  build time by `scripts/fetch-ocr-assets.sh` at pinned, hash-checked revisions and not committed
+  to git. Tesseract.js, the earlier default, was removed in TS-17: on the same crops PP-OCRv6
+  matched more regions (real set 128 vs 114 of 168; synthetic Chinese 17/17 vs 9/17) and ran about
+  4 times faster, and Tesseract `eng` does not read Chinese (TS-16 measurements). Add
   **Transformers.js running Donut** (an "OCR-free Document Understanding Transformer," runs
   client-side via ONNX Runtime, no server) as a selectable alternate engine for people annotating
   messier/rotated real-world scans who are willing to trade a larger model download (tens to a
-  few hundred MB, vs. Tesseract's per-language packs) for better accuracy than classical OCR on
-  hard cases. Making this pluggable rather than picking one avoids relitigating the choice later
+  few hundred MB) for better accuracy than classical OCR on hard cases. Making this pluggable rather than picking one avoids relitigating the choice later
   and gives contributors an obvious place to add a third option.
 
   Two things considered and deliberately excluded from this list:
@@ -87,7 +93,7 @@ adding "polygon support" is up against, and stops scope creep in issues.
 | Styling | Tailwind CSS | Fast iteration; swap later if the project wants a custom design system |
 | Local storage | Dexie.js (thin wrapper over IndexedDB) | Avoid hand-rolling IndexedDB transactions; well-maintained, small, popular for exactly this use case |
 | PDF rendering | pdf.js | Same as prototype, but self-hosted via npm package instead of a CDN `<script>` tag (CDN dependency is not acceptable for an offline-capable open source tool) |
-| OCR (stretch) | Tesseract.js (default) + Transformers.js/Donut (alternate) | Pluggable `OcrEngine` interface — see section 2. Tesseract for lowest footprint/broadest browser support; Donut for better accuracy on messy scans at the cost of a larger model download. Both run fully client-side, no server |
+| OCR (stretch) | PP-OCRv6 (Apache-2.0) via onnxruntime-web (default) + Transformers.js/Donut (alternate) | Pluggable `OcrEngine` interface — see section 2. PP-OCRv6 reads English and Chinese, on WebGPU with a WASM fallback, with files served from the app's origin and fetched at build time. Donut for better accuracy on messy scans at the cost of a larger model download. Both run fully client-side, no server |
 | Text cleanup (further-out stretch) | WebLLM | Optional post-OCR correction pass using a small text LLM. Text-only — cannot read images itself. WebGPU-dependent, so treat as progressive enhancement with a feature check, never a hard requirement |
 | State management | React Context + `useReducer`, or Zustand if it grows unwieldy | Don't reach for Redux for this scope |
 | Testing | Vitest + React Testing Library (unit/component), Playwright (optional, e2e for the canvas interactions) | |
@@ -159,7 +165,7 @@ interface Annotation {
   labelId: string;
   x: number; y: number; width: number; height: number;
   text?: string;              // manual transcription, or accepted/edited OCR suggestion
-  ocrSuggested?: boolean;      // true if `text` came from Tesseract and hasn't been hand-edited yet
+  ocrSuggested?: boolean;      // true if `text` came from OCR and hasn't been hand-edited yet
   createdAt: number;
   updatedAt: number;
 }
@@ -272,7 +278,7 @@ Implement the `OcrEngine` interface from section 2, but make it the *second* tie
 
 This means most digitally-created pages (and mixed documents with a few scanned pages stapled in
 — a common real-world case) get instant, perfect transcription with zero model download, and the
-OCR engines only load/run for pages that actually need them. Ship with Tesseract.js wired up as
+OCR engines only load/run for pages that actually need them. Ship with PP-OCRv6 wired up as
 the OCR fallback; add the Transformers.js/Donut engine as a second implementation once the
 interface is proven. Keep both OCR engines fully optional and lazy-loaded — don't pull their
 WASM/model weights into the initial bundle for people who only want manual transcription, text
@@ -573,7 +579,7 @@ collapses it to an axis-aligned box (lines 58-72), so any skewed table would nee
 re-derived rather than read back.
 
 **Scanned pages are a much larger job.** The `OcrEngine` interface in section 2 returns
-`{ text, confidence }` and nothing else. Word-level boxes from Tesseract would mean widening the one
+`{ text, confidence }` and nothing else. Word-level boxes from an OCR engine would mean widening the one
 abstraction that section deliberately froze to stop the engine choice being relitigated.
 
 **The open question, not decided.** Two different features are hiding in one sentence:

@@ -502,7 +502,7 @@ export function AnnotationCanvas({
   const suggestHint =
     suggestUnavailableReason ??
     (currentPage && currentPage.contentType !== 'text'
-      ? 'The text layer is tried first on every page. This one has none, so Suggest text crops the region and runs Tesseract in this tab — English only, engine and model loaded locally, never from a CDN.'
+      ? 'The text layer is tried first on every page. This one has none, so Suggest text crops the region and runs PP-OCRv6 in this tab — English and Chinese, engine and model loaded from this app, never from a CDN.'
       : 'The text layer is tried first on every page, exactly and for free. OCR only runs when it finds nothing, and its assets are not fetched until then.')
 
   return (

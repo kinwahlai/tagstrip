@@ -38,7 +38,7 @@ discredits everything else on the page.
 4. **Annotate** — select a label (click or hotkey), drag a box on the page, add a transcription.
    Undo/redo, zoom, page navigation, delete.
 5. **Text assist** — "Suggest text" pulls exact text from the PDF text layer when one exists, and
-   falls back to on-device Tesseract OCR for scanned pages.
+   falls back to on-device OCR (PP-OCRv6) for scanned pages.
 6. **Import / export** — TagStrip native JSON, Label Studio JSON, and standalone label-schema JSON.
 
 ## Screens to mock up
@@ -90,8 +90,8 @@ Recorded so they don't get dropped as boilerplate on a future pass:
 - **No CDN fonts.** A design tool recommended a Google Fonts `@import` for this project. Adding it
   would put a third-party request on every load of the page that promises nothing leaves your
   browser — the claim falsified by the page making it. Any font must be self-hosted or a system
-  stack. See `src/lib/ocr/tesseract.ts`, which already overrides tesseract.js's default jsdelivr CDN
-  paths for the same reason.
+  stack. See `src/lib/ocr/ppocr.ts`, which loads its model and runtime files from the app's own
+  origin for the same reason.
 - **Location, not security.** Saying "encrypted" or "secure" would be false: IndexedDB is plaintext
   in the browser profile on disk. The honest claim — the documents never leave the machine — is both
   true and stronger, because the reader can verify it in ten seconds by disconnecting the network.

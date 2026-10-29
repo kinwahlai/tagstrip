@@ -20,11 +20,11 @@ annotation tool is not whether it works, it's whether you're allowed to put the 
 
 **You can verify this rather than take our word for it.** Load the page once, disconnect from the
 network, and keep working — including OCR. pdf.js's worker, its image decoders (OpenJPEG for
-JPEG 2000, JBIG2) along with its CJK cmaps, standard fonts and ICC profiles, the Tesseract worker,
-its WASM core, and the English model weights are all served from this app's own origin; both
-pdf.js and tesseract.js normally expect some of those to come from elsewhere, and TagStrip
-deliberately points them at bundled copies instead (see `src/lib/pdf.ts` and
-`src/lib/ocr/tesseract.ts`).
+JPEG 2000, JBIG2) along with its CJK cmaps, standard fonts and ICC profiles, the OCR runtime
+(onnxruntime-web's WASM) and the PP-OCRv6 model weights are all served from this app's own origin;
+both pdf.js and onnxruntime-web normally expect some of those to come from elsewhere, and TagStrip
+deliberately points them at local copies instead (see `src/lib/pdf.ts` and
+`src/lib/ocr/ppocr.ts`).
 Watch the network tab if you'd rather see it directly.
 
 To be exact about the limit: that holds for as long as the tab stays open. There is no service
@@ -71,9 +71,10 @@ workflows and the integrations. TagStrip exists for the case where that option i
   export produces, so tooling that already reads that format takes TagStrip's output as-is. See
   [`FORMATS.md`](FORMATS.md) for the exact shape of each
 - **"Suggest text"** per box: exact text-layer extraction when the page has one (instant, no
-  model), falling back to on-device OCR ([Tesseract.js](https://tesseract.projectnaptha.com/),
-  English only for now) only when there's no text layer to read from — the OCR engine and its
-  language data are self-hosted (no CDN) and only downloaded the first time OCR is actually needed
+  model), falling back to on-device OCR (PaddleOCR's PP-OCRv6 via onnxruntime-web,
+  English and Chinese, WebGPU with a WASM fallback) only when there's no text layer to read from —
+  the OCR runtime and model are self-hosted (no CDN) and only downloaded the first time OCR is
+  actually needed
 - Undo/redo and a keyboard-driven workflow: a hotkey per label, Delete to remove the selected
   region, and arrow keys that nudge a selected region (Shift+arrow moves it further) or page
   through the document when nothing is selected — Esc deselects before it leaves the canvas
@@ -154,7 +155,7 @@ it for your fork/repo under **Settings → Pages → Source: GitHub Actions**.
 src/
   components/   # UI components (schema editor, project views, annotation canvas)
   db/           # Dexie (IndexedDB) schema and typed data-access functions
-  lib/          # PDF rendering, geometry math, import/export, OCR (native + Label Studio + Tesseract)
+  lib/          # PDF rendering, geometry math, import/export, OCR (native + Label Studio + PP-OCRv6)
   App.tsx       # top-level view switching (Schemas / Projects / annotation canvas)
 ```
 
@@ -181,7 +182,7 @@ different features hide in that one sentence: extraction into a box you drew, wh
 and detecting tables and drawing the boxes for you, which section 2 puts out of it. That is the
 open question, not the implementation.
 M4.5's Transformers.js/Donut engine (an alternate OCR backend for messier scans, per SPEC.md
-section 2) is not yet built — Tesseract.js is the only engine today, behind a pluggable
+section 2) is not yet built — PP-OCRv6 is the only engine today, behind a pluggable
 `OcrEngine` interface a second engine can implement later.
 
 ## Contributing

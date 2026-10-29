@@ -3,8 +3,10 @@
 //   source scripts/env.sh && NODE_PATH=$RUN_DIR/pw/node_modules node scripts/drive.mjs \
 //     --browser chromium --url http://127.0.0.1:$PORT/ --journey suggest-text-ocr \
 //     --evidence <dir> --check-id <id> [--block-offsite]
-// Journey ocr-harness also takes: --engine tesseract --set synthetic|eval
+// Journey suggest-text-ocr also takes: --case en|zh-Hans|zh-Hant|all|text-layer (default all)
+// Journey ocr-harness also takes: --engine ppocr --set synthetic|synthetic-zh|eval
 //     [--eval-export <file> --eval-docs <dir>] [--runs N]
+// --cdp <ws-url> (chromium only) drives an already-running Chrome instead (win-chrome.sh).
 // Exit 0 only if the journey's own assertion passed (for ocr-harness: the harness completed). Result JSON holds verdicts, counts and
 // timings only, never document text.
 import { createRequire } from 'node:module'
@@ -44,54 +46,21 @@ if (!JOURNEYS[journey]) {
   process.exit(2)
 }
 
-const norm = (s) => s.toLowerCase().replace(/[^a-z0-9]/g, '')
+// Letters and digits in any script, so Chinese text is kept (same rule as src/lib/ocrEval/score.ts).
+const norm = (s) => s.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
 
-async function suggestTextOcr(page, ctx, result) {
-  const EXPECTED = 'TAGSTRIP 2026'
-  const t0 = Date.now()
-  await page.goto(args.url)
+const ZH_DIR = path.resolve(path.dirname(new URL(import.meta.url).pathname), '../../../../test-fixtures/ocr-pages-zh')
 
-  // 1. Schema with one label, through the first-run form and the label editor.
-  await page.getByLabel('Schema name').fill('verify schema')
-  await page.getByRole('button', { name: 'Create', exact: true }).click()
-  await page.getByLabel('Name', { exact: true }).fill('field')
-  await page.getByRole('button', { name: 'Add label' }).click()
-  await page.getByRole('heading', { name: 'Labels · 1' }).waitFor()
+// A page image to upload and the box (normalised) to draw the region over.
+function zhCase(page) {
+  const pages = JSON.parse(fs.readFileSync(path.join(ZH_DIR, 'expected.json'), 'utf8'))
+  const p = pages.find((e) => e.page === page)
+  const f = p.fields[0]
+  return { name: page, buffer: fs.readFileSync(path.join(ZH_DIR, page)), bbox: f.bbox, expected: f.value }
+}
 
-  // 2. Project using that schema.
-  await page
-    .getByRole('navigation', { name: 'Schemas and projects' })
-    .getByRole('button', { name: /^Projects/ })
-    .first()
-    .click()
-  await page.getByLabel('Project name').fill('verify project')
-  await page.getByLabel('Label schema').selectOption({ label: 'verify schema' })
-  await page.getByRole('button', { name: 'Create project' }).click()
-  await page.getByRole('heading', { name: /^Documents · 0/ }).waitFor()
-
-  // 3. Synthetic PNG rendered in-page; nothing on disk.
-  const b64 = await page.evaluate((text) => {
-    const c = document.createElement('canvas')
-    c.width = 1000
-    c.height = 240
-    const g = c.getContext('2d')
-    g.fillStyle = '#fff'
-    g.fillRect(0, 0, c.width, c.height)
-    g.fillStyle = '#000'
-    g.font = 'bold 96px Arial, Helvetica, sans-serif'
-    g.textAlign = 'center'
-    g.textBaseline = 'middle'
-    g.fillText(text, c.width / 2, c.height / 2)
-    return c.toDataURL('image/png').split(',')[1]
-  }, EXPECTED)
-  await page
-    .getByRole('region', { name: 'Documents' })
-    .locator('input[type=file]')
-    .setInputFiles({ name: 'synthetic.png', mimeType: 'image/png', buffer: Buffer.from(b64, 'base64') })
-  await page.getByRole('button', { name: /synthetic\.png/ }).click()
-  await page.getByRole('button', { name: 'Open annotation canvas' }).click()
-
-  // 4. Draw one region around the text. Box is computed from the page stage element.
+// Draws a region over a normalised box [x1,y1,x2,y2] of the page image, scrolling it into view.
+async function drawRegion(page, [nx1, ny1, nx2, ny2]) {
   const img = page.getByRole('img', { name: 'Page 1' })
   await img.waitFor()
   await page.waitForFunction(() => {
@@ -99,37 +68,150 @@ async function suggestTextOcr(page, ctx, result) {
     return i && i.complete && i.naturalWidth > 0
   })
   await img.scrollIntoViewIfNeeded()
-  const box = await img.boundingBox()
-  const x0 = box.x + box.width * 0.04
-  const x1 = box.x + box.width * 0.96
-  const y0 = box.y + box.height * 0.15
-  const y1 = box.y + box.height * 0.85
+  let box = await img.boundingBox()
+  const cy = () => box.y + box.height * ((ny1 + ny2) / 2)
+  await page.mouse.move(box.x + box.width / 2, Math.min(Math.max(box.y + 20, 20), 880))
+  for (let i = 0; i < 6 && (cy() < 120 || cy() > 780); i++) {
+    await page.mouse.wheel(0, cy() - 450)
+    await page.waitForTimeout(150)
+    box = await img.boundingBox()
+  }
+  const x0 = box.x + box.width * nx1
+  const x1 = box.x + box.width * nx2
+  const y0 = box.y + box.height * ny1
+  const y1 = box.y + box.height * ny2
   await page.mouse.move(x0, y0)
   await page.mouse.down()
   await page.mouse.move((x0 + x1) / 2, (y0 + y1) / 2, { steps: 8 })
   await page.mouse.move(x1, y1, { steps: 8 })
   await page.mouse.up()
-  await page.getByRole('heading', { name: /Regions on this page · 1/ }).waitFor()
+}
 
-  // 5. Suggest text; OCR runs because an image page has no text layer.
-  const input = page.getByLabel('Transcription for field region')
-  const tOcr = Date.now()
+// Schema and project through the UI. The schema is made only when the browser is still empty, so
+// later cases in one run reuse it.
+async function ensureProject(page, projectName) {
+  await page.goto(args.url)
+  const schemaField = page.getByLabel('Schema name')
+  const nav = page.getByRole('navigation', { name: 'Schemas and projects' })
+  await schemaField.or(nav).first().waitFor()
+  if (await schemaField.count()) {
+    await schemaField.fill('verify schema')
+    await page.getByRole('button', { name: 'Create', exact: true }).click()
+    await page.getByLabel('Name', { exact: true }).fill('field')
+    await page.getByRole('button', { name: 'Add label' }).click()
+    await page.getByRole('heading', { name: 'Labels · 1' }).waitFor()
+  }
+  await nav.getByRole('button', { name: /^Projects/ }).first().click()
+  await page.getByLabel('Project name').fill(projectName)
+  await page.getByLabel('Label schema').selectOption({ label: 'verify schema' })
+  await page.getByRole('button', { name: 'Create project' }).click()
+  await page.getByRole('heading', { name: /^Documents · 0/ }).waitFor()
+}
+
+// Presses Suggest text and waits for the field to fill; returns elapsed ms and the text.
+async function suggestOnce(page) {
+  const t = Date.now()
   await page.getByRole('button', { name: 'Suggest text', exact: true }).click()
   await page.waitForFunction(
     () => {
-      const el = document.querySelector('input[aria-label="Transcription for field region"]')
+      const el = document.querySelector('input[aria-label^="Transcription for "]')
       return el && el.value.trim().length > 0
     },
     null,
     { timeout: 180_000 },
   )
-  result.ocrMs = Date.now() - tOcr
-  const got = await input.inputValue()
-  result.ocrBadgeShown = (await page.getByText('OCR', { exact: true }).count()) > 0
-  result.gotLength = got.length
-  result.match = norm(got) === norm(EXPECTED)
+  return { ms: Date.now() - t, got: await page.getByLabel(/^Transcription for /).inputValue() }
+}
+
+// One OCR case: upload, draw, Suggest text (first call loads the engine), clear, Suggest text
+// again and time that one. Records no document text.
+async function ocrCase(page, name, fileName, upload, bbox, expected) {
+  const c = { case: name, match: false }
+  await ensureProject(page, `verify project ${name}`)
+  await page
+    .getByRole('region', { name: 'Documents' })
+    .locator('input[type=file]')
+    .setInputFiles(upload)
+  await page.getByRole('button', { name: new RegExp(fileName.replace('.', '\\.')) }).click()
+  await page.getByRole('button', { name: 'Open annotation canvas' }).click()
+  await drawRegion(page, bbox)
+  await page.getByRole('heading', { name: /Regions on this page · 1/ }).waitFor()
+  const first = await suggestOnce(page)
+  c.firstMs = first.ms
+  c.ocrBadgeShown = (await page.getByText('OCR', { exact: true }).count()) > 0
+  c.match = norm(first.got) === norm(expected)
+  await page.getByLabel(/^Transcription for /).fill('')
+  const second = await suggestOnce(page)
+  c.secondMs = second.ms
+  c.secondMatch = norm(second.got) === norm(expected)
+  c.backend = await page.evaluate(() => window.__ocrBackend ?? null)
+  c.gotLength = first.got.length
+  return c
+}
+
+async function suggestTextOcr(page, ctx, result) {
+  const which = args.case ?? 'all'
+  if (!['en', 'zh-Hans', 'zh-Hant', 'all', 'text-layer'].includes(which)) throw new Error('bad --case')
+  const t0 = Date.now()
+  if (which === 'text-layer') return textLayerCase(page, result)
+
+  // The English page is generated in-page; nothing on disk.
+  const en = async () => {
+    const EXPECTED = 'TAGSTRIP 2026'
+    await page.goto(args.url)
+    const b64 = await page.evaluate((text) => {
+      const c = document.createElement('canvas')
+      c.width = 1000
+      c.height = 240
+      const g = c.getContext('2d')
+      g.fillStyle = '#fff'
+      g.fillRect(0, 0, c.width, c.height)
+      g.fillStyle = '#000'
+      g.font = 'bold 96px Arial, Helvetica, sans-serif'
+      g.textAlign = 'center'
+      g.textBaseline = 'middle'
+      g.fillText(text, c.width / 2, c.height / 2)
+      return c.toDataURL('image/png').split(',')[1]
+    }, EXPECTED)
+    const upload = { name: 'synthetic.png', mimeType: 'image/png', buffer: Buffer.from(b64, 'base64') }
+    return ocrCase(page, 'en', 'synthetic.png', upload, [0.04, 0.15, 0.96, 0.85], EXPECTED)
+  }
+  const zh = (file, name) => {
+    const z = zhCase(file)
+    return ocrCase(page, name, z.name, { name: z.name, mimeType: 'image/png', buffer: z.buffer }, z.bbox, z.expected)
+  }
+  const runs = {
+    en,
+    'zh-Hans': () => zh('p09.png', 'zh-Hans'),
+    'zh-Hant': () => zh('p11.png', 'zh-Hant'),
+  }
+  const names = which === 'all' ? Object.keys(runs) : [which]
+  result.cases = []
+  for (const n of names) result.cases.push(await runs[n]())
+  result.match = result.cases.every((c) => c.match)
+  result.ocrBadgeShown = result.cases.every((c) => c.ocrBadgeShown)
   result.totalMs = Date.now() - t0
-  return result.match
+  return result.match && result.ocrBadgeShown
+}
+
+// The text-layer path: the bundled sample PDF fills with no OCR tag and no model or runtime file
+// is requested (counted as requests whose path contains /ocr/).
+async function textLayerCase(page, result) {
+  const ocrRequests = []
+  page.on('request', (r) => {
+    if (new URL(r.url()).pathname.includes('/ocr/')) ocrRequests.push(r.url())
+  })
+  await page.goto(args.url)
+  await page.getByRole('button', { name: 'Load the sample document' }).click()
+  await drawRegion(page, [0.05, 0.04, 0.6, 0.12])
+  await page.getByRole('heading', { name: /Regions on this page · 1/ }).waitFor()
+  const { ms, got } = await suggestOnce(page)
+  result.textLayerMs = ms
+  result.gotLength = got.length
+  result.ocrBadgeShown = (await page.getByText('OCR', { exact: true }).count()) > 0
+  result.ocrRequestCount = ocrRequests.length
+  result.match = got.trim().length > 0
+  return result.match && !result.ocrBadgeShown && ocrRequests.length === 0
 }
 
 // Drives the dev-only OCR harness (/harness/ocr.html) and records verdicts and timings only.
@@ -137,10 +219,10 @@ async function suggestTextOcr(page, ctx, result) {
 // --set eval the inputs are real documents: nothing but ids, verdicts and ms is written, and no
 // screenshot is taken.
 async function ocrHarness(page, ctx, result) {
-  const engine = args.engine ?? 'tesseract'
+  const engine = args.engine ?? 'ppocr'
   const set = args.set ?? 'synthetic'
   const runs = Number(args.runs ?? 1)
-  if (engine !== 'tesseract' || !['synthetic', 'eval'].includes(set) || !(runs >= 1)) {
+  if (engine !== 'ppocr' || !['synthetic', 'synthetic-zh', 'eval'].includes(set) || !(runs >= 1)) {
     throw new Error('bad --engine/--set/--runs')
   }
   Object.assign(result, { engine, set, runs: [] })
@@ -185,9 +267,17 @@ async function ocrHarness(page, ctx, result) {
     }
     const all = await page.evaluate(() => window.__ocrResults)
     const rec = all.runs[all.runs.length - 1]
-    result.runs.push({ run: i, summary: rec.summary, skipped: rec.skipped, regions: rec.regions })
+    result.runs.push({
+      run: i,
+      summary: rec.summary,
+      byLang: rec.byLang,
+      skipped: rec.skipped,
+      regions: rec.regions,
+    })
+    result.backend = all.backend
+    result.adapter = all.adapter
   }
-  if (set === 'synthetic') result.screenshotTaken = true
+  if (set !== 'eval') result.screenshotTaken = true
   result.totalRegions = result.runs[0].summary.total
   return true
 }
@@ -199,7 +289,11 @@ const viewport = { width: 1440, height: 900 }
 let browser = null
 let profileDir = null
 let context
-if (browserName === 'webkit') {
+if (args.cdp && browserName === 'chromium') {
+  // An already-running Chrome (Windows-side, for hardware WebGPU from WSL; see win-chrome.sh).
+  browser = await playwright.chromium.connectOverCDP(args.cdp)
+  context = await browser.newContext({ viewport })
+} else if (browserName === 'webkit') {
   profileDir = fs.mkdtempSync(path.join(runDir, 'profile-'))
   context = await playwright.webkit.launchPersistentContext(profileDir, { headless: true, viewport })
 } else {
@@ -221,7 +315,7 @@ if (blockOffsite) {
 const page = await context.newPage()
 const stem =
   journey === 'ocr-harness'
-    ? `${checkId}-ocr-harness-${args.engine ?? 'tesseract'}-${args.set ?? 'synthetic'}-${browserName}`
+    ? `${checkId}-ocr-harness-${args.engine ?? 'ppocr'}-${args.set ?? 'synthetic'}-${browserName}`
     : `${checkId}-${journey}-${browserName}`
 const result = { journey, browser: browserName, checkId, blockOffsite, passed: false, match: false }
 let error = null
