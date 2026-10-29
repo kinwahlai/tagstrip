@@ -122,3 +122,29 @@ predictions, SPEC changes. Reason: a build is a separate decision after this res
 - **Q3.** New branch `TS-16-florence-boxes` from main.
 - **Q4.** The decision rule's numbers as written.
 - **Q5.** M1 and M2 are checkpoints.
+
+## M1 results (verified at b7255a7, 2026-10-29)
+
+Verifier report `.proofline/verification/TS-16-florence-boxes/M1-b7255a7/` (gitignored, Mac). All
+three checks pass and count; each mutant caught. Headless Chromium, Apple Metal-3 hardware WebGPU,
+2 runs with identical counts, 0 offsite requests. 53 synthetic fields (en 36, zh-Hans 8, zh-Hant 9).
+
+- **Arm A (true values), box hits at IoU 0.5:** PP-OCRv6 44/53 (en 28/36, zh 16/17), 0.2 s/page;
+  Florence-2 33/53, 1.3 s/page median.
+- **Arm B (LFM values):** passes the rule for both. Boxes PP-OCRv6 36/53 (68%), Florence-2 34/53
+  (64%). Values 43 match / 10 wrong (18.9%, limit 20%) / 0 blank; **8 of the 10 wrong are
+  Chinese** (8/17 wrong; English 2/36).
+- **Replace Tesseract:** PP-OCRv6 passes: en 36/36, zh 17/17, 0 wrong, median 9.6 ms/region.
+  Tesseract (eng+chi_sim+chi_tra) en 36/36, zh 9/17, 44 ms. Florence-2 fails: en 3/36, zh 0/17,
+  575 ms (verifier's inference, not investigated: a crop-input problem in the harness).
+- **Arm C (grounding by name):** 0/53.
+- **Falsification:** browser LFM 34/36 English versus 36/36 in Python, so the browser port is
+  slightly below the reference. Most English box misses are lines that include the printed field
+  name, as predicted.
+- Deviations: Florence-2 decoder at q4 (q4f16 fails to load in this onnxruntime); PP-OCRv6 on an
+  own pipeline (DB postprocess, CTC decode), not PaddleOCR's SDK; `parseDate` accepts `YYYY年M月D日`.
+
+## M2 decided (Darren, 2026-10-29)
+
+**PP-OCRv6 only**: Florence-2 lost every comparison in M1. Run on the Windows machine
+(`WINDOWS-M2.md`).

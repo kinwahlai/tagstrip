@@ -42,4 +42,32 @@ No billed checks: models run locally once downloaded.
 - Broken by: shifting every line box (both models) by 0.1 of the page before scoring; arm A box hits must
   drop and the verdict must turn to fail.
 
-## Checks: M2 (real set), written before M2 starts, after Q1
+## Checks: M2 (real set, PP-OCRv6 only)
+
+Drafted 2026-10-29. Agreed with the human on: (pending; Darren agrees at the start of the Windows
+session, before any run)
+
+Runs on Darren's WSL machine, where the real set lives. Real applicants' documents: evidence holds
+counts, ids, verdicts, IoUs and times only; no text, no filenames, no screenshots. Eval pages have
+language `unknown`, so the Chinese bar is not judged in M2.
+
+### M2-1: lint, build, full test suite at the M2 commit (command check)
+
+- Run: pnpm install --frozen-lockfile && pnpm run lint && pnpm run build && pnpm test
+- Observable outcome: all three exit 0.
+- Broken by: a type error in the matcher.
+
+### M2-2: the real-set run, on hardware WebGPU (verifier check)
+
+- Action: via the verify skill's predict-harness journey, set `eval` (TS-12 Q2's export and source
+  documents), line model PP-OCRv6, arms A, B and T, models cached, `--block-offsite`, two runs.
+  The browser must report a hardware adapter (the RTX 4070), not SwiftShader or another fallback;
+  WSL's own Chromium only has SwiftShader (TS-12), so this needs a Windows-side browser.
+- Observable outcome: per arm and run, box hits at 0.5 (and 0.3), values match / wrong / blank,
+  seconds per page or per region, unstable fields, skipped pages, adapter, offsite request count.
+  The verifier judges, from the counts: arm B against the decision rule (box hits at least half,
+  wrong at most a fifth, at most 30 s per page, no network once cached); PP-OCRv6 against
+  Tesseract on the same crops (matches at least as many, no more wrong, at most 2 s per region).
+  Arm A is reported, not judged.
+- Broken by: shifting every PP-OCRv6 line box by 0.1 of the page before scoring; arm A box hits
+  must drop and the arm B verdict must turn to fail (one run is enough for the mutant).
