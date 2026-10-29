@@ -39,5 +39,6 @@ Opened 2026-10-29. Answers: Darren. Blocks: any TS-16 code.
 
 Combined test: Florence-2 text-line boxes plus browser LFM values, and Florence versus Tesseract
 on region crops. Drafted `.proofline/tickets/TS-16-florence-boxes/` (TICKET.md, CHECKS.md).
-Q1 to Q5 answered and M1 checks agreed 2026-10-29; M1 in progress on branch
-`TS-16-florence-boxes`. M2 (real set) deferred to the Windows machine. Follows O4 (TS-12).
+M1 (synthetic) verified at b7255a7, 2026-10-29: PP-OCRv6 wins (see TICKET.md "M1 results").
+Branch `TS-16-florence-boxes`, pushed, not merged. Next: M2, PP-OCRv6 only, on the WSL machine
+with `WINDOWS-M2.md`; Darren agrees the M2 checks there first. Follows O4 (TS-12).
