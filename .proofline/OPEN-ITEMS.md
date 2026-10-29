@@ -22,14 +22,6 @@ offline passport pre-label script instead (`~/projects/passport-prelabel/`, WSL 
 M1 code is parked on branch `ts-12-predict-fields`. Resume only if the in-app feature is wanted
 again; see TICKET.md "Outcome".
 
-## O6. The OCR tag shows on a region whose OCR returned no text
-
-Opened 2026-10-28. Answers: Darren. Blocks: nothing.
-
-Seen by the TS-13 verifier on mutant d61f1f8 (OCR forced to return empty text): the region kept the
-"OCR" tag with an empty transcription. Not checked against the real engine. Decide whether an empty
-suggestion should carry the tag.
-
 ## O8. TS-14 is not tested in Firefox or Safari
 
 Opened 2026-10-28. Answers: Darren. Blocks: nothing.
@@ -40,3 +32,16 @@ at risk: field focus after clicking a box (Safari does not focus buttons on clic
 timing differs) and the `[` `]` keys on non-US keyboard layouts. To test: run the TS-14 checks
 (`.proofline/tickets/TS-14-annotate-flow/CHECKS.md`) with the verify skill's `--browser firefox`
 and `--browser webkit`, or by hand in each browser.
+
+## O10. TS-16, Florence-2 and PP-OCRv6 boxes with browser LFM values
+
+Opened 2026-10-29. Answers: Darren. Blocks: nothing.
+
+Shelved 2026-10-30. Darren still wants prediction with automatic boxes in future. M1 (synthetic)
+verified at b7255a7: PP-OCRv6 beat Florence-2 on boxes. M2 (real set, 168 fields on 34 pages,
+Windows Chrome with hardware WebGPU) verified at c0ef9bf: with LFM values, boxes hit 14/168 and
+values were wrong on 133/168, so it fails its rule; mostly the value model is what fails. Even with
+true values, boxes hit only 65/168 at the 0.5 threshold. The PP-OCRv6 finding went to main as TS-17. All work,
+including the ticket folder and `WINDOWS-M2.md`, is on branch `TS-16-florence-boxes` (pushed, not
+merged); resume from its TICKET.md "M2 results". Next decision if resumed: the value model. Follows
+O4 (TS-12).

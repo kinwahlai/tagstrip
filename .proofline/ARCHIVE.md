@@ -11,6 +11,14 @@ region drawing in Firefox, not the app). Darren pushed 84f7ba1 to main on 2026-1
 `.proofline/tickets/TS-17-ppocr-suggest-text/TICKET.md`, "M1 results". Not measured: PP-OCRv6 on the
 real set without a GPU (Firefox and Safari run it on WASM).
 
+## O6. OCR tag on a region whose OCR returned no text (closed 2026-10-29)
+
+Decided by Darren, 2026-10-29: an empty OCR result keeps the "OCR" tag. Reason not stated; Claude's
+reading: the tag records that OCR ran, and an empty result is still an OCR result. No code change; current
+behaviour (seen by the TS-13 verifier on mutant d61f1f8) stands. Not observed against the real
+engine, but the decision covers it either way. First recorded on branch `TS-16-florence-boxes`
+(f89ff93); brought to main when TS-16 was shelved, 2026-10-30.
+
 ## O9. TS-15, stable document order (closed 2026-10-28)
 
 Done and merged at 44f23bf. Every document list (project list, annotate rail, `[` `]`, both
