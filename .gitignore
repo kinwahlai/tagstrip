@@ -28,3 +28,6 @@ dist-ssr
 
 # proofline ledger, reports and evidence
 .proofline/verification/
+
+# Local model files and ORT WASM for the predict harness (scripts/fetch-lfm-vl.sh, scripts/fetch-florence.sh); never committed
+predict-models/

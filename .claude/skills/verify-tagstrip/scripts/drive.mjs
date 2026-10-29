@@ -3,6 +3,8 @@
 //   source scripts/env.sh && NODE_PATH=$RUN_DIR/pw/node_modules node scripts/drive.mjs \
 //     --browser chromium --url http://127.0.0.1:$PORT/ --journey suggest-text-ocr \
 //     --evidence <dir> --check-id <id> [--block-offsite]
+// Journey predict-harness takes: --set synthetic|eval [--eval-export <file> --eval-docs <dir>]
+//     [--arm all|A|B|C|T] [--line-model all|florence|ppocr] [--runs N] [--predictions model|truth|shifted] [--headed]; WEBGPU_ARGS env overrides the Chromium flags.
 // Journey ocr-harness also takes: --engine tesseract --set synthetic|eval
 //     [--eval-export <file> --eval-docs <dir>] [--runs N]
 // Exit 0 only if the journey's own assertion passed (for ocr-harness: the harness completed). Result JSON holds verdicts, counts and
@@ -38,6 +40,7 @@ const playwright = require('playwright')
 const JOURNEYS = {
   'suggest-text-ocr': suggestTextOcr,
   'ocr-harness': ocrHarness,
+  'predict-harness': predictHarness,
 }
 if (!JOURNEYS[journey]) {
   console.error(`unknown journey "${journey}"; known: ${Object.keys(JOURNEYS).join(', ')}`)
@@ -132,6 +135,26 @@ async function suggestTextOcr(page, ctx, result) {
   return result.match
 }
 
+// Recursive, following symlinks: real sets are split into subfolders. The harness matches
+// documents by bare filename, so a name seen twice would be ambiguous; refuse it. Errors give
+// counts only, never names, because eval sets hold real documents.
+function collectEvalDocs(docsDir) {
+  const docs = []
+  const walk = (dir) => {
+    for (const name of fs.readdirSync(dir)) {
+      const p = path.join(dir, name)
+      const st = fs.statSync(p)
+      if (st.isDirectory()) walk(p)
+      else if (st.isFile() && /\.(pdf|png|jpe?g|webp)$/i.test(name)) docs.push(p)
+    }
+  }
+  walk(docsDir)
+  if (docs.length === 0) throw new Error('no documents in --eval-docs')
+  const dupes = docs.length - new Set(docs.map((p) => path.basename(p))).size
+  if (dupes > 0) throw new Error(`--eval-docs has ${dupes} duplicate filename(s) across subfolders`)
+  return docs
+}
+
 // Drives the dev-only OCR harness (/harness/ocr.html) and records verdicts and timings only.
 // Passes when every run reached data-state=done; it does not judge the decision rule. With
 // --set eval the inputs are real documents: nothing but ids, verdicts and ms is written, and no
@@ -151,22 +174,7 @@ async function ocrHarness(page, ctx, result) {
     const exportPath = args['eval-export']
     const docsDir = args['eval-docs']
     if (!exportPath || !docsDir) throw new Error('--set eval needs --eval-export and --eval-docs')
-    // Recursive, following symlinks: real sets are split into subfolders. The harness matches
-    // documents by bare filename, so a name seen twice would be ambiguous; refuse it. Errors
-    // give counts only, never names, because eval sets hold real documents.
-    const docs = []
-    const walk = (dir) => {
-      for (const name of fs.readdirSync(dir)) {
-        const p = path.join(dir, name)
-        const st = fs.statSync(p)
-        if (st.isDirectory()) walk(p)
-        else if (st.isFile() && /\.(pdf|png|jpe?g|webp)$/i.test(name)) docs.push(p)
-      }
-    }
-    walk(docsDir)
-    if (docs.length === 0) throw new Error('no documents in --eval-docs')
-    const dupes = docs.length - new Set(docs.map((p) => path.basename(p))).size
-    if (dupes > 0) throw new Error(`--eval-docs has ${dupes} duplicate filename(s) across subfolders`)
+    const docs = collectEvalDocs(docsDir)
     await page.getByLabel('Export JSON', { exact: true }).setInputFiles(exportPath)
     await page.getByLabel('Source documents', { exact: true }).setInputFiles(docs)
   }
@@ -192,10 +200,80 @@ async function ocrHarness(page, ctx, result) {
   return true
 }
 
+// Drives the dev-only predict-fields harness (/harness/predict.html): verdicts, IoUs, counts,
+// times and the WebGPU adapter info only, never values, labels' values or filenames. Passes when
+// every run reached data-state=done; it does not judge the decision rule. --predictions
+// truth|shifted replaces the model's output with the ground truth (or boxes shifted by half
+// their width) to check the scorer without the model (M1-3). With --set eval the inputs are real
+// documents: no screenshot, and driver errors are replaced by a generic message.
+async function predictHarness(page, ctx, result) {
+  const set = args.set ?? 'synthetic'
+  const predictions = args.predictions ?? 'model'
+  const runs = Number(args.runs ?? 1)
+  const arm = args.arm ?? 'all'
+  const lineModel = args['line-model'] ?? 'all'
+  if (!['all', 'A', 'B', 'C', 'T'].includes(arm)) throw new Error('bad --arm')
+  if (!['all', 'florence', 'ppocr'].includes(lineModel)) throw new Error('bad --line-model')
+  if (!['synthetic', 'eval'].includes(set) || !['model', 'truth', 'shifted'].includes(predictions) || !(runs >= 1)) {
+    throw new Error('bad --set/--predictions/--runs')
+  }
+  Object.assign(result, { set, predictions, arm, lineModel, runs: [] })
+  await page.goto(new URL('harness/predict.html', args.url).href)
+  await page.getByLabel('Set', { exact: true }).selectOption(set)
+  await page.getByLabel('Predictions', { exact: true }).selectOption(predictions)
+  await page.getByLabel('Arm', { exact: true }).selectOption(arm)
+  await page.getByLabel('Line model', { exact: true }).selectOption(lineModel)
+  if (set === 'eval') {
+    const exportPath = args['eval-export']
+    const docsDir = args['eval-docs']
+    if (!exportPath || !docsDir) throw new Error('--set eval needs --eval-export and --eval-docs')
+    const docs = collectEvalDocs(docsDir)
+    await page.getByLabel('Export JSON', { exact: true }).setInputFiles(exportPath)
+    await page.getByLabel('Source documents', { exact: true }).setInputFiles(docs)
+  }
+  const statusEl = page.locator('#status')
+  for (let i = 1; i <= runs; i++) {
+    await page.getByRole('button', { name: 'Run', exact: true }).click()
+    // Model load can take minutes; one hour per run is the ceiling.
+    await page.waitForFunction(
+      () => ['done', 'error'].includes(document.querySelector('#status')?.dataset.state),
+      null,
+      { timeout: 3_600_000 },
+    )
+    const state = await statusEl.getAttribute('data-state')
+    if (state !== 'done') {
+      const errName = (await statusEl.getAttribute('data-error')) ?? ''
+      // keep the adapter in the evidence even when the run failed (a software adapter is the usual cause)
+      result.adapter = (await page.evaluate(() => window.__predictResults))?.adapter ?? null
+      // the harness's own status text is generic; data-error is an error class name
+      throw new Error(`run ${i} ended in state ${state}: ${(await statusEl.textContent()).slice(0, 80)} [${errName.slice(0, 60)}]`)
+    }
+    const all = await page.evaluate(() => window.__predictResults)
+    // one record per arm (and per line model for A and B) for this click, each with summary,
+    // byLang (en, zh-Hans, zh-Hant), skipped and pages
+    const recs = all.runs.filter((r) => r.run === i)
+    result.adapter = all.adapter
+    result.ppocrBackend = all.ppocrBackend
+    result.runs.push({
+      run: i,
+      arms: recs.map(({ arm: a, model, summary, byLang, skipped, pages }) => ({ arm: a, model, summary, byLang, skipped, pages })),
+    })
+  }
+  if (set === 'synthetic') result.screenshotTaken = true
+  result.totalFields = result.runs[0].arms[0].summary.total ?? null
+  return true
+}
+
 // Fresh state every run. WebKit cannot store Blobs in IndexedDB in an ephemeral (in-memory)
 // context ("Error preparing Blob/File data to be stored in object store"), so it gets a
 // persistent context on a brand-new temp profile dir, deleted at the end. Still empty at start.
 const viewport = { width: 1440, height: 900 }
+// macOS: Metal via ANGLE gives a hardware adapter headless; the Vulkan flag gave SwiftShader there.
+const DEFAULT_WEBGPU_ARGS =
+  process.platform === 'darwin'
+    ? '--enable-unsafe-webgpu --use-angle=metal --ignore-gpu-blocklist'
+    : '--enable-unsafe-webgpu --enable-features=Vulkan'
+const WEBGPU_ARGS = (process.env.WEBGPU_ARGS ?? DEFAULT_WEBGPU_ARGS).split(' ').filter(Boolean)
 let browser = null
 let profileDir = null
 let context
@@ -203,7 +281,10 @@ if (browserName === 'webkit') {
   profileDir = fs.mkdtempSync(path.join(runDir, 'profile-'))
   context = await playwright.webkit.launchPersistentContext(profileDir, { headless: true, viewport })
 } else {
-  browser = await playwright[browserName].launch({ headless: true })
+  const launchOpts = { headless: args.headed !== true }
+  // WebGPU on Linux Chromium needs these (found by experiment, see features/predict-harness.md).
+  if (journey === 'predict-harness' && browserName === 'chromium') launchOpts.args = WEBGPU_ARGS
+  browser = await playwright[browserName].launch(launchOpts)
   context = await browser.newContext({ viewport })
 }
 const appOrigin = new URL(args.url).origin
@@ -222,7 +303,9 @@ const page = await context.newPage()
 const stem =
   journey === 'ocr-harness'
     ? `${checkId}-ocr-harness-${args.engine ?? 'tesseract'}-${args.set ?? 'synthetic'}-${browserName}`
-    : `${checkId}-${journey}-${browserName}`
+    : journey === 'predict-harness'
+      ? `${checkId}-predict-harness-${args.set ?? 'synthetic'}-${browserName}`
+      : `${checkId}-${journey}-${browserName}`
 const result = { journey, browser: browserName, checkId, blockOffsite, passed: false, match: false }
 let error = null
 try {
@@ -231,12 +314,12 @@ try {
   error = e
   result.error = String(e.message ?? e).split('\n')[0].slice(0, 200)
   // Playwright errors can quote file paths; with real data only this driver's own messages stay.
-  if (journey === 'ocr-harness' && args.set === 'eval' && !/^(run \d+ ended|--set eval|no documents|bad --)/.test(result.error)) {
+  if (/-harness$/.test(journey) && args.set === 'eval' && !/^(run \d+ ended|--set eval|no documents|--eval-docs has \d+ duplicate|bad --)/.test(result.error)) {
     result.error = 'driver error (details withheld for the eval set)'
   }
 }
 // ocr-harness with real data: no screenshot (see features/README.md, Real data).
-const noShot = journey === 'ocr-harness' && args.set === 'eval'
+const noShot = /-harness$/.test(journey) && args.set === 'eval'
 if (!noShot) {
   try {
     await page.screenshot({ path: path.join(evidence, `${stem}.png`) })

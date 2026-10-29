@@ -1,0 +1,4 @@
+{
+  "comment": "The one prompt for field prediction. Read by src/lib/predict/lfmVl.ts and scripts/predict-reference.py. {fields} is replaced by the comma-separated field names. Frozen at TS-12 M1.",
+  "template": "Detect all instances of: the printed value of each of these fields: {fields}. Response must be a JSON array: [{\"label\": ..., \"value\": ..., \"bbox\": [x1, y1, x2, y2]}, ...]. Coordinates are normalized to [0,1] and given to three decimal places. For each field give \"label\" (the field name as listed), \"value\" (the text printed next to the field name) and \"bbox\" (a tight box around that value text only, not the field name). Give one entry per field found and omit fields that are not present."
+}

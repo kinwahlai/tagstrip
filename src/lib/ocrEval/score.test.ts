@@ -9,6 +9,25 @@ describe('normalise', () => {
   it('is Unicode-aware', () => {
     expect(normalise('Zoë Müller 三')).toBe('zoëmüller三')
   })
+  it('keeps Chinese characters and digits, drops full-width punctuation and spaces', () => {
+    expect(normalise('临海市新华路19号 506室')).toBe('临海市新华路19号506室')
+    expect(normalise('2012年5月23日')).toBe('2012年5月23日')
+    expect(normalise('黄海燕，')).toBe('黄海燕')
+    expect(normalise('，。 ')).toBe('')
+  })
+  it('keeps English results unchanged', () => {
+    expect(normalise('Mara Brandt')).toBe('marabrandt')
+    expect(normalise('1975-04-22')).toBe('19750422')
+  })
+})
+
+describe('verdict on Chinese values', () => {
+  it('matches the same characters and tells simplified from traditional', () => {
+    expect(verdict('黄海燕', '黄海燕')).toBe('match')
+    expect(verdict('黄 海燕。', '黄海燕')).toBe('match')
+    expect(verdict('黃海燕', '黄海燕')).toBe('wrong')
+    expect(verdict('。', '黄海燕')).toBe('blank')
+  })
 })
 
 describe('verdict', () => {

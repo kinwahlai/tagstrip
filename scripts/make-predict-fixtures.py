@@ -1,0 +1,179 @@
+"""Generates test-fixtures/predict-fields/: 8 synthetic certificate-like pages plus expected.json.
+
+All names, numbers, dates and places are invented. Each page prints 3-5 labelled fields (label
+in small grey type, value in larger dark type to its right) at random but recorded positions;
+expected.json holds the VALUE's box, normalised to 0..1, for each field.
+Run with any Python that has Pillow:
+    /home/snaic-darren/projects/lfm-extract-test/.venv/bin/python -I scripts/make-predict-fixtures.py
+Deterministic (fixed seed); regenerating leaves the committed files unchanged given the same fonts.
+
+Chinese pages (p09-p12: two simplified, two traditional; invented values) are a separate step so
+the English pages stay byte-identical. It needs macOS CJK fonts (Songti SC/TC and Heiti SC/TC
+under /System/Library/Fonts) and rewrites expected.json with a "lang" per page (en, zh-Hans,
+zh-Hant); the English entries and PNGs are kept:
+    python3 scripts/make-predict-fixtures.py zh
+"""
+
+import json
+import random
+import sys
+from pathlib import Path
+
+from PIL import Image, ImageDraw, ImageFont
+
+OUT = Path(__file__).resolve().parent.parent / "test-fixtures" / "predict-fields"
+LIB = "/usr/share/fonts/truetype/liberation/"
+W, H = 1000, 1300
+FIRST = ["Mara", "Joel", "Ines", "Tomas", "Wen", "Aroha", "Lucas", "Priya", "Elena", "Kofi", "Sana", "Ivo"]
+LAST = ["Brandt", "Okafor", "Lindqvist", "Marchetti", "Tan", "Haddad", "Novak", "Silva", "Kerrigan", "Doyle"]
+PLACES = ["Rivermouth", "Saint Alden", "Northfield", "Port Kessel", "Little Harwick", "Eastbrook", "Valmora"]
+MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"]
+LABELS = ["Full name", "Certificate number", "Date of marriage", "Place", "Officiant name"]
+
+
+def value_for(rng, label):
+    if label in ("Full name", "Officiant name"):
+        return f"{rng.choice(FIRST)} {rng.choice(LAST)}"
+    if label == "Certificate number":
+        return f"{rng.choice('ABCDEFGH')}{rng.choice('KMNPRSTW')}-{rng.randint(10000, 99999)}"
+    if label == "Place":
+        return rng.choice(PLACES)
+    d, m, y = rng.randint(1, 28), rng.randint(1, 12), rng.randint(1962, 2019)
+    style = rng.choice(["long", "iso", "dmy"])
+    if style == "long":
+        return f"{d} {MONTHS[m - 1]} {y}"
+    if style == "iso":
+        return f"{y}-{m:02d}-{d:02d}"
+    return f"{d:02d}/{m:02d}/{y}"
+
+
+def main():
+    rng = random.Random(20261028)
+    OUT.mkdir(parents=True, exist_ok=True)
+    title_font = ImageFont.truetype(LIB + "LiberationSerif-Bold.ttf", 44)
+    label_font = ImageFont.truetype(LIB + "LiberationSans-Regular.ttf", 24)
+    value_fonts = [
+        ImageFont.truetype(LIB + "LiberationSerif-Regular.ttf", 38),
+        ImageFont.truetype(LIB + "LiberationSans-Bold.ttf", 34),
+        ImageFont.truetype(LIB + "LiberationMono-Regular.ttf", 34),
+    ]
+    expected = []
+    for n in range(1, 9):
+        img = Image.new("RGB", (W, H), (252, 250, 244))
+        d = ImageDraw.Draw(img)
+        d.rectangle([30, 30, W - 30, H - 30], outline=(90, 70, 40), width=4)
+        d.rectangle([44, 44, W - 44, H - 44], outline=(150, 130, 90), width=1)
+        title = rng.choice(["Certificate of Marriage", "Marriage Record", "Register Extract"])
+        tw = d.textlength(title, font=title_font)
+        d.text(((W - tw) / 2, 90), title, font=title_font, fill=(40, 30, 20))
+        labels = rng.sample(LABELS, rng.randint(3, 5))
+        rows = sorted(rng.sample(range(0, 9), len(labels)))
+        vfont = rng.choice(value_fonts)
+        fields = []
+        for label, row in zip(labels, rows):
+            y = 240 + row * 110 + rng.randint(-15, 15)
+            x = rng.randint(80, 200)
+            d.text((x, y + 8), label, font=label_font, fill=(110, 110, 110))
+            vx = x + int(d.textlength(label, font=label_font)) + rng.randint(30, 80)
+            value = value_for(rng, label)
+            x1, y1, x2, y2 = d.textbbox((vx, y), value, font=vfont)
+            d.text((vx, y), value, font=vfont, fill=(15, 15, 40))
+            pad = 3
+            box = [x1 - pad, y1 - pad, x2 + pad, y2 + pad]
+            fields.append({
+                "label": label,
+                "value": value,
+                "bbox": [round(box[0] / W, 4), round(box[1] / H, 4), round(box[2] / W, 4), round(box[3] / H, 4)],
+            })
+        name = f"p{n:02d}.png"
+        img.save(OUT / name, optimize=True)
+        expected.append({"page": name, "lang": "en", "fields": fields})
+    (OUT / "expected.json").write_text(json.dumps(expected, indent=2) + "\n")
+
+
+SONGTI = "/System/Library/Fonts/Supplemental/Songti.ttc"
+HEITI = "/System/Library/Fonts/STHeiti Medium.ttc"
+ZH = {
+    "zh-Hans": {
+        "title": ["结婚证书", "婚姻登记证明"],
+        "labels": ["姓名", "证件号码", "出生日期", "住址", "签发人"],
+        "surnames": ["王", "李", "张", "刘", "陈", "杨", "赵", "黄", "周", "吴"],
+        "given": ["伟明", "秀英", "建国", "丽娜", "志强", "海燕", "文杰", "雅琴"],
+        "streets": ["江岸路", "东风大道", "和平街", "青云巷", "新华路"],
+        "cities": ["江城市", "临海市", "安平县", "青山区"],
+        "fonts": [(SONGTI, 6), (HEITI, 1)],  # Songti SC Regular, Heiti SC Medium
+        "label_font": (HEITI, 1),
+    },
+    "zh-Hant": {
+        "title": ["結婚證書", "婚姻登記證明"],
+        "labels": ["姓名", "證件號碼", "出生日期", "住址", "簽發人"],
+        "surnames": ["王", "李", "張", "劉", "陳", "楊", "趙", "黃", "周", "吳"],
+        "given": ["偉明", "秀英", "建國", "麗娜", "志強", "海燕", "文傑", "雅琴"],
+        "streets": ["江岸路", "東風大道", "和平街", "青雲巷", "新華路"],
+        "cities": ["江城市", "臨海市", "安平縣", "青山區"],
+        "fonts": [(SONGTI, 7), (HEITI, 0)],  # Songti TC Regular, Heiti TC Medium
+        "label_font": (HEITI, 0),
+    },
+}
+
+
+def zh_value(rng, cfg, label):
+    if label in ("姓名", "簽發人", "签发人"):
+        return rng.choice(cfg["surnames"]) + rng.choice(cfg["given"])
+    if label in ("證件號碼", "证件号码"):
+        return f"{rng.choice('ABCDEFGH')}{rng.choice('KMNPRSTW')}-{rng.randint(10000, 99999)}"
+    if label in ("住址",):
+        return f"{rng.choice(cfg['cities'])}{rng.choice(cfg['streets'])}{rng.randint(2, 99)}号{rng.randint(1, 9)}0{rng.randint(1, 8)}室" if cfg is ZH["zh-Hans"] else f"{rng.choice(cfg['cities'])}{rng.choice(cfg['streets'])}{rng.randint(2, 99)}號{rng.randint(1, 9)}0{rng.randint(1, 8)}室"
+    y, m, d = rng.randint(1962, 2019), rng.randint(1, 12), rng.randint(1, 28)
+    return f"{y}年{m}月{d}日" if rng.random() < 0.6 else f"{y}-{m:02d}-{d:02d}"
+
+
+def zh_pages():
+    rng = random.Random(20261029)
+    expected = json.loads((OUT / "expected.json").read_text())
+    expected = [p for p in expected if not p.get("lang", "en").startswith("zh")]
+    for p in expected:
+        p["lang"] = "en"
+    n = 8
+    for lang in ("zh-Hans", "zh-Hans", "zh-Hant", "zh-Hant"):
+        n += 1
+        cfg = ZH[lang]
+        img = Image.new("RGB", (W, H), (252, 250, 244))
+        d = ImageDraw.Draw(img)
+        d.rectangle([30, 30, W - 30, H - 30], outline=(90, 70, 40), width=4)
+        d.rectangle([44, 44, W - 44, H - 44], outline=(150, 130, 90), width=1)
+        title_font = ImageFont.truetype(SONGTI, 52, index=cfg["fonts"][0][1])
+        label_font = ImageFont.truetype(cfg["label_font"][0], 26, index=cfg["label_font"][1])
+        path, idx = cfg["fonts"][n % 2]
+        vfont = ImageFont.truetype(path, 38, index=idx)
+        title = rng.choice(cfg["title"])
+        tw = d.textlength(title, font=title_font)
+        d.text(((W - tw) / 2, 90), title, font=title_font, fill=(40, 30, 20))
+        labels = rng.sample(cfg["labels"], rng.randint(3, 5))
+        rows = sorted(rng.sample(range(0, 9), len(labels)))
+        fields = []
+        for label, row in zip(labels, rows):
+            y = 240 + row * 110 + rng.randint(-15, 15)
+            x = rng.randint(80, 200)
+            d.text((x, y + 8), label, font=label_font, fill=(110, 110, 110))
+            vx = x + int(d.textlength(label, font=label_font)) + rng.randint(30, 80)
+            value = zh_value(rng, cfg, label)
+            x1, y1, x2, y2 = d.textbbox((vx, y), value, font=vfont)
+            d.text((vx, y), value, font=vfont, fill=(15, 15, 40))
+            pad = 3
+            box = [x1 - pad, y1 - pad, x2 + pad, y2 + pad]
+            fields.append({
+                "label": label,
+                "value": value,
+                "bbox": [round(box[0] / W, 4), round(box[1] / H, 4), round(box[2] / W, 4), round(box[3] / H, 4)],
+            })
+        name = f"p{n:02d}.png"
+        img.save(OUT / name, optimize=True)
+        expected.append({"page": name, "lang": lang, "fields": fields})
+    (OUT / "expected.json").write_text(json.dumps(expected, indent=2) + "\n")
+
+
+if len(sys.argv) > 1 and sys.argv[1] == "zh":
+    zh_pages()
+else:
+    main()

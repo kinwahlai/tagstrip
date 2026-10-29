@@ -10,3 +10,6 @@ pnpm-lock.yaml
 # Vendored pdf.js runtime assets, copied verbatim from pdfjs-dist by
 # `pnpm run update-pdfjs-assets` — never hand-format these.
 public/pdfjs
+
+# Local model files and ORT WASM for the predict harness (scripts/fetch-lfm-vl.sh, scripts/fetch-florence.sh); never committed
+predict-models/

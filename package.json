@@ -16,8 +16,10 @@
     "update-tessdata": "cp node_modules/@tesseract.js-data/eng/4.0.0_best_int/eng.traineddata.gz public/tessdata/eng.traineddata.gz"
   },
   "dependencies": {
+    "@huggingface/transformers": "4.3.1",
     "dexie": "^4.4.5",
     "dexie-react-hooks": "^4.4.0",
+    "onnxruntime-web": "1.31.0-dev.20260914-8d85527a0",
     "pdfjs-dist": "^6.2.108",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

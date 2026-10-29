@@ -1,0 +1,604 @@
+[
+  {
+    "page": "p01.png",
+    "fields": [
+      {
+        "label": "Officiant name",
+        "value": "Kofi Brandt",
+        "bbox": [
+          0.35,
+          0.1808,
+          0.541,
+          0.2046
+        ]
+      },
+      {
+        "label": "Full name",
+        "value": "Tomas Silva",
+        "bbox": [
+          0.32,
+          0.3585,
+          0.523,
+          0.3823
+        ]
+      },
+      {
+        "label": "Date of marriage",
+        "value": "1975-04-22",
+        "bbox": [
+          0.373,
+          0.6946,
+          0.553,
+          0.7169
+        ]
+      },
+      {
+        "label": "Place",
+        "value": "Valmora",
+        "bbox": [
+          0.258,
+          0.7692,
+          0.397,
+          0.7931
+        ]
+      },
+      {
+        "label": "Certificate number",
+        "value": "DW-17423",
+        "bbox": [
+          0.395,
+          0.8546,
+          0.563,
+          0.8769
+        ]
+      }
+    ],
+    "lang": "en"
+  },
+  {
+    "page": "p02.png",
+    "fields": [
+      {
+        "label": "Date of marriage",
+        "value": "10 December 1985",
+        "bbox": [
+          0.391,
+          0.2692,
+          0.694,
+          0.2931
+        ]
+      },
+      {
+        "label": "Certificate number",
+        "value": "FW-64390",
+        "bbox": [
+          0.351,
+          0.3515,
+          0.515,
+          0.3738
+        ]
+      },
+      {
+        "label": "Full name",
+        "value": "Priya Kerrigan",
+        "bbox": [
+          0.23,
+          0.4469,
+          0.468,
+          0.4762
+        ]
+      },
+      {
+        "label": "Officiant name",
+        "value": "Sana Lindqvist",
+        "bbox": [
+          0.345,
+          0.6215,
+          0.593,
+          0.6508
+        ]
+      },
+      {
+        "label": "Place",
+        "value": "Valmora",
+        "bbox": [
+          0.213,
+          0.7892,
+          0.352,
+          0.8131
+        ]
+      }
+    ],
+    "lang": "en"
+  },
+  {
+    "page": "p03.png",
+    "fields": [
+      {
+        "label": "Certificate number",
+        "value": "FT-81549",
+        "bbox": [
+          0.406,
+          0.1962,
+          0.575,
+          0.2177
+        ]
+      },
+      {
+        "label": "Date of marriage",
+        "value": "25/04/1984",
+        "bbox": [
+          0.43,
+          0.2646,
+          0.64,
+          0.2885
+        ]
+      },
+      {
+        "label": "Full name",
+        "value": "Mara Haddad",
+        "bbox": [
+          0.33,
+          0.3662,
+          0.56,
+          0.39
+        ]
+      },
+      {
+        "label": "Officiant name",
+        "value": "Ivo Silva",
+        "bbox": [
+          0.305,
+          0.4469,
+          0.495,
+          0.4708
+        ]
+      }
+    ],
+    "lang": "en"
+  },
+  {
+    "page": "p04.png",
+    "fields": [
+      {
+        "label": "Officiant name",
+        "value": "Sana Tan",
+        "bbox": [
+          0.309,
+          0.27,
+          0.478,
+          0.2915
+        ]
+      },
+      {
+        "label": "Full name",
+        "value": "Wen Silva",
+        "bbox": [
+          0.339,
+          0.5308,
+          0.529,
+          0.5546
+        ]
+      },
+      {
+        "label": "Place",
+        "value": "Valmora",
+        "bbox": [
+          0.208,
+          0.78,
+          0.357,
+          0.8038
+        ]
+      },
+      {
+        "label": "Date of marriage",
+        "value": "1976-02-07",
+        "bbox": [
+          0.349,
+          0.8662,
+          0.559,
+          0.8877
+        ]
+      }
+    ],
+    "lang": "en"
+  },
+  {
+    "page": "p05.png",
+    "fields": [
+      {
+        "label": "Officiant name",
+        "value": "Ivo Kerrigan",
+        "bbox": [
+          0.288,
+          0.1923,
+          0.492,
+          0.2215
+        ]
+      },
+      {
+        "label": "Full name",
+        "value": "Joel Okafor",
+        "bbox": [
+          0.315,
+          0.2731,
+          0.508,
+          0.2969
+        ]
+      },
+      {
+        "label": "Date of marriage",
+        "value": "1999-03-23",
+        "bbox": [
+          0.418,
+          0.3523,
+          0.598,
+          0.3746
+        ]
+      },
+      {
+        "label": "Certificate number",
+        "value": "EP-99198",
+        "bbox": [
+          0.397,
+          0.5354,
+          0.554,
+          0.5577
+        ]
+      },
+      {
+        "label": "Place",
+        "value": "Little Harwick",
+        "bbox": [
+          0.188,
+          0.7731,
+          0.415,
+          0.7969
+        ]
+      }
+    ],
+    "lang": "en"
+  },
+  {
+    "page": "p06.png",
+    "fields": [
+      {
+        "label": "Officiant name",
+        "value": "Priya Haddad",
+        "bbox": [
+          0.329,
+          0.1946,
+          0.543,
+          0.2254
+        ]
+      },
+      {
+        "label": "Place",
+        "value": "Little Harwick",
+        "bbox": [
+          0.203,
+          0.3669,
+          0.432,
+          0.3915
+        ]
+      },
+      {
+        "label": "Certificate number",
+        "value": "AS-61227",
+        "bbox": [
+          0.398,
+          0.4315,
+          0.56,
+          0.4554
+        ]
+      },
+      {
+        "label": "Full name",
+        "value": "Mara Novak",
+        "bbox": [
+          0.287,
+          0.6185,
+          0.484,
+          0.6431
+        ]
+      },
+      {
+        "label": "Date of marriage",
+        "value": "11 May 1992",
+        "bbox": [
+          0.375,
+          0.8777,
+          0.582,
+          0.9077
+        ]
+      }
+    ],
+    "lang": "en"
+  },
+  {
+    "page": "p07.png",
+    "fields": [
+      {
+        "label": "Date of marriage",
+        "value": "13 October 1967",
+        "bbox": [
+          0.352,
+          0.1846,
+          0.621,
+          0.2085
+        ]
+      },
+      {
+        "label": "Full name",
+        "value": "Ines Marchetti",
+        "bbox": [
+          0.291,
+          0.2608,
+          0.526,
+          0.2846
+        ]
+      },
+      {
+        "label": "Place",
+        "value": "Northfield",
+        "bbox": [
+          0.224,
+          0.36,
+          0.391,
+          0.3838
+        ]
+      }
+    ],
+    "lang": "en"
+  },
+  {
+    "page": "p08.png",
+    "fields": [
+      {
+        "label": "Officiant name",
+        "value": "Elena Doyle",
+        "bbox": [
+          0.345,
+          0.5246,
+          0.575,
+          0.5538
+        ]
+      },
+      {
+        "label": "Full name",
+        "value": "Priya Doyle",
+        "bbox": [
+          0.276,
+          0.6008,
+          0.506,
+          0.63
+        ]
+      },
+      {
+        "label": "Certificate number",
+        "value": "DT-50377",
+        "bbox": [
+          0.366,
+          0.7023,
+          0.535,
+          0.7238
+        ]
+      },
+      {
+        "label": "Date of marriage",
+        "value": "6 September 1983",
+        "bbox": [
+          0.408,
+          0.7692,
+          0.741,
+          0.7985
+        ]
+      },
+      {
+        "label": "Place",
+        "value": "Northfield",
+        "bbox": [
+          0.22,
+          0.8608,
+          0.43,
+          0.8846
+        ]
+      }
+    ],
+    "lang": "en"
+  },
+  {
+    "page": "p09.png",
+    "lang": "zh-Hans",
+    "fields": [
+      {
+        "label": "\u51fa\u751f\u65e5\u671f",
+        "value": "2012\u5e745\u670823\u65e5",
+        "bbox": [
+          0.329,
+          0.3515,
+          0.596,
+          0.3838
+        ]
+      },
+      {
+        "label": "\u4f4f\u5740",
+        "value": "\u4e34\u6d77\u5e02\u65b0\u534e\u8def19\u53f7506\u5ba4",
+        "bbox": [
+          0.317,
+          0.6046,
+          0.732,
+          0.6377
+        ]
+      },
+      {
+        "label": "\u8bc1\u4ef6\u53f7\u7801",
+        "value": "BP-21092",
+        "bbox": [
+          0.368,
+          0.7862,
+          0.536,
+          0.8154
+        ]
+      }
+    ]
+  },
+  {
+    "page": "p10.png",
+    "lang": "zh-Hans",
+    "fields": [
+      {
+        "label": "\u51fa\u751f\u65e5\u671f",
+        "value": "2003\u5e748\u670810\u65e5",
+        "bbox": [
+          0.237,
+          0.1869,
+          0.482,
+          0.2192
+        ]
+      },
+      {
+        "label": "\u8bc1\u4ef6\u53f7\u7801",
+        "value": "GW-91416",
+        "bbox": [
+          0.262,
+          0.2685,
+          0.432,
+          0.2946
+        ]
+      },
+      {
+        "label": "\u4f4f\u5740",
+        "value": "\u6c5f\u57ce\u5e02\u9752\u4e91\u5df778\u53f7105\u5ba4",
+        "bbox": [
+          0.237,
+          0.4446,
+          0.636,
+          0.4777
+        ]
+      },
+      {
+        "label": "\u7b7e\u53d1\u4eba",
+        "value": "\u9ec4\u6d77\u71d5",
+        "bbox": [
+          0.293,
+          0.7069,
+          0.413,
+          0.74
+        ]
+      },
+      {
+        "label": "\u59d3\u540d",
+        "value": "\u9648\u5efa\u56fd",
+        "bbox": [
+          0.243,
+          0.7746,
+          0.363,
+          0.8069
+        ]
+      }
+    ]
+  },
+  {
+    "page": "p11.png",
+    "lang": "zh-Hant",
+    "fields": [
+      {
+        "label": "\u7c3d\u767c\u4eba",
+        "value": "\u9ec3\u5fd7\u5f37",
+        "bbox": [
+          0.31,
+          0.4315,
+          0.43,
+          0.4638
+        ]
+      },
+      {
+        "label": "\u59d3\u540d",
+        "value": "\u8d99\u9e97\u5a1c",
+        "bbox": [
+          0.203,
+          0.5146,
+          0.323,
+          0.5462
+        ]
+      },
+      {
+        "label": "\u8b49\u4ef6\u865f\u78bc",
+        "value": "ES-54154",
+        "bbox": [
+          0.319,
+          0.7008,
+          0.482,
+          0.7292
+        ]
+      },
+      {
+        "label": "\u51fa\u751f\u65e5\u671f",
+        "value": "1992-04-17",
+        "bbox": [
+          0.277,
+          0.7669,
+          0.477,
+          0.7962
+        ]
+      },
+      {
+        "label": "\u4f4f\u5740",
+        "value": "\u81e8\u6d77\u5e02\u6771\u98a8\u5927\u905365\u865f601\u5ba4",
+        "bbox": [
+          0.246,
+          0.8662,
+          0.699,
+          0.8992
+        ]
+      }
+    ]
+  },
+  {
+    "page": "p12.png",
+    "lang": "zh-Hant",
+    "fields": [
+      {
+        "label": "\u59d3\u540d",
+        "value": "\u694a\u6587\u5091",
+        "bbox": [
+          0.172,
+          0.4469,
+          0.292,
+          0.4808
+        ]
+      },
+      {
+        "label": "\u8b49\u4ef6\u865f\u78bc",
+        "value": "BR-34783",
+        "bbox": [
+          0.313,
+          0.5354,
+          0.468,
+          0.5608
+        ]
+      },
+      {
+        "label": "\u7c3d\u767c\u4eba",
+        "value": "\u5468\u5fd7\u5f37",
+        "bbox": [
+          0.254,
+          0.69,
+          0.374,
+          0.7223
+        ]
+      },
+      {
+        "label": "\u51fa\u751f\u65e5\u671f",
+        "value": "1962\u5e7411\u67081\u65e5",
+        "bbox": [
+          0.31,
+          0.8592,
+          0.555,
+          0.8908
+        ]
+      }
+    ]
+  }
+]
