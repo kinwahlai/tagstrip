@@ -90,3 +90,27 @@ wording, README and CONTRIBUTING mentions.
   of the app's own engine against real ground truth. Blocks: M1 done.
 - **Q5. The TS-16 branch.** Merge, keep parked, or close. Not this ticket's decision. Blocks:
   nothing.
+
+## M1 results (verified at 84f7ba1, 2026-10-30)
+
+Verifier reports `.proofline/verification/TS-17-ppocr-suggest-text/M1-05eb160/` and `M1-84f7ba1/`
+(gitignored, WSL machine). All five checks pass and count; each mutant caught. Two runs per
+measurement, no unstable regions, 0 offsite requests. Hardware runs: headless Windows Chrome over
+CDP, NVIDIA Lovelace, not a fallback. Pushed to main by Darren, 2026-10-30.
+
+- **Real set (M1-5, 168 regions, 0 skipped):** PP-OCRv6 (WebGPU) 135 match / 24 wrong / 9 blank,
+  33 ms per region median; Tesseract `eng` (cdb4ae3) 114 / 47 / 7, 46 ms. Passes.
+- **Synthetic (M1-4):** English 20/20 on WebGPU and on Firefox WASM, equal to Tesseract's 20/20;
+  Chinese 17/17 (zh-Hans 8/8, zh-Hant 9/9) on both backends, 0 wrong. Slowest median 727 ms per
+  region (Firefox WASM). Falsification test 2 holds: 17/17, as TS-16's harness.
+- **Suggest text in three browsers (M1-3, built app, all on WASM):** English, simplified and
+  traditional Chinese all match with the OCR tag; slowest second call 1.6 s (Firefox, English,
+  limit 2 s). Text-layer path fills with no OCR tag and 0 requests for OCR files.
+- **Fix attempts:** one. At 05eb160 M1-3 failed in Firefox: the driver's mouse-wheel scroll left
+  the region under the toolbar, so none was drawn. 84f7ba1 scrolls the container directly and
+  makes dev launches fetch the OCR files.
+- **Deviations:** the engine detects lines in the crop, then reads each (TS-16 measured
+  recogniser-only); on the real set it scored 135 match against TS-16's 128. `window.__ocrBackend`
+  is set in production builds for the driver (a window property, not UI).
+- **Not measured:** PP-OCRv6 on the real set on WASM. Tesseract baselines need the old commit's own
+  driver and a hand-started Vite (its `launch.sh` predates the OCR fetch script).

@@ -2,6 +2,15 @@
 
 Closed items from `OPEN-ITEMS.md`, newest first, with the reasoning kept whole.
 
+## O11. TS-17, PP-OCRv6 in Suggest text (closed 2026-10-30)
+
+Darren agreed the M1 checks and Q1, Q2 on 2026-10-29: the PP-OCRv6 files are fetched at build time
+and served from the app's origin, not committed; Tesseract is removed. Verified at 84f7ba1, all five
+checks pass and count, `ledger.py check --rerun` exit 0; one fix attempt (the verify driver's
+region drawing in Firefox, not the app). Darren pushed 84f7ba1 to main on 2026-10-30. Results in
+`.proofline/tickets/TS-17-ppocr-suggest-text/TICKET.md`, "M1 results". Not measured: PP-OCRv6 on the
+real set without a GPU (Firefox and Safari run it on WASM).
+
 ## O9. TS-15, stable document order (closed 2026-10-28)
 
 Done and merged at 44f23bf. Every document list (project list, annotate rail, `[` `]`, both

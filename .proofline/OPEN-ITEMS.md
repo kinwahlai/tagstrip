@@ -40,10 +40,3 @@ at risk: field focus after clicking a box (Safari does not focus buttons on clic
 timing differs) and the `[` `]` keys on non-US keyboard layouts. To test: run the TS-14 checks
 (`.proofline/tickets/TS-14-annotate-flow/CHECKS.md`) with the verify skill's `--browser firefox`
 and `--browser webkit`, or by hand in each browser.
-
-## O11. Spec and checks for TS-17, PP-OCRv6 in Suggest text
-
-Opened 2026-10-29. Answers: Darren. Blocks: any TS-17 code.
-
-Drafted as `.proofline/tickets/TS-17-ppocr-suggest-text/` after TS-16 M2 (PP-OCRv6 beat Tesseract
-on the real crops). Waiting on Darren: Q1 to Q5 in TICKET.md, and agreement of the M1 checks.
