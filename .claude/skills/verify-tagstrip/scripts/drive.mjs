@@ -68,14 +68,21 @@ async function drawRegion(page, [nx1, ny1, nx2, ny2]) {
     return i && i.complete && i.naturalWidth > 0
   })
   await img.scrollIntoViewIfNeeded()
-  let box = await img.boundingBox()
-  const cy = () => box.y + box.height * ((ny1 + ny2) / 2)
-  await page.mouse.move(box.x + box.width / 2, Math.min(Math.max(box.y + 20, 20), 880))
-  for (let i = 0; i < 6 && (cy() < 120 || cy() > 780); i++) {
-    await page.mouse.wheel(0, cy() - 450)
-    await page.waitForTimeout(150)
-    box = await img.boundingBox()
-  }
+  // Centre the target in the viewport by scrolling the page's scroll container directly. Mouse-wheel
+  // steps differ between browsers (Firefox overshot and left the top of the page under the toolbar).
+  await img.evaluate((el, f) => {
+    let p = el.parentElement
+    while (p && !(p.scrollHeight > p.clientHeight && /auto|scroll/.test(getComputedStyle(p).overflowY))) {
+      p = p.parentElement
+    }
+    const r = el.getBoundingClientRect()
+    ;(p ?? document.scrollingElement).scrollBy(0, r.top + r.height * f - window.innerHeight / 2)
+  }, (ny1 + ny2) / 2)
+  await page.waitForTimeout(150)
+  const box = await img.boundingBox()
+  const top = box.y + box.height * ny1
+  const bottom = box.y + box.height * ny2
+  if (top < 110 || bottom > 890) throw new Error(`region not in view after scrolling (${Math.round(top)}..${Math.round(bottom)} px)`)
   const x0 = box.x + box.width * nx1
   const x1 = box.x + box.width * nx2
   const y0 = box.y + box.height * ny1

@@ -17,7 +17,10 @@ VITE_CMD=()
 if [ "${MODE:-dev}" = preview ]; then
   pnpm run build > "$RUN_DIR/build.log" 2>&1 || { tail -n 30 "$RUN_DIR/build.log" >&2; echo "launch: pnpm run build failed" >&2; exit 1; }
   VITE_CMD=(preview)
-elif [ "${MODE:-dev}" != dev ]; then
+elif [ "${MODE:-dev}" = dev ]; then
+  # Vite is started directly below, so the `predev` hook never runs; fetch the OCR files here.
+  bash scripts/fetch-ocr-assets.sh > "$RUN_DIR/ocr-assets.log" 2>&1 || { tail -n 30 "$RUN_DIR/ocr-assets.log" >&2; echo "launch: fetch-ocr-assets failed" >&2; exit 1; }
+else
   echo "launch: MODE must be dev or preview" >&2; exit 1
 fi
 $(command -v setsid || true) nohup node node_modules/vite/bin/vite.js "${VITE_CMD[@]}" --port "$PORT" --strictPort --host 127.0.0.1 \
