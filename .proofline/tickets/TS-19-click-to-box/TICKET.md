@@ -35,6 +35,20 @@ i check later and try manually".
    text-layer pages; one OCR read on image pages). Focus stays in its field.
 6. **Undo** removes a clicked box, like a drawn one.
 
+## Amended (Darren, 2026-10-30, after trying M1 by hand)
+
+Darren: "it works well. i wonder if we need to add hint to use the hotkey like the suggest text ->
+Ctrl+Alt+S and now i wonder if i want to make it Alt+click, leave the drawing as it is". Agreed:
+
+7. **Alt+click** (Option+click on Mac) boxes the text. Replaces decision 1's plain click. A plain
+   click goes back to what it did before TS-19: deselects, creates nothing. Drag and Alt+drag
+   draw by hand as before.
+8. **A visible hint** in the canvas panel footer names both shortcuts: Alt+click to box, Ctrl+Alt+S
+   to suggest text (Option on Mac).
+
+Risk: some Linux desktops take Alt+drag to move windows. Not tested; TagStrip is desktop, used on
+macOS and Windows here.
+
 ## Scope
 
 **Out of scope**: snapping or tightening a box drawn by hand; boxing a word inside a pdf.js item;
