@@ -8,7 +8,7 @@ For a drawn region, the "Suggest text" button fills its transcription. The text 
 - ocr-fallback: image pages and scanned PDFs, "OCR" tag shown
 - content-type override: per-page select changes the route
 - unavailable: disabled with a reason when the export had no source document
-- click to box (TS-19): with a label selected, a plain click on text (no drag) creates a region around it and fills its text. Text-layer pages box the pdf.js item under the click (no `/ocr/` request); other pages run the PP-OCR detector on a full-width strip around the click and box the line under it (OCR tag). Blank spot: no region, a status line under the Suggest text hint says "No text found under the click"
+- click to box (TS-19): with a label selected, an Alt+click (Option+click on Mac; Playwright: `page.keyboard.down('Alt')`, `page.mouse.click`, `page.keyboard.up('Alt')`) on text (no drag); a plain click only deselects. The panel footer names both shortcuts (Alt+click, Ctrl+Alt+S; Option on Mac) creates a region around it and fills its text. Text-layer pages box the pdf.js item under the click (no `/ocr/` request); other pages run the PP-OCR detector on a full-width strip around the click and box the line under it (OCR tag). Blank spot: no region, a status line under the Suggest text hint says "No text found under the click"
 - hotkey (TS-18): Ctrl+Alt+S (Ctrl+Option+S on Mac) runs it on the selected region, from inside its field too; focus stays in the field. No region selected, or unavailable: does nothing
 
 ## How to get to it

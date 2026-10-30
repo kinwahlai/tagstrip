@@ -19,7 +19,7 @@ import {
   type NormalizedPoint,
 } from '../../lib/clickToBox'
 import { cropPageRegion } from '../../lib/ocrCrop'
-import { isHotkey } from '../../lib/hotkeys'
+import { CLICK_TO_BOX_LABEL, SUGGEST_HOTKEY_LABEL, isHotkey } from '../../lib/hotkeys'
 import { sortRegionsBySchema } from '../../lib/regionOrder'
 import {
   clamp,
@@ -760,6 +760,18 @@ export function AnnotationCanvas({
               }}
             >
               {suggestHint}
+            </p>
+            <p
+              className="mono"
+              style={{
+                margin: '6px 0 0',
+                fontSize: 11,
+                lineHeight: 1.55,
+                color: 'color-mix(in srgb, var(--color-text) 72%, transparent)',
+              }}
+            >
+              <kbd>{CLICK_TO_BOX_LABEL}</kbd> text on the page to box it.{' '}
+              <kbd>{SUGGEST_HOTKEY_LABEL}</kbd> suggests text for the selected region.
             </p>
             {clickNote && (
               <p role="status" className="mono" style={{ margin: '6px 0 0', fontSize: 11, lineHeight: 1.55 }}>

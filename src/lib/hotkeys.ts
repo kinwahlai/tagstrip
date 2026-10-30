@@ -60,3 +60,10 @@ export function formatHotkeyRanges(keys: string[]): string {
   }
   return parts.join(', ')
 }
+
+// Shortcut names for the canvas, spelled the way each platform's keyboard
+// labels them. Ctrl+Alt+S runs Suggest text (TS-18); Alt+click boxes the text
+// under the pointer (TS-19).
+const IS_MAC = typeof navigator !== 'undefined' && /Mac/.test(navigator.platform)
+export const SUGGEST_HOTKEY_LABEL = IS_MAC ? 'Ctrl+Option+S' : 'Ctrl+Alt+S'
+export const CLICK_TO_BOX_LABEL = IS_MAC ? 'Option+click' : 'Alt+click'

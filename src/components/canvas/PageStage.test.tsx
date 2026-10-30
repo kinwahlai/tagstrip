@@ -42,6 +42,7 @@ function renderStage(
     sourceMissing?: boolean
     onUpdateGeometry?: (id: string, before: NormalizedRect, after: NormalizedRect) => void
     onSelectAnnotation?: (id: string) => void
+    onClickPoint?: (point: { x: number; y: number }) => void
   } = {},
 ) {
   render(
@@ -55,7 +56,7 @@ function renderStage(
       selectedLabelId={overrides.selectedLabelId ?? null}
       sourceMissing={overrides.sourceMissing ?? false}
       onCreateAnnotation={() => {}}
-      onClickPoint={() => {}}
+      onClickPoint={overrides.onClickPoint ?? (() => {})}
       onSelectAnnotation={overrides.onSelectAnnotation ?? (() => {})}
       onDeselect={() => {}}
       onUpdateGeometry={overrides.onUpdateGeometry ?? (() => {})}
@@ -275,5 +276,35 @@ describe('PageStage resize', () => {
     const [, , after] = onUpdateGeometry.mock.calls[0]
     expect(after.x).toBeCloseTo(0.1)
     expect(after.y).toBeCloseTo(0.1)
+  })
+})
+
+// Click to box (TS-19) is Alt+click (Option+click on a Mac); a plain click on
+// the page only deselects, as it did before.
+describe('PageStage click to box gesture', () => {
+  afterEach(() => vi.restoreAllMocks())
+
+  function page(): HTMLElement {
+    const el = regionButton('field_a').parentElement
+    if (!el) throw new Error('no page element')
+    return el
+  }
+
+  it('reports an Alt+click that did not move', () => {
+    mockContainerRect()
+    const points: { x: number; y: number }[] = []
+    renderStage({ selectedLabelId: 'la', onClickPoint: (p) => points.push(p) })
+    fireEvent.mouseDown(page(), { button: 0, altKey: true, clientX: 300, clientY: 400 })
+    fireEvent.mouseUp(window, { altKey: true, clientX: 300, clientY: 400 })
+    expect(points).toEqual([{ x: 0.5, y: 0.5 }])
+  })
+
+  it('ignores a plain click', () => {
+    mockContainerRect()
+    const points: { x: number; y: number }[] = []
+    renderStage({ selectedLabelId: 'la', onClickPoint: (p) => points.push(p) })
+    fireEvent.mouseDown(page(), { button: 0, clientX: 300, clientY: 400 })
+    fireEvent.mouseUp(window, { clientX: 300, clientY: 400 })
+    expect(points).toEqual([])
   })
 })

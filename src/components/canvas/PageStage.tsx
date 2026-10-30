@@ -22,7 +22,7 @@ type Point = { x: number; y: number }
 // which is what keeps a held-down drag from being recorded as more than one
 // undo entry.
 type DragState =
-  | { mode: 'draw'; start: Point; current: Point }
+  | { mode: 'draw'; start: Point; current: Point; alt: boolean }
   | { mode: 'move'; id: string; origin: NormalizedRect; start: Point; current: Point }
   | {
       mode: 'resize'
@@ -70,8 +70,9 @@ interface PageStageProps {
   // render and are still selectable.
   sourceMissing: boolean
   onCreateAnnotation: (rect: NormalizedRect) => void
-  // A click on the page that did not move the pointer far enough to draw a box:
-  // click to box (TS-19) turns it into a region around the text under it.
+  // An Alt+click (Option+click on a Mac) on the page that did not move far enough
+  // to draw a box: click to box (TS-19) turns it into a region around the text
+  // under it. A plain click only deselects.
   onClickPoint: (point: { x: number; y: number }) => void
   onSelectAnnotation: (id: string) => void
   onDeselect: () => void
@@ -167,7 +168,7 @@ export function PageStage({
         const finalRect = rectFromPoints(started.start, current)
         if (finalRect.width >= MIN_BOX_SIZE && finalRect.height >= MIN_BOX_SIZE) {
           onCreateAnnotation(finalRect)
-        } else {
+        } else if (started.alt) {
           onClickPoint(started.start)
         }
         return
@@ -207,7 +208,7 @@ export function PageStage({
     const rect = containerRef.current?.getBoundingClientRect()
     if (!rect) return
     const start = pointToNormalized(e.clientX, e.clientY, rect)
-    updateDrag({ mode: 'draw', start, current: start })
+    updateDrag({ mode: 'draw', start, current: start, alt: e.altKey })
   }
 
   // Dragging a region's body moves it. This works on any region, selected or

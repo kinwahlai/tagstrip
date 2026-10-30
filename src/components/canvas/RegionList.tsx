@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { updateAnnotationText } from '../../db/annotations'
+import { SUGGEST_HOTKEY_LABEL } from '../../lib/hotkeys'
 import type { Annotation, Label } from '../../db/types'
 
 interface RegionListProps {
@@ -16,9 +17,6 @@ interface RegionListProps {
   // Changes on each deliberate selection; the selected field takes focus then.
   focusTick?: number
 }
-
-const SUGGEST_HOTKEY_LABEL =
-  typeof navigator !== 'undefined' && /Mac/.test(navigator.platform) ? 'Ctrl+Option+S' : 'Ctrl+Alt+S'
 
 const HINT = 'color-mix(in srgb, var(--color-text) 68%, transparent)'
 
