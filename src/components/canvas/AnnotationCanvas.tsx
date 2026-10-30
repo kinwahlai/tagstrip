@@ -9,6 +9,15 @@ import {
   updateAnnotationGeometry,
 } from '../../db/annotations'
 import { suggestText } from '../../lib/suggestText'
+import {
+  CLICK_BOX_MARGIN,
+  clickWindow,
+  padRect,
+  pickLineBox,
+  pickTextItem,
+  type NormalizedPoint,
+} from '../../lib/clickToBox'
+import { cropPageRegion } from '../../lib/ocrCrop'
 import { isHotkey } from '../../lib/hotkeys'
 import { sortRegionsBySchema } from '../../lib/regionOrder'
 import {
@@ -124,6 +133,8 @@ export function AnnotationCanvas({
   // Bumped on every deliberate selection, so the region's field takes focus
   // again even when the same region is picked twice in a row.
   const [focusTick, setFocusTick] = useState(0)
+  // Click to box status: shown while the detector runs, or when a click found no text.
+  const [clickNote, setClickNote] = useState<string | null>(null)
   const [undoStack, setUndoStack] = useState<AnnotationCommand[]>([])
   const [redoStack, setRedoStack] = useState<AnnotationCommand[]>([])
   const canvasAreaRef = useRef<HTMLDivElement>(null)
@@ -333,6 +344,63 @@ export function AnnotationCanvas({
     deleteAnnotation(id)
     pushCommand({ type: 'delete', annotation })
     if (selectedAnnotationId === id) setSelectedAnnotationId(null)
+  }
+
+  // Click to box (TS-19). Text-layer pages box the pdf.js item under the click and
+  // take its string; other pages run the OCR detector on a strip around the click,
+  // box the line under it, then read it as Suggest text does. Nothing under the
+  // click creates nothing. A text-layer page never falls through to OCR: a blank
+  // spot on it is blank.
+  async function handleClickToBox(point: NormalizedPoint) {
+    const page = currentPage
+    if (!activeLabelId || sourceMissing || !page) return
+    setClickNote(null)
+    let rect: NormalizedRect | null = null
+    let text: string | null = null
+    if (page.textLayer && page.textLayer.length > 0) {
+      const item = pickTextItem(page.textLayer, point)
+      if (item) {
+        rect = padRect(item, CLICK_BOX_MARGIN)
+        text = item.str.trim()
+      }
+    } else if (page.image) {
+      setClickNote('Finding the text under the click…')
+      try {
+        const win = clickWindow(point)
+        const crop = await cropPageRegion(page.image, win, page.width, page.height)
+        const { detectTextLines } = await import('../../lib/ocr/ppocr')
+        const { boxes, width, height } = await detectTextLines(crop)
+        const lines = boxes.map(([x0, y0, x1, y1]) => ({
+          x: win.x + (x0 / width) * win.width,
+          y: win.y + (y0 / height) * win.height,
+          width: ((x1 - x0) / width) * win.width,
+          height: ((y1 - y0) / height) * win.height,
+        }))
+        const line = pickLineBox(lines, point)
+        if (line) rect = padRect(line, CLICK_BOX_MARGIN)
+      } catch (err) {
+        setClickNote(err instanceof Error ? err.message : String(err))
+        return
+      }
+    }
+    if (!rect) {
+      setClickNote('No text found under the click. Drag to draw a box instead.')
+      return
+    }
+    setClickNote(null)
+    const annotation = await createAnnotation(docId, pageIndex, activeLabelId, rect)
+    selectRegion(annotation.id)
+    pushCommand({ type: 'create', annotation })
+    if (text !== null) {
+      await applySuggestedText(annotation.id, text, false)
+      return
+    }
+    try {
+      const result = await suggestText(page, rect)
+      await applySuggestedText(annotation.id, result.text, result.ocrSuggested)
+    } catch (err) {
+      setClickNote(err instanceof Error ? err.message : String(err))
+    }
   }
 
   async function handleSuggestText(id: string) {
@@ -567,6 +635,7 @@ export function AnnotationCanvas({
               onSelectAnnotation={selectRegion}
               onDeselect={() => setSelectedAnnotationId(null)}
               onUpdateGeometry={handleUpdateGeometry}
+              onClickPoint={handleClickToBox}
               onCreateAnnotation={(rect: NormalizedRect) => {
                 if (!activeLabelId || sourceMissing) return
                 createAnnotation(docId, pageIndex, activeLabelId, rect).then((annotation) => {
@@ -683,6 +752,11 @@ export function AnnotationCanvas({
             >
               {suggestHint}
             </p>
+            {clickNote && (
+              <p role="status" className="mono" style={{ margin: '6px 0 0', fontSize: 11, lineHeight: 1.55 }}>
+                {clickNote}
+              </p>
+            )}
           </div>
         </div>
       </aside>

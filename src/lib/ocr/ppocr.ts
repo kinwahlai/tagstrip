@@ -290,6 +290,15 @@ async function detectLines(s: Sessions, src: HTMLCanvasElement): Promise<Box[]> 
   return readingOrder(dbBoxes(prob, w, h)).map((b) => [b[0] * sx, b[1] * sy, b[2] * sx, b[3] * sy])
 }
 
+// Line boxes in an image, in its own pixel coordinates, for click to box (TS-19).
+export async function detectTextLines(
+  imageBlob: Blob,
+): Promise<{ boxes: Box[]; width: number; height: number }> {
+  const s = await loadSessions()
+  const src = await toCanvas(imageBlob)
+  return { boxes: await detectLines(s, src), width: src.width, height: src.height }
+}
+
 // The text in a cropped region: detect the lines in it, read each, join in reading order. If the
 // detector finds no line (a very tight crop), the whole crop is read as one line instead.
 export const ppocrEngine: OcrEngine = {

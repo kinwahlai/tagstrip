@@ -18,6 +18,7 @@ interface PageStageLoaderProps {
   // throw it's guarded to produce.
   sourceMissing: boolean
   onCreateAnnotation: (rect: NormalizedRect) => void
+  onClickPoint: (point: { x: number; y: number }) => void
   onSelectAnnotation: (id: string) => void
   onDeselect: () => void
   onUpdateGeometry: (id: string, before: NormalizedRect, after: NormalizedRect) => void

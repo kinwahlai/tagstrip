@@ -70,6 +70,9 @@ interface PageStageProps {
   // render and are still selectable.
   sourceMissing: boolean
   onCreateAnnotation: (rect: NormalizedRect) => void
+  // A click on the page that did not move the pointer far enough to draw a box:
+  // click to box (TS-19) turns it into a region around the text under it.
+  onClickPoint: (point: { x: number; y: number }) => void
   onSelectAnnotation: (id: string) => void
   onDeselect: () => void
   // Called once per move/resize gesture, on release — never per frame. Not
@@ -112,6 +115,7 @@ export function PageStage({
   selectedLabelId,
   sourceMissing,
   onCreateAnnotation,
+  onClickPoint,
   onSelectAnnotation,
   onDeselect,
   onUpdateGeometry,
@@ -163,6 +167,8 @@ export function PageStage({
         const finalRect = rectFromPoints(started.start, current)
         if (finalRect.width >= MIN_BOX_SIZE && finalRect.height >= MIN_BOX_SIZE) {
           onCreateAnnotation(finalRect)
+        } else {
+          onClickPoint(started.start)
         }
         return
       }

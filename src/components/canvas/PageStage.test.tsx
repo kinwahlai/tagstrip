@@ -55,6 +55,7 @@ function renderStage(
       selectedLabelId={overrides.selectedLabelId ?? null}
       sourceMissing={overrides.sourceMissing ?? false}
       onCreateAnnotation={() => {}}
+      onClickPoint={() => {}}
       onSelectAnnotation={overrides.onSelectAnnotation ?? (() => {})}
       onDeselect={() => {}}
       onUpdateGeometry={overrides.onUpdateGeometry ?? (() => {})}
