@@ -22,16 +22,21 @@ offline passport pre-label script instead (`~/projects/passport-prelabel/`, WSL 
 M1 code is parked on branch `ts-12-predict-fields`. Resume only if the in-app feature is wanted
 again; see TICKET.md "Outcome".
 
-## O8. TS-14 is not tested in Firefox or Safari
+## O8. TS-14 and TS-18 are not tested in Firefox or real Safari
 
 Opened 2026-10-28. Answers: Darren. Blocks: nothing.
 
-TS-14 (region order, return-to-selected doc, Prev/Next doc and `[` `]`, field focus, label-click
-jump) was verified in Chromium only, at 86e3b06. Firefox and Safari (WebKit) are untested. Most
-at risk: field focus after clicking a box (Safari does not focus buttons on click, so the focus
-timing differs) and the `[` `]` keys on non-US keyboard layouts. To test: run the TS-14 checks
-(`.proofline/tickets/TS-14-annotate-flow/CHECKS.md`) with the verify skill's `--browser firefox`
-and `--browser webkit`, or by hand in each browser.
+Run 2026-10-30 at 0315df9, headless Playwright, ad hoc (the checks name Chromium, so no ledger
+rows). Report: `.proofline/verification/O8-cross-browser/0315df9/VERIFICATION_REPORT.md`.
+
+- **WebKit 2336: pass**, TS-14 M1-1, 2, 3, 4, 6, 7 and TS-18 M1-2, M1-3. Field focus after a real
+  click on a box works; `[` `]` switch docs, and type into a focused field instead.
+- **Firefox 1538: not run.** It does not launch on this Mac (macOS 27.0.1):
+  `sandbox_extension_issue_file_to_process ... Operation not permitted`, then a launch timeout.
+  Same from Darren's own Terminal, so not the Claude Code sandbox. Needs another machine, an older
+  macOS, or a newer Playwright Firefox.
+- **Still untested**: real Safari (WebKit is its engine, not its focus behaviour), and `[` `]` on
+  non-US keyboard layouts (the code matches `e.key`; Playwright types US only).
 
 ## O10. TS-16, Florence-2 and PP-OCRv6 boxes with browser LFM values
 
