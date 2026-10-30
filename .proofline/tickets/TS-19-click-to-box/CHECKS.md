@@ -33,7 +33,7 @@ Output must be right, not merely present: also `presence-is-not-correctness`.
   fields' boxes from `expected.json`.
 - Observable outcome: each makes one region with IoU >= 0.5 against that field's box and the OCR
   tag; its normalised text equals the field's expected value.
-- Broken by: running the detector on the whole page instead of a window around the click.
+- Broken by: dropping the gap split, so a caption on the same row is boxed with its value.
 
 ### M1-4: does nothing where it must not (verifier check)
 
@@ -51,3 +51,10 @@ Output must be right, not merely present: also `presence-is-not-correctness`.
 ## Known non-failures
 
 ## Changes after a run
+
+- 2026-10-30, approved by Darren. M1-3 Broken by was "running the detector on the whole page
+  instead of a window around the click". That mutant (b7f8811) survived: `p09.png`'s print is
+  large enough to survive the detector's shrink, so whole-page and window give the same boxes.
+  M1-3 also failed at b806b99 (field 1 boxed the caption with the date); fixed at da8d7eb by
+  splitting the detected line at wide gaps. The new Broken by removes that split. Check
+  otherwise unchanged; to be seen failing again.
