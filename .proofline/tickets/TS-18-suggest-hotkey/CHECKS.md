@@ -32,8 +32,7 @@ Output must be right, not merely present: also `presence-is-not-correctness`.
   button showed "Suggesting…" during the hotkey run, and focus is still in the hotkey region's
   field when the text arrives (typing one character appends to it). Both texts and the OCR tag (image page) are
   still there after reload.
-- Broken by: the hotkey calling `suggestText` directly without `applySuggestedText`, so the
-  text shows but is not stored.
+- Broken by: the hotkey path skips `applySuggestedText`, so the text is never stored.
 
 ### M1-3: does nothing where it must not (verifier check)
 
@@ -42,7 +41,7 @@ Output must be right, not merely present: also `presence-is-not-correctness`.
   `]` with focus outside the field.
 - Observable outcome: (a) and (b) change no region's text and run no OCR (no "Suggesting…");
   (b) still shows the existing unavailable reason. (c) label switch and next-doc still work.
-- Broken by: dropping the `suggestUnavailableReason` check from the hotkey path.
+- Broken by: the hotkey runs on the first region when none is selected.
 
 ### M1-4: lint, build, full test suite (command check)
 
@@ -52,3 +51,12 @@ Output must be right, not merely present: also `presence-is-not-correctness`.
 ## Known non-failures
 
 ## Changes after a run
+
+- 2026-10-30, approved by Darren. M1-2 Broken by was "the hotkey calling `suggestText` directly
+  without `applySuggestedText`, so the text shows but is not stored". The mutant built to it
+  (DOM value only) never showed the text, because React re-renders the field; the check still
+  failed on it. Reworded to what the mutant does. Check unchanged.
+- 2026-10-30, approved by Darren. M1-3 Broken by was "dropping the `suggestUnavailableReason`
+  check from the hotkey path". That mutant survived: with no source pixels, Suggest text ends
+  silently, so nothing visible changes. Guard kept (it matches the disabled button). New Broken
+  by targets M1-3(a), which the check can see. Check unchanged; to be seen failing again.

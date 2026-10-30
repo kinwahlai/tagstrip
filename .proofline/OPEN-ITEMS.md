@@ -45,3 +45,21 @@ true values, boxes hit only 65/168 at the 0.5 threshold. The PP-OCRv6 finding we
 including the ticket folder and `WINDOWS-M2.md`, is on branch `TS-16-florence-boxes` (pushed, not
 merged); resume from its TICKET.md "M2 results". Next decision if resumed: the value model. Follows
 O4 (TS-12).
+
+## O12. TS-18, Suggest text hotkey (Ctrl+Alt+S)
+
+Opened 2026-10-30. Answers: Darren. Blocks: nothing.
+
+Checks agreed 2026-10-30. M1 built on branch `ts-18-suggest-hotkey` (59221ad); M1-1 and M1-4 pass
+via the ledger. M1-1, M1-4 counted; M1-2, M1-3 Broken by reworded 2026-10-30 (Darren); re-verification in progress. Untested: AltGr
+layouts (Ctrl+Alt+S types `ś`) and Mac VoiceOver (Ctrl+Option is its modifier).
+
+## O13. Typing in an OCR-filled field removes its OCR tag
+
+Opened 2026-10-30. Answers: Darren. Blocks: nothing.
+
+Seen by the TS-18 verifier in Chromium: after typing one character into an OCR-filled field, the
+"OCR" tag is gone. Deliberate in the code: `updateAnnotationText` (`src/db/annotations.ts:47`)
+clears `ocrSuggested` on every hand edit, with a comment saying so. Decide whether a corrected OCR
+suggestion should keep the tag (it would then mean "OCR ran", as O6 decided for empty results), or
+lose it (it means "text is OCR's, unedited").
