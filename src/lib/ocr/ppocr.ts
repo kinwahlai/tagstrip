@@ -293,10 +293,13 @@ async function detectLines(s: Sessions, src: HTMLCanvasElement): Promise<Box[]> 
 // Line boxes in an image, in its own pixel coordinates, for click to box (TS-19).
 export async function detectTextLines(
   imageBlob: Blob,
-): Promise<{ boxes: Box[]; width: number; height: number }> {
+): Promise<{ boxes: Box[]; width: number; height: number; pixels: ImageData }> {
   const s = await loadSessions()
   const src = await toCanvas(imageBlob)
-  return { boxes: await detectLines(s, src), width: src.width, height: src.height }
+  const ctx = src.getContext('2d')
+  if (!ctx) throw new Error('Could not acquire 2D canvas context.')
+  const pixels = ctx.getImageData(0, 0, src.width, src.height)
+  return { boxes: await detectLines(s, src), width: src.width, height: src.height, pixels }
 }
 
 // The text in a cropped region: detect the lines in it, read each, join in reading order. If the

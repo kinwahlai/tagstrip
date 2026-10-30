@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { CLICK_BOX_MARGIN, clickWindow, pickLineBox, pickTextItem, padRect } from './clickToBox'
+import {
+  CLICK_BOX_MARGIN,
+  clickWindow,
+  narrowToSegment,
+  pickLineBox,
+  pickTextItem,
+  padRect,
+} from './clickToBox'
 import type { PdfTextItem } from '../db/types'
 
 const item = (str: string, x: number, y: number, width: number, height: number): PdfTextItem => ({
@@ -73,5 +80,58 @@ describe('clickWindow', () => {
     const w = clickWindow({ x: 0.5, y: 0.5 })
     expect(w.width).toBe(1)
     expect(w.height).toBeLessThan(0.5)
+  })
+})
+
+describe('narrowToSegment', () => {
+  // A 100x10 grey image: background 250, dark ink in columns [10,30) and [50,90).
+  function image(spans: [number, number][], shade = 20) {
+    const width = 100
+    const height = 10
+    const data = new Uint8ClampedArray(width * height * 4).fill(250)
+    for (let y = 0; y < height; y++)
+      for (const [a, b] of spans)
+        for (let x = a; x < b; x++) {
+          const i = (y * width + x) * 4
+          data[i] = data[i + 1] = data[i + 2] = shade
+        }
+    return { data, width, height }
+  }
+
+  it('keeps the ink run under the click when a wide gap splits the line', () => {
+    const img = image([
+      [10, 30],
+      [50, 90],
+    ])
+    expect(narrowToSegment(img, [0, 0, 100, 10], 70)).toEqual([50, 0, 90, 10])
+    expect(narrowToSegment(img, [0, 0, 100, 10], 20)).toEqual([10, 0, 30, 10])
+  })
+
+  it('does not split at a gap narrower than the threshold', () => {
+    // gap of 4 px on a 10 px line: under 0.6 x height
+    const img = image([
+      [10, 30],
+      [34, 90],
+    ])
+    expect(narrowToSegment(img, [0, 0, 100, 10], 70)).toEqual([10, 0, 90, 10])
+  })
+
+  it('counts light grey text as ink', () => {
+    const img = image(
+      [
+        [10, 30],
+        [50, 90],
+      ],
+      140,
+    )
+    expect(narrowToSegment(img, [0, 0, 100, 10], 20)).toEqual([10, 0, 30, 10])
+  })
+
+  it('returns nothing for a click in the gap', () => {
+    const img = image([
+      [10, 30],
+      [50, 90],
+    ])
+    expect(narrowToSegment(img, [0, 0, 100, 10], 40)).toBeNull()
   })
 })

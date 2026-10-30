@@ -12,6 +12,7 @@ import { suggestText } from '../../lib/suggestText'
 import {
   CLICK_BOX_MARGIN,
   clickWindow,
+  narrowToSegment,
   padRect,
   pickLineBox,
   pickTextItem,
@@ -369,15 +370,23 @@ export function AnnotationCanvas({
         const win = clickWindow(point)
         const crop = await cropPageRegion(page.image, win, page.width, page.height)
         const { detectTextLines } = await import('../../lib/ocr/ppocr')
-        const { boxes, width, height } = await detectTextLines(crop)
-        const lines = boxes.map(([x0, y0, x1, y1]) => ({
+        const { boxes, width, height, pixels } = await detectTextLines(crop)
+        const toPage = ([x0, y0, x1, y1]: [number, number, number, number]) => ({
           x: win.x + (x0 / width) * win.width,
           y: win.y + (y0 / height) * win.height,
           width: ((x1 - x0) / width) * win.width,
           height: ((y1 - y0) / height) * win.height,
-        }))
+        })
+        const lines = boxes.map(toPage)
         const line = pickLineBox(lines, point)
-        if (line) rect = padRect(line, CLICK_BOX_MARGIN)
+        if (line) {
+          // The detector can join a caption and its value on one row; keep the
+          // run of ink under the click.
+          const box = boxes[lines.indexOf(line)]
+          const clickX = ((point.x - win.x) / win.width) * width
+          const segment = narrowToSegment(pixels, box, clickX)
+          if (segment) rect = padRect(toPage(segment), CLICK_BOX_MARGIN)
+        }
       } catch (err) {
         setClickNote(err instanceof Error ? err.message : String(err))
         return
