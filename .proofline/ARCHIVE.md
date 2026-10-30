@@ -2,6 +2,17 @@
 
 Closed items from `OPEN-ITEMS.md`, newest first, with the reasoning kept whole.
 
+## O12. TS-18, Suggest text hotkey (closed 2026-10-30)
+
+Ctrl+Alt+S (Ctrl+Option+S on Mac) runs Suggest text on the selected region, from inside its field
+too; focus stays in the field; existing text is overwritten (Darren's answers, 2026-10-30).
+Verified at 7460015: all four checks pass and count, `ledger.py check --rerun` exit 0; two verifier
+runs, no code fixes. M1-2 and M1-3 Broken by lines were reworded with Darren's approval after
+M1-3's first mutant survived. Attention review by gpt-5.6-terra: four flags, two already logged
+(AltGr/VoiceOver risk, O13), one on normalised fixture comparison, one settled (fast-forward).
+Untested: Firefox, Safari, a real Mac Ctrl+Option keystroke, AltGr layouts. Merged and pushed
+2026-10-30.
+
 ## O11. TS-17, PP-OCRv6 in Suggest text (closed 2026-10-30)
 
 Darren agreed the M1 checks and Q1, Q2 on 2026-10-29: the PP-OCRv6 files are fetched at build time

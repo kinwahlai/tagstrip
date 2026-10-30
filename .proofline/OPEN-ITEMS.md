@@ -46,14 +46,6 @@ including the ticket folder and `WINDOWS-M2.md`, is on branch `TS-16-florence-bo
 merged); resume from its TICKET.md "M2 results". Next decision if resumed: the value model. Follows
 O4 (TS-12).
 
-## O12. TS-18, Suggest text hotkey (Ctrl+Alt+S)
-
-Opened 2026-10-30. Answers: Darren. Blocks: nothing.
-
-Checks agreed 2026-10-30. M1 built on branch `ts-18-suggest-hotkey` (59221ad); M1-1 and M1-4 pass
-via the ledger. M1-1, M1-4 counted; M1-2, M1-3 Broken by reworded 2026-10-30 (Darren); re-verification in progress. Untested: AltGr
-layouts (Ctrl+Alt+S types `ś`) and Mac VoiceOver (Ctrl+Option is its modifier).
-
 ## O13. Typing in an OCR-filled field removes its OCR tag
 
 Opened 2026-10-30. Answers: Darren. Blocks: nothing.
