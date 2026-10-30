@@ -28,7 +28,8 @@ pre-processing step.
   scope aligned with "stay focused," doesn't reopen general-purpose classification
 - Local persistence (IndexedDB) — reload the page, everything's still there
 - JSON import/export of annotations (including transcriptions)
-- Keyboard-driven workflow (hotkeys per label, arrow-key page nav, delete key)
+- Keyboard-driven workflow (hotkeys per label, arrow-key page nav, delete key, Ctrl+Alt+S for
+  Suggest text on the selected region — TS-18; Alt+click on text to box it — TS-19)
 
 **Stretch / post-v1 (build the core first, revisit if there's appetite):**
 - **OCR-assisted transcription** — a "Suggest text" button per box that runs an OCR engine

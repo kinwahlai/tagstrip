@@ -74,7 +74,12 @@ workflows and the integrations. TagStrip exists for the case where that option i
   model), falling back to on-device OCR (PaddleOCR's PP-OCRv6 via onnxruntime-web,
   English and Chinese, WebGPU with a WASM fallback) only when there's no text layer to read from —
   the OCR runtime and model are self-hosted (no CDN) and only downloaded the first time OCR is
-  actually needed
+  actually needed. **Ctrl+Alt+S** (Ctrl+Option+S on Mac) runs it on the selected region, even
+  from inside its text field
+- **Click to box**: **Alt+click** (Option+click on Mac) on printed text draws a box around it and
+  fills its transcription — the text item under the click on text-layer PDFs, or the OCR-detected
+  line on images and scans (a caption on the same row is left out). A plain click only deselects;
+  dragging still draws a box by hand
 - Undo/redo and a keyboard-driven workflow: a hotkey per label, Delete to remove the selected
   region, and arrow keys that nudge a selected region (Shift+arrow moves it further) or page
   through the document when nothing is selected — Esc deselects before it leaves the canvas
