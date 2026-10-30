@@ -60,3 +60,14 @@ Seen by the TS-18 verifier in Chromium: after typing one character into an OCR-f
 clears `ocrSuggested` on every hand edit, with a comment saying so. Decide whether a corrected OCR
 suggestion should keep the tag (it would then mean "OCR ran", as O6 decided for empty results), or
 lose it (it means "text is OCR's, unedited").
+
+## O15. TS-19 follow-ups: strip size unproven, two small UI gaps
+
+Opened 2026-10-30. Answers: Darren. Blocks: nothing.
+
+- The detector strip around an Alt+click (full width, a tenth of the page tall) is unproven: on
+  `p09.png` a whole-page detector gave the same boxes, because its print is large. Needs a page with
+  small print to show the strip matters.
+- The "No text found under the click" note stays on screen until the next Alt+click.
+- The empty regions panel says "drag on the page to draw one" and does not mention Alt+click.
+- Untested: Firefox, WebKit, Linux desktops that take Alt+drag, a line longer than the page width.

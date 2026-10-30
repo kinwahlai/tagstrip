@@ -2,6 +2,17 @@
 
 Closed items from `OPEN-ITEMS.md`, newest first, with the reasoning kept whole.
 
+## O14. TS-19, click to box (closed 2026-10-30)
+
+Alt+click (Option+click on Mac) on text makes a region around it and fills its text: the pdf.js item
+under the click on text-layer pages; on other pages the PP-OCR line under the click, from a
+full-width strip around it, split at blank gaps of 0.6 line heights so a caption on the same row is
+left out. A plain click only deselects. The panel footer names Alt+click and Ctrl+Alt+S. First built
+as a plain click (Darren accepted the proposals); amended to Alt+click and the hint after his manual
+try. Verified at 65892a8: six checks pass and count, `ledger.py check --rerun` exit 0; three verifier
+runs, one fix (the gap split, after M1-3 boxed the caption with the date on p09). Darren tried it by
+hand twice. Open follow-ups: O15.
+
 ## O12. TS-18, Suggest text hotkey (closed 2026-10-30)
 
 Ctrl+Alt+S (Ctrl+Option+S on Mac) runs Suggest text on the selected region, from inside its field
